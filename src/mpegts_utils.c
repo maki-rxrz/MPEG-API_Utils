@@ -178,7 +178,7 @@ static int mpegts_read_packet_header( mpegts_info_t *info, mpegts_packet_header_
 #define TS_PACKET_SECTION_CRC32_SIZE            (4)
 #define TS_PACKET_PAT_SECTION_DATA_SIZE         (4)
 #define TS_PACKET_PMT_SECTION_DATA_SIZE         (5)
-#define TS_PACKET_TABLE_SECTION_SIZE_MAX        (1024)      /* 14bits: 16bits, first 2bits = '00' */
+#define TS_PACKET_TABLE_SECTION_SIZE_MAX        (1024)      /* 10bits: size is 12bits, first 2bits = '00' */
 
 static inline void show_table_section_info( void *si_p )
 {
