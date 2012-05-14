@@ -871,7 +871,7 @@ extern int mpegts_api_get_info( mpegts_info_t *info )
     fsetpos( info->input, &start_fpos );
     check_stream_exist |= mpegts_get_video_pts( info ) ? VIDEO_NONE : 0;
     if( !(check_stream_exist & VIDEO_NONE) )
-        while( info->video_order_in_gop )
+        while( info->video_order_in_gop || info->video_key_pts < 0 )
             if( mpegts_get_video_pts( info ) )
                 break;
     fsetpos( info->input, &start_fpos );
