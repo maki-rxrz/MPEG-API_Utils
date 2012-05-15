@@ -766,7 +766,18 @@ static int loat_cut_list( param_t *p )
         return -1;
     FILE *list = fopen( p->list, "rt" );
     if( !list )
+    {
+        /* check user specified delay time. */
+        if( p->delay_time && (p->list_data = malloc( sizeof(cut_list_data_t) )) )
+        {
+            p->reader = MPEG_READER_NONE;
+            PUSH_LIST_DATA( p, 0, INT32_MAX - 1 )
+            dprintf( LOG_LV1, "[log] apply delay. delay:%d\n", p->delay_time );
+            dprintf( LOG_LV2, "[list] [%d]  s:%6d  e:%6d\n", 0, p->list_data[0].start, p->list_data[0].end );
+            return 0;
+        }
         return -1;
+    }
     dprintf( LOG_LV0, "[log] list : %s\n", p->list );
     int result = -1;
     for( int i = 0; i < CUT_LIST_TYPE_MAX; ++i )
