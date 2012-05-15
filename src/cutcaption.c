@@ -53,7 +53,6 @@
 
 #define INPUT_EXT_MAX                   (4)
 #define CAPTION_TYPE_MAX                (2)
-#define CUT_LIST_TYPE_MAX               (4)
 #define READER_TYPE_MAX                 (4)
 
 #define UTF8_BOM                        "\xEF\xBB\xBF"
@@ -80,7 +79,8 @@ typedef enum {
     CUT_LIST_KEY_AUTO  = 3,
     CUT_LIST_KEY_CUT_O = 4,
     CUT_LIST_KEY_CUT_E = 5,
-    CUT_LIST_KEY_TRIM  = 6
+    CUT_LIST_KEY_TRIM  = 6,
+    CUT_LIST_TYPE_MAX
 } cut_list_type;
 
 typedef enum {
@@ -167,10 +167,13 @@ static const struct {
     char               *search_word;
 } list_array[CUT_LIST_TYPE_MAX] =
     {
-        {  ".txt"     , CUT_LIST_DEL_TEXT , MPEG_READER_M2VVFAPI, load_del_txt     , NULL                         },
-        {  ".avs"     , CUT_LIST_AVS_TRIM , MPEG_READER_DGDECODE, load_avs_txt     , "Trim"                       },
-        {  ".vcf"     , CUT_LIST_VCF_RANGE, MPEG_READER_DGDECODE, load_vcf_txt     , "VirtualDub.subset.AddRange" },
-        {  ".keyframe", CUT_LIST_KEY_AUTO , MPEG_READER_TMPGENC , load_keyframe_txt, NULL                         }
+        {  ".txt"      , CUT_LIST_DEL_TEXT , MPEG_READER_M2VVFAPI, load_del_txt     , NULL                         },
+        {  ".avs"      , CUT_LIST_AVS_TRIM , MPEG_READER_DGDECODE, load_avs_txt     , "Trim"                       },
+        {  ".vcf"      , CUT_LIST_VCF_RANGE, MPEG_READER_DGDECODE, load_vcf_txt     , "VirtualDub.subset.AddRange" },
+        {  ".keyframe" , CUT_LIST_KEY_AUTO , MPEG_READER_TMPGENC , load_keyframe_txt, NULL                         },
+        {  ".keyframe1", CUT_LIST_KEY_CUT_O, MPEG_READER_TMPGENC , load_keyframe_txt, NULL                         },
+        {  ".keyframe2", CUT_LIST_KEY_CUT_E, MPEG_READER_TMPGENC , load_keyframe_txt, NULL                         },
+        {  ".keyframe3", CUT_LIST_KEY_TRIM , MPEG_READER_TMPGENC , load_keyframe_txt, NULL                         }
     };
 
 static const struct {
