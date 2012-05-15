@@ -631,6 +631,8 @@ static int mpegts_get_stream_timestamp( mpegts_info_t *info, uint16_t program_id
             return -1;
         if( ret > 0 )
             continue;
+        /* check file position. */
+        read_pos = ftello( info->input ) - (TS_PACKET_SIZE - ts_packet_length);
         /* check PES Packet Start Code. */
         if( no_exist_start_indicator )
         {
@@ -691,9 +693,7 @@ static int mpegts_get_stream_timestamp( mpegts_info_t *info, uint16_t program_id
         *pts_set_p = pts;
         *dts_set_p = dts;
         /* reset position. */
-        fseeko( info->input, ts_packet_length - info->packet_size, SEEK_CUR );
-        /* check file position. */
-        read_pos = ftello( info->input );
+        fseeko( info->input, read_pos, SEEK_SET );
         /* ready next. */
         info->sync_byte_position = 0;
         info->read_position      = read_pos;
@@ -733,8 +733,8 @@ static int mpegts_get_video_picture_information( mpegts_info_t *info, uint16_t p
         if( no_exist_start_indicator )
         {
             fread( mpeg_video_head_data, 1, MPEG_VIDEO_STATRT_CODE_SIZE - 1, info->input );
+            ts_packet_length -= MPEG_VIDEO_STATRT_CODE_SIZE - 1;
             no_exist_start_indicator = 0;
-            ts_packet_length -= (MPEG_VIDEO_STATRT_CODE_SIZE - 1);
         }
         /* search. */
         while( ts_packet_length )
@@ -768,10 +768,13 @@ static int mpegts_get_video_picture_information( mpegts_info_t *info, uint16_t p
                 uint8_t *buf_p = buf;
                 if( ts_packet_length < read_size )
                 {
-                    fread( buf_p, 1, ts_packet_length, info->input );
-                    read_size -= ts_packet_length;
-                    buf_p += ts_packet_length;
-                    ts_packet_length = 0;
+                    if( ts_packet_length )
+                    {
+                        fread( buf_p, 1, ts_packet_length, info->input );
+                        read_size -= ts_packet_length;
+                        buf_p += ts_packet_length;
+                        ts_packet_length = 0;
+                    }
                     if( mpegts_seek_packet_playload_data( info, &h, program_id, &ts_packet_length, 0, 1 ) )
                         return -1;
                 }
@@ -844,20 +847,19 @@ static int mpegts_get_video_picture_information( mpegts_info_t *info, uint16_t p
                 }
                 /* check the status detection. */
                 if( searching_status == DETECT_PSC )
-                    break;
+                    goto end_get_video_picture_info;
                 /* cleanup buffer. */
                 memset( mpeg_video_head_data, 0, MPEG_VIDEO_STATRT_CODE_SIZE );
+                break;
             }
             for( int i = 1; i < MPEG_VIDEO_STATRT_CODE_SIZE; ++i )
                 mpeg_video_head_data[i - 1] = mpeg_video_head_data[i];
         }
-        /* check the status detection. */
-        if( searching_status == DETECT_PSC )
-            break;
         dprintf( LOG_LV4, "[debug] coninue next packet. buf:0x%02X 0x%02X 0x%02X 0x--\n"
                         , mpeg_video_head_data[0], mpeg_video_head_data[1], mpeg_video_head_data[2] );
     }
     while( 1 );
+end_get_video_picture_info:
     return 0;
 }
 
