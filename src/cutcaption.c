@@ -53,7 +53,6 @@
 
 #define INPUT_EXT_MAX                   (4)
 #define CAPTION_TYPE_MAX                (2)
-#define READER_TYPE_MAX                 (4)
 
 #define UTF8_BOM                        "\xEF\xBB\xBF"
 #define UTF8_BOM_SIZE                   (3)
@@ -88,7 +87,8 @@ typedef enum {
     MPEG_READER_DGDECODE = 1,
     MPEG_READER_LIBAV    = 2,
     MPEG_READER_TMPGENC  = 3,
-    MPEG_READER_NONE     = 4
+    MPEG_READER_NONE     = 4,
+    READER_TYPE_MAX      = MPEG_READER_NONE
 } mpeg_reader_type;
 
 typedef enum {
