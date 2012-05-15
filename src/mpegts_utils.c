@@ -227,19 +227,24 @@ static int mpegts_search_program_id_packet( mpegts_info_t *info, mpegts_packet_h
     return 0;
 }
 
-#define SKIP_ADAPTATION_FIELD( i, h, s, n )     \
-{                                               \
-    if( (h).adaptation_field_control > 1 )      \
-    {                                           \
-        fread( &s, 1, 1, i->input );            \
-        fseeko( i->input, s, SEEK_CUR );        \
-    }                                           \
-    else if( n )                                \
-        fseeko( i->input, n, SEEK_CUR );        \
+#define SKIP_ADAPTATION_FIELD( i, h, l, s, n )      \
+{                                                   \
+    if( (h).adaptation_field_control > 1 )          \
+    {                                               \
+        fread( &s, 1, 1, i->input );                \
+        fseeko( i->input, s, SEEK_CUR );            \
+        (l) -= 1 + s;                               \
+    }                                               \
+    else if( n )                                    \
+    {                                               \
+        fseeko( i->input, n, SEEK_CUR );            \
+        (l) -= n;                                   \
+    }                                               \
 }
 
 static int mpegts_get_table_section_header( mpegts_info_t *info, mpegts_packet_header_t *h, uint16_t search_program_id, uint8_t *section_header, uint16_t section_header_length, int32_t *ts_packet_length )
 {
+    dprintf( LOG_LV4, "[check] mpegts_get_table_section_header()\n" );
     do
     {
         int search_result = mpegts_search_program_id_packet( info, h, search_program_id );
@@ -251,9 +256,8 @@ static int mpegts_get_table_section_header( mpegts_info_t *info, mpegts_packet_h
     *ts_packet_length = TS_PACKET_SIZE - TS_PACKET_HEADER_SIZE;
     /* check adaptation field. */
     uint8_t adaptation_field_size = 0;
-    SKIP_ADAPTATION_FIELD( info, *h, adaptation_field_size, 1 );
+    SKIP_ADAPTATION_FIELD( info, *h, *ts_packet_length, adaptation_field_size, 1 );
     dprintf( LOG_LV4, "[check] adpf_size:%d\n", adaptation_field_size );
-    *ts_packet_length -= (adaptation_field_size) ? adaptation_field_size : 1;
     /* read section header. */
     fread( section_header, 1, section_header_length, info->input );
     *ts_packet_length -= section_header_length;
@@ -262,6 +266,7 @@ static int mpegts_get_table_section_header( mpegts_info_t *info, mpegts_packet_h
 
 static int mpegts_seek_packet_playload_data( mpegts_info_t *info, mpegts_packet_header_t *h, uint16_t search_program_id, int32_t *ts_packet_length, int indicator_check, int indicator_status )
 {
+    dprintf( LOG_LV4, "[check] mpegts_seek_packet_playload_data()\n" );
     if( mpegts_search_program_id_packet( info, h, search_program_id ) )
         return -1;
     show_packet_header_info( h );
@@ -271,9 +276,8 @@ static int mpegts_seek_packet_playload_data( mpegts_info_t *info, mpegts_packet_
     *ts_packet_length = TS_PACKET_SIZE - TS_PACKET_HEADER_SIZE;
     /* check adaptation field. */
     uint8_t adaptation_field_size = 0;
-    SKIP_ADAPTATION_FIELD( info, *h, adaptation_field_size, 0 );
+    SKIP_ADAPTATION_FIELD( info, *h, *ts_packet_length, adaptation_field_size, 0 );
     dprintf( LOG_LV4, "[check] adpf_size:%d\n", adaptation_field_size );
-    *ts_packet_length -= adaptation_field_size;
     return 0;
 }
 
