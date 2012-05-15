@@ -39,6 +39,7 @@
 #include <string.h>
 #include <inttypes.h>
 
+#include "mpeg_common.h"
 #include "mpeg_stream.h"
 #include "mpegts_def.h"
 #include "mpegts_utils.h"
@@ -866,7 +867,7 @@ static int mpegts_get_video_pts( mpegts_info_t *info )
 {
     dprintf( LOG_LV2, "[check] mpegts_get_video_pts()\n" );
     /* search program id. */
-    uint16_t program_id = mpegts_get_program_id( info, STREAM_VIDEO_MPEG2 );
+    uint16_t program_id = mpegts_get_program_id( info, info->video_stream_type );
     if( program_id == TS_PID_ERR )
         return -1;
     /* get timestamp. */
@@ -897,7 +898,7 @@ static int mpegts_get_audio_pts( mpegts_info_t *info )
 {
     dprintf( LOG_LV2, "[check] mpegts_get_audio_pts()\n" );
     /* search program id. */
-    uint16_t program_id = mpegts_get_program_id( info, STREAM_AUDIO_AAC );
+    uint16_t program_id = mpegts_get_program_id( info, info->audio_stream_type );
     if( program_id == TS_PID_ERR )
         return -1;
     /* get timestamp. */

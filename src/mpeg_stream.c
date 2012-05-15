@@ -39,6 +39,7 @@
 #include <string.h>
 #include <inttypes.h>
 
+#include "mpeg_common.h"
 #include "mpeg_stream.h"
 
 extern int64_t mpeg_pes_get_timestamp( uint8_t *time_stamp_data )

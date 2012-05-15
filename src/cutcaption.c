@@ -1160,6 +1160,8 @@ static void parse_reader_offset( param_t *p )
     /* parse. */
     mpegts_info_t info;
     mpegts_api_initialize_info( &info, ts );
+    info.video_stream_type = STREAM_VIDEO_MPEG2;
+    info.audio_stream_type = STREAM_AUDIO_AAC;
     int get_info_result = mpegts_api_get_info( &info );
     if( !get_info_result )
     {

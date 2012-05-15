@@ -33,6 +33,8 @@
 #ifndef __MPEGTS_UTILS_H__
 #define __MPEGTS_UTILS_H__
 
+#include "mpeg_common.h"
+
 typedef enum {
     MPEG_VIDEO_I_FRAME = 0x01,
     MPEG_VIDEO_P_FRAME = 0x10,
@@ -46,6 +48,8 @@ typedef struct {
 
 typedef struct {
     FILE                   *input;
+    uint8_t                 video_stream_type;
+    uint8_t                 audio_stream_type;
     int32_t                 packet_size;
     int32_t                 sync_byte_position;
     int64_t                 read_position;

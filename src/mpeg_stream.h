@@ -38,20 +38,6 @@
 #define PES_PACKET_PTS_DTS_DATA_SIZE                (10)
 
 typedef enum {
-    STREAM_VIDEO_MPEG1 = 0x01,      /* ISO/IEC 11172 Video                                  */
-    STREAM_VIDEO_MPEG2 = 0x02,      /* ITU-T Rec. H.262 | ISO/IEC 13818-2 Video or ISO/IEC  */
-                                    /*           11172-2 constrained parameter video stream */
-    STREAM_AUDIO_MP1   = 0x03,      /* ISO/IEC 11172 Audio                                  */
-    STREAM_AUDIO_MP2   = 0x04,      /* ISO/IEC 13818-3 Audio                                */
-    STREAM_AUDIO_AAC   = 0x0F,      /* ISO/IEC 13818-7 Audio with ADTS transport syntax     */
-#if 0
-    STREAM_AUDIO_AC3   = 0x81,      /* ... */
-    STREAM_AUDIO_DTS   = 0xEF,      /* ... */
-#endif
-    STREAM_INVAILED    = 0xFF
-} mpeg_stream_type;
-
-typedef enum {
     /* MPEG-1/2 stream type. */
     PES_PACKET_START_CODE_PRIVATE_STREAM_1             ,
     PES_PACKET_START_CODE_PADDING_STREAM               ,
