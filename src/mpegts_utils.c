@@ -728,7 +728,6 @@ static int mpegts_get_video_picture_information( mpegts_info_t *info, uint16_t p
         /* check start indicator. */
         if( no_exist_start_indicator && !h.payload_unit_start_indicator )
             continue;
-        ts_packet_length = TS_PACKET_SIZE - TS_PACKET_HEADER_SIZE;
         /* check Stream Start Code. */
         if( no_exist_start_indicator )
         {
