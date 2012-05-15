@@ -147,7 +147,7 @@ static void mpeg_video_read_picture_section( uint8_t *data, mpeg_video_picture_s
     picture->picture_coding_type = (data[1] & 0x38) >> 3;
 }
 
-extern void mpeg_video_check_section_info( uint8_t *buf, mpeg_video_star_code_type start_code, mpeg_video_info_t *video_info )
+extern void mpeg_video_get_section_info( uint8_t *buf, mpeg_video_star_code_type start_code, mpeg_video_info_t *video_info )
 {
     switch( start_code )
     {

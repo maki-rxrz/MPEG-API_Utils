@@ -609,9 +609,10 @@ static uint16_t mpegts_get_program_id( mpegts_info_t *info, mpeg_stream_type str
     return info->pid_list_in_pmt[pid_list_index].program_id;
 }
 
-static int mpegts_get_stream_timestamp( mpegts_info_t *info, mpegts_packet_header_t *h, int64_t *pts_set_p, int64_t *dts_set_p, uint16_t program_id, mpeg_pes_packet_star_code_type start_code )
+static int mpegts_get_stream_timestamp( mpegts_info_t *info, uint16_t program_id, mpeg_pes_packet_star_code_type start_code, int64_t *pts_set_p, int64_t *dts_set_p )
 {
     dprintf( LOG_LV2, "[check] mpegts_get_stream_timestamp()\n" );
+    mpegts_packet_header_t h;
     int32_t ts_packet_length;
     int64_t read_pos = -1;
     /* search packet data. */
@@ -621,7 +622,7 @@ static int mpegts_get_stream_timestamp( mpegts_info_t *info, mpegts_packet_heade
     do
     {
         /* seek playload data. */
-        int ret = mpegts_seek_packet_playload_data( info, h, program_id, &ts_packet_length, no_exist_start_indicator, 0 );
+        int ret = mpegts_seek_packet_playload_data( info, &h, program_id, &ts_packet_length, no_exist_start_indicator, 0 );
         if( ret < 0 )
             return -1;
         if( ret > 0 )
@@ -657,7 +658,7 @@ static int mpegts_get_stream_timestamp( mpegts_info_t *info, mpegts_packet_heade
             fread( pes_timestamp_buffer, 1, ts_packet_length, info->input );
             read_count = ts_packet_length;
             /* seek next payload data. */
-            int ret = mpegts_seek_packet_playload_data( info, h, program_id, &ts_packet_length, 1, 1 );
+            int ret = mpegts_seek_packet_playload_data( info, &h, program_id, &ts_packet_length, 1, 1 );
             if( ret < 0 )
                 return -1;
             if( ret > 0 )
@@ -697,19 +698,11 @@ static int mpegts_get_stream_timestamp( mpegts_info_t *info, mpegts_packet_heade
     return 0;
 }
 
-static int mpegts_get_video_pts( mpegts_info_t *info )
+static int mpegts_get_video_picture_information( mpegts_info_t *info, uint16_t program_id, mpeg_video_info_t *video_info )
 {
-    dprintf( LOG_LV2, "[check] mpegts_get_video_pts()\n" );
-    /* search program id. */
-    uint16_t program_id = mpegts_get_program_id( info, STREAM_VIDEO_MPEG2 );
-    if( program_id == TS_PID_ERR )
-        return -1;
-    /* get timestamp. */
-    mpegts_packet_header_t h;
-    int64_t pts = -1, dts = -1;
-    if( mpegts_get_stream_timestamp( info, &h, &pts, &dts, program_id, PES_PACKET_START_CODE_VIDEO_STREAM ) )
-        return -1;
+    dprintf( LOG_LV2, "[check] mpegts_get_video_picture_information()\n" );
     /* parse payload data. */
+    mpegts_packet_header_t h;
     typedef enum {
         NON_DETECT = -1,
         DETECT_SHC,
@@ -722,7 +715,6 @@ static int mpegts_get_video_pts( mpegts_info_t *info )
     } start_code_searching_status;
     start_code_searching_status searching_status = NON_DETECT;
     int32_t ts_packet_length;
-    mpeg_video_info_t video_info;
     uint8_t mpeg_video_head_data[MPEG_VIDEO_STATRT_CODE_SIZE];
     int no_exist_start_indicator = 1;
     do
@@ -746,55 +738,83 @@ static int mpegts_get_video_pts( mpegts_info_t *info )
             fread( &(mpeg_video_head_data[MPEG_VIDEO_STATRT_CODE_SIZE - 1]), 1, 1, info->input );
             --ts_packet_length;
             /* check Start Code. */
-            if( !mpeg_video_check_start_code( mpeg_video_head_data, MPEG_VIDEO_START_CODE_SHC ) )
+            static const struct {
+                mpeg_video_star_code_type   start_code;
+                uint32_t                    read_size;
+                start_code_searching_status status;
+            } code_list[MPEG_VIDEO_START_CODE_MAX] =
+                {
+                    { MPEG_VIDEO_START_CODE_SHC , MPEG_VIDEO_SEQUENCE_SECTION_HEADER_SIZE, DETECT_SHC  },
+                    { MPEG_VIDEO_START_CODE_ESC , 0                                      , DETECT_ESC  },
+                    { MPEG_VIDEO_START_CODE_UDSC, 0                                      , DETECT_UDSC },
+                    { MPEG_VIDEO_START_CODE_SEC , 0                                      , DETECT_SEC  },
+                    { MPEG_VIDEO_START_CODE_GSC , MPEG_VIDEO_GOP_SECTION_HEADER_SIZE     , DETECT_GSC  },
+                    { MPEG_VIDEO_START_CODE_PSC , MPEG_VIDEO_PICTURE_SECTION_HEADER_SIZE , DETECT_PSC  },
+                    { MPEG_VIDEO_START_CODE_SSC , 0                                      , DETECT_SSC  }
+                };
+            for( int i = 0; i < MPEG_VIDEO_START_CODE_MAX; ++i )
             {
-                uint8_t buf[MPEG_VIDEO_SEQUENCE_SECTION_HEADER_SIZE];
-                fread( buf, 1, MPEG_VIDEO_SEQUENCE_SECTION_HEADER_SIZE, info->input );
-                ts_packet_length -= MPEG_VIDEO_SEQUENCE_SECTION_HEADER_SIZE;
-                mpeg_video_check_section_info( buf, MPEG_VIDEO_START_CODE_SHC, &video_info );
-                searching_status = DETECT_SHC;
-                dprintf( LOG_LV2,
-                        "[check] detect Sequence Start Code.\n"
-                        "        frame_size:%dx%d\n"
-                        "        aspect_ratio_code:%d\n"
-                        "        frame_rate_code:%d\n"
-                        , video_info.sequence.horizontal_size
-                        , video_info.sequence.vertical_size
-                        , video_info.sequence.aspect_ratio_information
-                        , video_info.sequence.frame_rate_code );
+                if( !code_list[i].read_size || mpeg_video_check_start_code( mpeg_video_head_data, code_list[i].start_code ) )
+                    continue;
+                mpeg_video_star_code_type start_code = code_list[i].start_code;
+                uint32_t read_size                   = code_list[i].read_size;
+                searching_status                     = code_list[i].status;
+                /* get section information. */
+                uint8_t buf[read_size];
+                uint8_t *buf_p = buf;
+                if( ts_packet_length < read_size )
+                {
+                    fread( buf_p, 1, ts_packet_length, info->input );
+                    read_size -= ts_packet_length;
+                    buf_p += ts_packet_length;
+                    ts_packet_length = 0;
+                    if( mpegts_seek_packet_playload_data( info, &h, program_id, &ts_packet_length, 0, 1 ) )
+                        return -1;
+                }
+                fread( buf_p, 1, read_size, info->input );
+                ts_packet_length -= read_size;
+                mpeg_video_get_section_info( buf, start_code, video_info );
+                /* debug. */
+                switch( start_code )
+                {
+                    case MPEG_VIDEO_START_CODE_SHC :
+                        dprintf( LOG_LV2,
+                                "[check] detect GOP Start Code.\n"
+                                "        closed_gop:%d\n"
+                                "        broken_link:%d\n"
+                                , video_info->gop.closed_gop
+                                , video_info->gop.broken_link );
+                        break;
+                    case MPEG_VIDEO_START_CODE_ESC :
+                    case MPEG_VIDEO_START_CODE_UDSC :
+                    case MPEG_VIDEO_START_CODE_SEC :
+                        break;
+                    case MPEG_VIDEO_START_CODE_GSC :
+                        dprintf( LOG_LV2,
+                                "[check] detect GOP Start Code.\n"
+                                "        closed_gop:%d\n"
+                                "        broken_link:%d\n"
+                                , video_info->gop.closed_gop
+                                , video_info->gop.broken_link );
+                        break;
+                    case MPEG_VIDEO_START_CODE_PSC :
+                        dprintf( LOG_LV2,
+                                "[check] detect Picture Start Code.\n"
+                                "        temporal_reference:%d\n"
+                                "        picture_coding_type:%d\n"
+                                , video_info->picture.temporal_reference
+                                , video_info->picture.picture_coding_type );
+                        break;
+                    case MPEG_VIDEO_START_CODE_SSC :
+                        break;
+                    default :
+                        break;
+                }
+                /* check the status detection. */
+                if( searching_status == DETECT_PSC )
+                    break;
                 /* cleanup buffer. */
                 memset( mpeg_video_head_data, 0, MPEG_VIDEO_STATRT_CODE_SIZE );
-            }
-            else if( !mpeg_video_check_start_code( mpeg_video_head_data, MPEG_VIDEO_START_CODE_GSC ) )
-            {
-                uint8_t buf[MPEG_VIDEO_GOP_SECTION_HEADER_SIZE];
-                fread( buf, 1, MPEG_VIDEO_GOP_SECTION_HEADER_SIZE, info->input );
-                ts_packet_length -= MPEG_VIDEO_GOP_SECTION_HEADER_SIZE;
-                mpeg_video_check_section_info( buf, MPEG_VIDEO_START_CODE_GSC, &video_info );
-                searching_status = DETECT_GSC;
-                dprintf( LOG_LV2,
-                        "[check] detect GOP Start Code.\n"
-                        "        closed_gop:%d\n"
-                        "        broken_link:%d\n"
-                        , video_info.gop.closed_gop
-                        , video_info.gop.broken_link );
-                /* cleanup buffer. */
-                memset( mpeg_video_head_data, 0, MPEG_VIDEO_STATRT_CODE_SIZE );
-            }
-            else if( !mpeg_video_check_start_code( mpeg_video_head_data, MPEG_VIDEO_START_CODE_PSC ) )
-            {
-                uint8_t buf[MPEG_VIDEO_PICTURE_SECTION_HEADER_SIZE];
-                fread( buf, 1, MPEG_VIDEO_PICTURE_SECTION_HEADER_SIZE, info->input );
-                ts_packet_length -= MPEG_VIDEO_PICTURE_SECTION_HEADER_SIZE;
-                mpeg_video_check_section_info( buf, MPEG_VIDEO_START_CODE_PSC, &video_info );
-                searching_status = DETECT_PSC;
-                dprintf( LOG_LV2,
-                        "[check] detect Picture Start Code.\n"
-                        "        temporal_reference:%d\n"
-                        "        picture_coding_type:%d\n"
-                        , video_info.picture.temporal_reference
-                        , video_info.picture.picture_coding_type );
-                break;
             }
             for( int i = 1; i < MPEG_VIDEO_STATRT_CODE_SIZE; ++i )
                 mpeg_video_head_data[i - 1] = mpeg_video_head_data[i];
@@ -806,6 +826,24 @@ static int mpegts_get_video_pts( mpegts_info_t *info )
                         , mpeg_video_head_data[0], mpeg_video_head_data[1], mpeg_video_head_data[2] );
     }
     while( 1 );
+    return 0;
+}
+
+static int mpegts_get_video_pts( mpegts_info_t *info )
+{
+    dprintf( LOG_LV2, "[check] mpegts_get_video_pts()\n" );
+    /* search program id. */
+    uint16_t program_id = mpegts_get_program_id( info, STREAM_VIDEO_MPEG2 );
+    if( program_id == TS_PID_ERR )
+        return -1;
+    /* get timestamp. */
+    int64_t pts = -1, dts = -1;
+    if( mpegts_get_stream_timestamp( info, program_id, PES_PACKET_START_CODE_VIDEO_STREAM, &pts, &dts ) )
+        return -1;
+    /* parse payload data. */
+    mpeg_video_info_t video_info;
+    if( mpegts_get_video_picture_information( info, program_id, &video_info ) )
+        return -1;
     /* setup. */
     info->video_pts          = pts;
     info->video_dts          = dts;
@@ -830,9 +868,8 @@ static int mpegts_get_audio_pts( mpegts_info_t *info )
     if( program_id == TS_PID_ERR )
         return -1;
     /* get timestamp. */
-    mpegts_packet_header_t h;
     int64_t pts = -1, dts = -1;
-    if( mpegts_get_stream_timestamp( info, &h, &pts, &dts, program_id, PES_PACKET_START_CODE_AUDIO_STREAM ) )
+    if( mpegts_get_stream_timestamp( info, program_id, PES_PACKET_START_CODE_AUDIO_STREAM, &pts, &dts ) )
         return -1;
     /* setup. */
     info->audio_pts = pts;

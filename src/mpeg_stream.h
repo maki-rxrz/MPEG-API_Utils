@@ -155,8 +155,8 @@ typedef struct {
     uint8_t         composite_display_flag;
 //    uint8_t         load_intra_quantizer_matrix;
 //    uint8_t         load_non_intra_quantizer_matrix;
-//    uint8_t         load_chroma_intra_quantizer_matrix
-//    uint8_t         load_chroma_non_intra_quantizer_matrix
+//    uint8_t         load_chroma_intra_quantizer_matrix;
+//    uint8_t         load_chroma_non_intra_quantizer_matrix;
     uint16_t        frame_center_horizontal_offset;
     uint16_t        frame_center_vertical_offset;
 } mpeg_video_picture_section_t;
@@ -195,7 +195,7 @@ extern void mpeg_pes_get_header_info( uint8_t *buf, mpeg_pes_header_info_t *pes_
 
 extern int mpeg_video_check_start_code( uint8_t *start_code, mpeg_video_star_code_type start_code_type );
 
-extern void mpeg_video_check_section_info( uint8_t *buf, mpeg_video_star_code_type start_code, mpeg_video_info_t *video_info );
+extern void mpeg_video_get_section_info( uint8_t *buf, mpeg_video_star_code_type start_code, mpeg_video_info_t *video_info );
 
 #ifdef __cplusplus
 }
