@@ -94,7 +94,7 @@ typedef struct {
 
 #define MPEG_VIDEO_SEQUENCE_SECTION_HEADER_SIZE     (4)
 #define MPEG_VIDEO_GOP_SECTION_HEADER_SIZE          (4)
-#define MPEG_VIDEO_PICTURE_SECTION_HEADER_SIZE      (2)
+#define MPEG_VIDEO_PICTURE_SECTION_HEADER_SIZE      (12)
 
 typedef enum {
     MPEG_VIDEO_START_CODE_SHC  = 0,         /* Sequence Header Code */
@@ -133,7 +133,7 @@ typedef struct {
 } mpeg_video_sequence_section_t;
 
 typedef struct {
-//    uint32_t        time_code;
+    uint32_t        time_code;
     uint8_t         closed_gop;
     uint8_t         broken_link;
 } mpeg_video_gop_section_t;
@@ -142,6 +142,16 @@ typedef struct {
     uint16_t        temporal_reference;
     uint8_t         picture_coding_type;
     uint16_t        vbv_delay;
+//    uint8_t         full_pel_forward_evctor;
+//    uint8_t         forward_f_code;
+//    uint8_t         full_pel_backword_evctor;
+//    uint8_t         backward_f_code;
+//    uint8_t         extra_bit_picutre;
+//    uint8_t         extension_start_code_identifier;
+//    uint8_t         forward_horizontal_f_code;
+//    uint8_t         forward_vertical_f_code;
+//    uint8_t         backward_horizontal_f_code;
+//    uint8_t         backward_vertical_f_code;
     uint8_t         intra_dc_precision;
     uint8_t         picture_structure;
     uint8_t         top_field_first;
@@ -153,12 +163,13 @@ typedef struct {
     uint8_t         repeat_first_field;
     uint8_t         chroma_420_type;
     uint8_t         composite_display_flag;
+    uint8_t         progressive_frame;
 //    uint8_t         load_intra_quantizer_matrix;
 //    uint8_t         load_non_intra_quantizer_matrix;
 //    uint8_t         load_chroma_intra_quantizer_matrix;
 //    uint8_t         load_chroma_non_intra_quantizer_matrix;
-    uint16_t        frame_center_horizontal_offset;
-    uint16_t        frame_center_vertical_offset;
+//    uint16_t        frame_center_horizontal_offset;
+//    uint16_t        frame_center_vertical_offset;
 } mpeg_video_picture_section_t;
 
 #if 0

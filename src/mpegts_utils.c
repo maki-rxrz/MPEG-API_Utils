@@ -792,8 +792,10 @@ static int mpegts_get_video_picture_information( mpegts_info_t *info, uint16_t p
                     case MPEG_VIDEO_START_CODE_GSC :
                         dprintf( LOG_LV2,
                                 "[check] detect GOP Start Code.\n"
+                                "        time_code:%d\n"
                                 "        closed_gop:%d\n"
                                 "        broken_link:%d\n"
+                                , video_info->gop.time_code
                                 , video_info->gop.closed_gop
                                 , video_info->gop.broken_link );
                         break;
@@ -802,8 +804,34 @@ static int mpegts_get_video_picture_information( mpegts_info_t *info, uint16_t p
                                 "[check] detect Picture Start Code.\n"
                                 "        temporal_reference:%d\n"
                                 "        picture_coding_type:%d\n"
+                                "        vbv_delay:%d\n"
+                                "        intra_dc_precision:%d\n"
+                                "        picture_structure:%d\n"
+                                "        top_field_first:%d\n"
+                                "        frame_predictive_frame_dct:%d\n"
+                                "        concealment_motion_vectors:%d\n"
+                                "        q_scale_type:%d\n"
+                                "        intra_vlc_format:%d\n"
+                                "        alternate_scan:%d\n"
+                                "        repeat_first_field:%d\n"
+                                "        chroma_420_type:%d\n"
+                                "        progressive_frame:%d\n"
+                                "        composite_display_flag:%d\n"
                                 , video_info->picture.temporal_reference
-                                , video_info->picture.picture_coding_type );
+                                , video_info->picture.picture_coding_type
+                                , video_info->picture.vbv_delay
+                                , video_info->picture.intra_dc_precision
+                                , video_info->picture.picture_structure
+                                , video_info->picture.top_field_first
+                                , video_info->picture.frame_predictive_frame_dct
+                                , video_info->picture.concealment_motion_vectors
+                                , video_info->picture.q_scale_type
+                                , video_info->picture.intra_vlc_format
+                                , video_info->picture.alternate_scan
+                                , video_info->picture.repeat_first_field
+                                , video_info->picture.chroma_420_type
+                                , video_info->picture.progressive_frame
+                                , video_info->picture.composite_display_flag );
                         break;
                     case MPEG_VIDEO_START_CODE_SSC :
                         break;

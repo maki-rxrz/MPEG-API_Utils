@@ -136,15 +136,31 @@ static void mpeg_video_read_sequence_section( uint8_t *data, mpeg_video_sequence
 
 static void mpeg_video_read_gop_section( uint8_t *data, mpeg_video_gop_section_t *gop )
 {
-//    gop->time_code   = (data[0] << 17) | (data[1] << 9) | (data[2] << 1) |  | ((data[3] & 0x80) >> 7);
+    gop->time_code   = (data[0] << 17) | (data[1] << 9) | (data[2] << 1) | ((data[3] & 0x80) >> 7);
     gop->closed_gop  = !!(data[3] & 0x40);
     gop->broken_link = !!(data[3] & 0x20);
 }
 
 static void mpeg_video_read_picture_section( uint8_t *data, mpeg_video_picture_section_t *picture )
 {
-    picture->temporal_reference  = (data[0] << 2) | ((data[1] & 0xC0) >> 6);
-    picture->picture_coding_type = (data[1] & 0x38) >> 3;
+    picture->temporal_reference         = (data[0] << 2) | ((data[1] & 0xC0) >> 6);
+    picture->picture_coding_type        = (data[1] & 0x38) >> 3;
+    picture->vbv_delay                  = (data[1] & 0x07) << 13 | data[2] << 5 | (data[3] & 0xE0) >> 5;
+    //                                     data[3] & 0x1F;
+    //                                     data[4] - data[8];
+    //                                     data[9] & 0x8C;
+    picture->intra_dc_precision         =  data[9]  & 0x03;
+    picture->picture_structure          = (data[10] & 0xC0) >> 6;
+    picture->top_field_first            = !!(data[10] & 0x20);
+    picture->frame_predictive_frame_dct = !!(data[10] & 0x10);
+    picture->concealment_motion_vectors = !!(data[10] & 0x08);
+    picture->q_scale_type               = !!(data[10] & 0x04);
+    picture->intra_vlc_format           = !!(data[10] & 0x02);
+    picture->alternate_scan             = !!(data[10] & 0x01);
+    picture->repeat_first_field         = !!(data[11] & 0x80);
+    picture->chroma_420_type            = !!(data[11] & 0x40);
+    picture->progressive_frame          = !!(data[11] & 0x20);
+    picture->composite_display_flag     = !!(data[11] & 0x10);
 }
 
 extern void mpeg_video_get_section_info( uint8_t *buf, mpeg_video_star_code_type start_code, mpeg_video_info_t *video_info )
