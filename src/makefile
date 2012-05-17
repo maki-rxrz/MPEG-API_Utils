@@ -1,5 +1,5 @@
 TARGET  = ../bin/cutcaption.exe
-SRCS    = cutcaption.c avs_utils.c mpegts_utils.c mpeg_stream.c
+SRCS    = cutcaption.c avs_utils.c mpegts_utils.c mpeg_stream.c mpeg_video.c
 OBJS    = $(SRCS:%.c=%.o)
 
 CC      = gcc

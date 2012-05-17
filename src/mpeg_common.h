@@ -47,4 +47,10 @@ typedef enum {
     STREAM_INVAILED    = 0xFF
 } mpeg_stream_type;
 
+typedef enum {
+    MPEG_VIDEO_I_FRAME = 0x01,
+    MPEG_VIDEO_P_FRAME = 0x10,
+    MPEG_VIDEO_B_FRAME = 0x11
+} mpeg_video_frame_type;
+
 #endif /* __MPEG_COMMON_H__ */

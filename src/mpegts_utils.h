@@ -35,12 +35,6 @@
 
 #include "mpeg_common.h"
 
-typedef enum {
-    MPEG_VIDEO_I_FRAME = 0x01,
-    MPEG_VIDEO_P_FRAME = 0x10,
-    MPEG_VIDEO_B_FRAME = 0x11
-} mpeg_video_frame_type;
-
 typedef struct {
     uint8_t         stream_type;
     uint16_t        program_id;

@@ -76,11 +76,25 @@ typedef struct {
     uint8_t         header_length;
 } mpeg_pes_header_info_t;
 
-#define MPEG_VIDEO_STATRT_CODE_SIZE                 (4)
+#define MPEG_VIDEO_STATRT_CODE_SIZE                     (4)
 
-#define MPEG_VIDEO_SEQUENCE_SECTION_HEADER_SIZE     (4)
-#define MPEG_VIDEO_GOP_SECTION_HEADER_SIZE          (4)
-#define MPEG_VIDEO_PICTURE_SECTION_HEADER_SIZE      (12)
+#define MPEG_VIDEO_SEQUENCE_SECTION_HEADER_SIZE         (135)
+#define MPEG_VIDEO_GOP_SECTION_HEADER_SIZE              (6)
+#define MPEG_VIDEO_PICTURE_SECTION_HEADER_SIZE          (5)
+#define MPEG_VIDEO_SLICE_SECTION_HEADER_SIZE            (2)
+//#define MPEG_VIDEO_MACROBLOCK_SECTION_HEADER_SIZE       (0)
+
+#define MPEG_VIDEO_SEQUENCE_EXTENSION_SIZE                      (6)
+#define MPEG_VIDEO_SEQUENCE_DISPLAY_EXTENSION_SIZE              (8)
+#define MPEG_VIDEO_SEQUENCE_SCALABLE_EXTENSION_SIZE             (7)
+#define MPEG_VIDEO_PICTURE_CODING_EXTENSION_SIZE                (7)
+#define MPEG_VIDEO_QUANT_MATRIX_EXTENSION_SIZE                  (257)
+#define MPEG_VIDEO_PICTURE_DISPLAY_EXTENSION_SIZE               (13)
+#define MPEG_VIDEO_PICTURE_TEMPORAL_SCALABLE_EXTENSION_SIZE     (7)
+#define MPEG_VIDEO_PICTURE_SPATIAL_SCALABLE_EXTENSION_SIZE      (11)
+#define MPEG_VIDEO_COPYRIGHT_EXTENSION_SIZE                     (10)
+
+#define MPEG_VIDEO_HEADER_EXTENSION_MIN_SIZE            MPEG_VIDEO_SEQUENCE_EXTENSION_SIZE
 
 typedef enum {
     MPEG_VIDEO_START_CODE_SHC  = 0,         /* Sequence Header Code */
@@ -99,45 +113,74 @@ typedef struct {
     uint8_t         aspect_ratio_information;
     uint8_t         frame_rate_code;
     uint32_t        bit_rate;
-    uint8_t         marker_bit;
     uint16_t        vbv_buffer_size;
-    uint8_t         constrained_parameter_flag;
-//    uint8_t         load_intra_quantizer_matrix;
-//    uint8_t         load_non_intra_quantizer_matrix;
+    uint8_t         constrained_parameters_flag;
+    uint8_t         load_intra_quantiser_matrix;
+    uint8_t         intra_quantiser_matrix[64];
+    uint8_t         load_non_intra_quantiser_matrix;
+    uint8_t         non_intra_quantiser_matrix[64];
+} mpeg_video_sequence_header_t;
+
+typedef struct {
     uint8_t         profile_and_level_indication;
     uint8_t         progressive_sequence;
     uint8_t         chroma_format;
     uint8_t         horizontal_size_extension;
     uint8_t         vertical_size_extension;
-    uint8_t         bit_rate__extension;
-    uint8_t         vbv_buffer_extension;
+    uint16_t        bit_rate_extension;
+    uint8_t         vbv_buffer_size_extension;
     uint8_t         low_delay;
     uint8_t         frame_rate_extension_n;
     uint8_t         frame_rate_extension_d;
-//    uint16_t        display_horizontal_size;
-//    uint16_t        display_vertical_size;
-} mpeg_video_sequence_section_t;
+} mpeg_video_sequence_extension_t;
+
+typedef struct {
+    uint8_t         video_format;
+    uint8_t         colour_description;
+    uint8_t         colour_primaries;
+    uint8_t         transfer_characteristics;
+    uint8_t         matrix_coefficients;
+    uint16_t        display_horizontal_size;
+    uint16_t        display_vertical_size;
+} mpeg_video_sequence_display_extension_t;
+
+typedef struct {
+    uint8_t         scalable_mode;
+    uint8_t         layer_id;
+    uint16_t        lower_layer_prediction_horizontal_size;
+    uint16_t        lower_layer_prediction_vertical_size;
+    uint8_t         horizontal_subsampling_factor_m;
+    uint8_t         horizontal_subsampling_factor_n;
+    uint8_t         vertical_subsampling_factor_m;
+    uint8_t         vertical_subsampling_factor_n;
+    uint8_t         picture_mux_enable;
+    uint8_t         mux_to_progressive_sequence;
+    uint8_t         picture_mux_order;
+    uint8_t         picture_mux_factor;
+} mpeg_video_sequence_scalable_extension_t;
 
 typedef struct {
     uint32_t        time_code;
     uint8_t         closed_gop;
     uint8_t         broken_link;
-} mpeg_video_gop_section_t;
+} mpeg_video_gop_header_t;
 
 typedef struct {
     uint16_t        temporal_reference;
     uint8_t         picture_coding_type;
     uint16_t        vbv_delay;
-//    uint8_t         full_pel_forward_evctor;
-//    uint8_t         forward_f_code;
-//    uint8_t         full_pel_backword_evctor;
-//    uint8_t         backward_f_code;
-//    uint8_t         extra_bit_picutre;
-//    uint8_t         extension_start_code_identifier;
-//    uint8_t         forward_horizontal_f_code;
-//    uint8_t         forward_vertical_f_code;
-//    uint8_t         backward_horizontal_f_code;
-//    uint8_t         backward_vertical_f_code;
+    uint8_t         full_pel_forward_vector;
+    uint8_t         forward_f_code;
+    uint8_t         full_pel_backword_vector;
+    uint8_t         backward_f_code;
+/*  uint8_t         extra_information_picture[?] */     /* reserved */
+} mpeg_video_picture_header_t;
+
+typedef struct {
+    struct {
+        uint8_t     horizontal;
+        uint8_t     vertical;
+    } f_code[2];    /* forward / backward */
     uint8_t         intra_dc_precision;
     uint8_t         picture_structure;
     uint8_t         top_field_first;
@@ -148,37 +191,109 @@ typedef struct {
     uint8_t         alternate_scan;
     uint8_t         repeat_first_field;
     uint8_t         chroma_420_type;
-    uint8_t         composite_display_flag;
     uint8_t         progressive_frame;
-//    uint8_t         load_intra_quantizer_matrix;
-//    uint8_t         load_non_intra_quantizer_matrix;
-//    uint8_t         load_chroma_intra_quantizer_matrix;
-//    uint8_t         load_chroma_non_intra_quantizer_matrix;
-//    uint16_t        frame_center_horizontal_offset;
-//    uint16_t        frame_center_vertical_offset;
-} mpeg_video_picture_section_t;
+    uint8_t         composite_display_flag;
+    uint8_t         v_axis;
+    uint8_t         field_sequence;
+    uint8_t         sub_carrier;
+    uint8_t         burst_amplitude;
+    uint8_t         sub_carrier_phase;
+} mpeg_video_picture_coding_extension_t;
+
+typedef struct {
+    uint8_t         load_intra_quantiser_matrix;
+    uint8_t         intra_quantiser_matrix[64];
+    uint8_t         load_non_intra_quantiser_matrix;
+    uint8_t         non_intra_quantiser_matrix[64];
+    uint8_t         load_chroma_intra_quantiser_matrix;
+    uint8_t         chroma_intra_quantiser_matrix[64];
+    uint8_t         load_chroma_non_intra_quantiser_matrix;
+    uint8_t         chroma_non_intra_quantiser_matrix[64];
+} mpeg_video_quant_matrix_extension_t;
+
+typedef struct {
+    uint8_t         number_of_frame_centre_offsets;
+    struct {
+        uint16_t    horizontal_offset;
+        uint16_t    vertical_offset;
+    } frame_centre_offsets[3];
+} mpeg_video_picture_display_extension_t;
+
+typedef struct {
+    uint8_t         reference_select_code;
+    uint16_t        forward_temporal_reference;
+    uint16_t        backward_temporal_reference;
+} mpeg_video_picture_temporal_scalable_extension_t;
+
+typedef struct {
+    uint16_t        lower_layer_temporal_reference;
+    int16_t         lower_layer_horizontal_offset;
+    int16_t         lower_layer_vertical_offset;
+    uint8_t         spatial_temporal_weight_code_table_index;
+    uint8_t         lower_layer_progressive_frame;
+    uint8_t         lower_layer_deinterlaced_field_select;
+} mpeg_video_picture_spatial_scalable_extension_t;
+
+typedef struct {
+    uint8_t         copyright_flag;
+    uint8_t         copyright_identifier;
+    uint8_t         original_or_copy;
+    uint32_t        copyright_number_1;
+    uint32_t        copyright_number_2;
+    uint32_t        copyright_number_3;
+} mpeg_video_copyright_extension_t;
 
 #if 0
 typedef struct {
     uint8_t         slice_vertical_position_extension;
-    uint8_t         priority_break_point;
-    uint8_t         quantize_scale_code;
+    uint8_t         priority_breakpoint;
+    uint8_t         quantiser_scale_code;
+    uint8_t         intra_slice_flag
     uint8_t         intra_slice;
-} mpeg_video_slice_section_t;
+//    uint8_t         reserved_bits;
+//    uint8_t         extra_bit_slice;
+//    uint8_t         extra_information_slice;
+} mpeg_video_slice_header_t;
 
 typedef struct {
-} mpeg_video_macroblock_section_t;
+    uint8_t         reference_select_code;
+    uint16_t        forward_temporal_reference;
+    uint16_t        backward_temporal_reference;
+} mpeg_video_macroblock_header_t;
 #endif
 
 typedef struct {
-    mpeg_video_sequence_section_t       sequence;
-    mpeg_video_gop_section_t            gop;
-    mpeg_video_picture_section_t        picture;
+    mpeg_video_sequence_header_t                        sequence;
+    mpeg_video_sequence_extension_t                     sequence_ext;
+    mpeg_video_sequence_display_extension_t             sequence_display_ext;
+    mpeg_video_sequence_scalable_extension_t            sequence_scalable_ext;
+    mpeg_video_gop_header_t                             gop;
+    mpeg_video_picture_header_t                         picture;
+    mpeg_video_picture_coding_extension_t               picture_coding_ext;
+    mpeg_video_quant_matrix_extension_t                 quant_matrix_ext;
+    mpeg_video_picture_display_extension_t              picture_display_ext;
+    mpeg_video_picture_temporal_scalable_extension_t    picture_temporal_scalable_ext;
+    mpeg_video_picture_spatial_scalable_extension_t     picture_spatial_scalable_ext;
+    mpeg_video_copyright_extension_t                    copyright_ext;
 #if 0
-    mpeg_video_slice_section_t          slice;
-    mpeg_video_macroblock_section_t     mb;
+    mpeg_video_slice_header_t                           slice;
+    mpeg_video_macroblock_header_t                      macroblock;
 #endif
 } mpeg_video_info_t;
+
+typedef enum {
+    NON_EXTENSTION                = 0,
+    SEQUENCE_EXT                  = 1,      /* Sequence extension                   */
+    SEQUENCE_DISPLAY_EXT          = 2,      /* Sequence display extension           */
+    SEQUENCE_SCALABLE_EXT         = 3,      /* Sequence scalable extension          */
+    PICTURE_CODING_EXT            = 4,      /* Picture coding extension             */
+    QUANT_MATRIX_EXT              = 5,      /* Quant matrix extension               */
+    PICTURE_DISPLAY_EXT           = 6,      /* Picture display extension            */
+    PICTURE_TEMPORAL_SCALABLE_EXT = 7,      /* Picture temporal scalable extension  */
+    PICTURE_SPATIAL_SCALABLE_EXT  = 8,      /* Picture spatial scalable extension   */
+    COPYRIGHT_EXT                 = 9,      /* Copyright extension                  */
+    EXTENSION_TYPE_MAX
+} mpeg_video_extension_type;
 
 #ifdef __cplusplus
 extern "C" {
@@ -192,7 +307,9 @@ extern void mpeg_pes_get_header_info( uint8_t *buf, mpeg_pes_header_info_t *pes_
 
 extern int mpeg_video_check_start_code( uint8_t *start_code, mpeg_video_star_code_type start_code_type );
 
-extern void mpeg_video_get_section_info( uint8_t *buf, mpeg_video_star_code_type start_code, mpeg_video_info_t *video_info );
+extern mpeg_video_extension_type mpeg_video_check_extension_start_code_identifier( uint8_t identifier_buf );
+
+extern void mpeg_video_get_header_info( uint8_t *buf, mpeg_video_star_code_type start_code, mpeg_video_info_t *video_info );
 
 #ifdef __cplusplus
 }
