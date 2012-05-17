@@ -127,6 +127,7 @@ typedef struct {
     cut_list_data_t    *list_data;
     int                 list_data_count;
     mpeg_reader_type    reader;
+    uint16_t            pmt_program_id;
     int64_t             reader_delay;
     int64_t             delay_time;
     frame_rate_t        frame_rate;
@@ -213,6 +214,7 @@ static void print_help( void )
         "                                   - l, libav      Libav reader.\n"
         "                                   - t, tmpgenc    TMPGEnc series.\n"
         "       --no-reader             Disable check of the read delay time.\n"
+        "       --pmt-pid <integer>     Specify Program Map Table ID.\n"
         "    -d --delay <integer>       Specify delay time.\n"
         "    -f --framerate <int/int>   Specify framerate.       (ex: 30000/1001)\n"
         "       --fps-num <integer>     Specify fps numerator.   (ex: 24000)\n"
@@ -345,6 +347,12 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
         }
         else if( !strcasecmp( argv[i], "--no-reader" ) )
             p->reader = MPEG_READER_NONE;
+        else if( !strcasecmp( argv[i], "--pmt-pid" ) )
+        {
+            ++i;
+            int base = (strncmp( argv[i], "0x", 2 )) ? 10 : 16;
+            p->pmt_program_id = strtol( argv[i], NULL, base );
+        }
         else if( !strcasecmp( argv[i], "--delay" ) || !strcasecmp( argv[i], "-d" ) )
             p->delay_time = atoi( argv[++i] );
         else if( !strcasecmp( argv[i], "--framerate" ) || !strcasecmp( argv[i], "-f" ) )
@@ -1162,6 +1170,9 @@ static void parse_reader_offset( param_t *p )
     mpegts_api_initialize_info( &info, ts );
     info.video_stream_type = STREAM_VIDEO_MPEG2;
     info.audio_stream_type = STREAM_AUDIO_AAC;
+    if( p->pmt_program_id )
+        if( 0 > mpegts_api_set_pmt_program_id( &info, p->pmt_program_id ) )
+            goto end_parse_reader_offset;
     int get_info_result = mpegts_api_get_info( &info );
     if( !get_info_result )
     {
@@ -1190,13 +1201,11 @@ static void parse_reader_offset( param_t *p )
         }
         dprintf( LOG_LV2, "[check] [read_delay] video_odr: %"PRId64", video_key: %"PRId64", audio: %"PRId64"\n", video_odr_start, video_key_start, audio_start );
         dprintf( LOG_LV1, "[reader] delay: %"PRId64"\n", p->reader_delay );
-        mpegts_api_release_info( &info );
     }
     else if( get_info_result > 0 )
-    {
         dprintf( LOG_LV1, "[reader] MPEG-TS not have both video and audio stream.\n" );
-        mpegts_api_release_info( &info );
-    }
+end_parse_reader_offset:
+    mpegts_api_release_info( &info );
     fclose( ts );
 }
 

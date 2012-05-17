@@ -1147,8 +1147,9 @@ extern int mpegts_api_get_info( mpegts_info_t *info )
     /* check MPEG2-TS and PAT/PMT/PCR packet. */
     if( mpegts_first_check( info ) )
         return -1;
-    if( mpegts_parse_pat( info ) )
-        return -1;
+    if( !info->pid_list_in_pat )
+        if( mpegts_parse_pat( info ) )
+            return -1;
     if( mpegts_parse_pmt( info ) )
         goto fail_get_info;
     if( mpegts_get_pcr( info ) )
@@ -1178,6 +1179,25 @@ fail_get_info:
         free( info->pid_list_in_pat );
     fsetpos( info->input, &start_fpos );
     return -1;
+}
+
+extern int mpegts_api_set_pmt_program_id( mpegts_info_t *info, uint16_t pmt_program_id )
+{
+    dprintf( LOG_LV2, "[check] mpegts_api_set_pmt_program_id()\n"
+                      "        pmt_program_id: 0x%04X\n", pmt_program_id );
+    if( pmt_program_id & MPEGTS_ILLEGAL_PROGRAM_ID_MASK )
+    {
+        dprintf( LOG_LV2, "[check] illegal PID is specified. using PID in PAT.\n" );
+        return 1;
+    }
+    if( info->pid_list_in_pat )
+        free( info->pid_list_in_pat );
+    info->pid_list_in_pat = malloc( sizeof(uint16_t) );
+    if( !info->pid_list_in_pat )
+        return -1;
+    info->pid_list_num_in_pat = 1;
+    info->pid_list_in_pat[0]  = pmt_program_id;
+    return 0;
 }
 
 extern void mpegts_api_initialize_info( mpegts_info_t *info, FILE *input )

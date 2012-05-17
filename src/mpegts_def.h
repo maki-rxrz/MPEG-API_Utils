@@ -33,6 +33,8 @@
 #ifndef __MPEGTS_DEF_H__
 #define __MPEGTS_DEF_H__
 
+#define MPEGTS_ILLEGAL_PROGRAM_ID_MASK      (0xE000)
+
 typedef enum {
     TS_PID_PAT = 0x0000,
     TS_PID_CAT = 0x0001,

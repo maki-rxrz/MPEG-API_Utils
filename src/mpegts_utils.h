@@ -71,6 +71,8 @@ extern "C" {
 
 extern int mpegts_api_get_info( mpegts_info_t *info );
 
+extern int mpegts_api_set_pmt_program_id( mpegts_info_t *info, uint16_t pmt_program_id );
+
 extern void mpegts_api_initialize_info( mpegts_info_t *info, FILE *input );
 
 extern void mpegts_api_release_info( mpegts_info_t *info );
