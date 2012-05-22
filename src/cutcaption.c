@@ -711,7 +711,7 @@ static int load_keyframe_txt( param_t *p, FILE *list, const char *search_word )
     /* skip '0'. */
     fgets( line, p->line_max, list );
     /* setup. */
-    int i = !!(list_type == CUT_LIST_KEY_CUT_E);
+    int i = (list_type == CUT_LIST_KEY_CUT_E);
     int32_t start = 0;
     while( fgets( line, p->line_max, list ) )
     {
@@ -1016,7 +1016,7 @@ static void cut_ass( param_t *p, FILE *input, FILE *output )
     /* parse header. */
     if( p->aspect_ratio != ASPECT_RATIO_DEFAULT )
         change_layout = !(ass_header_change_aspect_ratio( p, input, output, &ar_shift_x, &ar_shift_y ));
-    change_layout = !!(change_layout || p->shift_pos_x || p->shift_pos_y);
+    change_layout = (change_layout || p->shift_pos_x || p->shift_pos_y);
     dprintf( LOG_LV3, "[debug] layout:%d, %d, %d\n", change_layout, ar_shift_x, ar_shift_y );
     /* parse data. */
     while( fgets( line, p->line_max, input ) )

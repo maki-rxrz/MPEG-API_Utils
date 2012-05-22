@@ -1171,7 +1171,7 @@ extern int mpegts_api_get_info( mpegts_info_t *info )
     fsetpos( info->input, &start_fpos );
     check_stream_exist |= mpegts_get_audio_pts( info ) ? AUDIO_NONE : 0;
     fsetpos( info->input, &start_fpos );
-    return !!(check_stream_exist == BOTH_VA_NONE);
+    return (check_stream_exist == BOTH_VA_NONE);
 fail_get_info:
     if( info->pid_list_in_pmt )
         free( info->pid_list_in_pmt );
