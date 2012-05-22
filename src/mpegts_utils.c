@@ -265,9 +265,9 @@ static int mpegts_get_table_section_header( mpegts_info_t *info, mpegts_packet_h
     return 0;
 }
 
-static int mpegts_seek_packet_playload_data( mpegts_info_t *info, mpegts_packet_header_t *h, uint16_t search_program_id, int32_t *ts_packet_length, int indicator_check, int indicator_status )
+static int mpegts_seek_packet_payload_data( mpegts_info_t *info, mpegts_packet_header_t *h, uint16_t search_program_id, int32_t *ts_packet_length, int indicator_check, int indicator_status )
 {
-    dprintf( LOG_LV4, "[check] mpegts_seek_packet_playload_data()\n" );
+    dprintf( LOG_LV4, "[check] mpegts_seek_packet_payload_data()\n" );
     if( mpegts_search_program_id_packet( info, h, search_program_id ) )
         return -1;
     show_packet_header_info( h );
@@ -294,7 +294,7 @@ static int mpegts_get_table_section_data( mpegts_info_t *info, uint16_t search_p
     {
         if( need_ts_packet_payload_data )
             /* seek next packet payload data. */
-            if( mpegts_seek_packet_playload_data( info, &h, search_program_id, ts_packet_length, 1, 1 ) )
+            if( mpegts_seek_packet_payload_data( info, &h, search_program_id, ts_packet_length, 1, 1 ) )
                 return -1;
         need_ts_packet_payload_data = 1;
         int read_size = (section_length - read_count > *ts_packet_length) ? *ts_packet_length : section_length - read_count;
@@ -626,8 +626,8 @@ static int mpegts_get_stream_timestamp( mpegts_info_t *info, uint16_t program_id
     int64_t pts = -1, dts = -1;
     do
     {
-        /* seek playload data. */
-        int ret = mpegts_seek_packet_playload_data( info, &h, program_id, &ts_packet_length, no_exist_start_indicator, 0 );
+        /* seek payload data. */
+        int ret = mpegts_seek_packet_payload_data( info, &h, program_id, &ts_packet_length, no_exist_start_indicator, 0 );
         if( ret < 0 )
             return -1;
         if( ret > 0 )
@@ -665,7 +665,7 @@ static int mpegts_get_stream_timestamp( mpegts_info_t *info, uint16_t program_id
             fread( pes_timestamp_buffer, 1, ts_packet_length, info->input );
             read_count = ts_packet_length;
             /* seek next payload data. */
-            int ret = mpegts_seek_packet_playload_data( info, &h, program_id, &ts_packet_length, 1, 1 );
+            int ret = mpegts_seek_packet_payload_data( info, &h, program_id, &ts_packet_length, 1, 1 );
             if( ret < 0 )
                 return -1;
             if( ret > 0 )
@@ -980,7 +980,7 @@ static int mpegts_get_video_picture_info( mpegts_info_t *info, uint16_t program_
     int no_exist_start_indicator = 1;
     do
     {
-        if( mpegts_seek_packet_playload_data( info, &h, program_id, &ts_packet_length, 0, 1 ) )
+        if( mpegts_seek_packet_payload_data( info, &h, program_id, &ts_packet_length, 0, 1 ) )
             return -1;
         /* check start indicator. */
         if( no_exist_start_indicator && !h.payload_unit_start_indicator )
@@ -1058,7 +1058,7 @@ static int mpegts_get_video_picture_info( mpegts_info_t *info, uint16_t program_
                         buf_p += ts_packet_length;
                         ts_packet_length = 0;
                     }
-                    if( mpegts_seek_packet_playload_data( info, &h, program_id, &ts_packet_length, 0, 1 ) )
+                    if( mpegts_seek_packet_payload_data( info, &h, program_id, &ts_packet_length, 0, 1 ) )
                         return -1;
                 }
                 fread( buf_p, 1, read_size, info->input );
