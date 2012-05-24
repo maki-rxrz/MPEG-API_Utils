@@ -45,7 +45,7 @@
 #include "avs_utils.h"
 #include "mpeg_utils.h"
 
-#define PROGRAM_VERSION                 "1.0.3"
+#define PROGRAM_VERSION                 "1.0.4"
 
 #ifndef REVISION_NUMBER
 #define REVISION_NUMBER                 "0"
