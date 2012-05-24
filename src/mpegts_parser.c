@@ -258,8 +258,12 @@ static int mpegts_search_program_id_packet( mpegts_info_t *info, mpegts_packet_h
         --check_count;
         if( mpegts_read_packet_header( info, h ) )
             return -1;
+        if( h->program_id == search_program_id )
+            break;
+        /* seek next packet head. */
+        fseeko( info->input, info->packet_size - TS_PACKET_HEADER_SIZE, SEEK_CUR );
     }
-    while( h->program_id != search_program_id );
+    while( 1 );
     return 0;
 }
 
