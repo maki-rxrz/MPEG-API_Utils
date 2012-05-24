@@ -1,5 +1,5 @@
 /*****************************************************************************
- * avs_utils.h
+ * mpegts_parser.h
  *****************************************************************************
  *
  * Copyright (C) 2012 maki
@@ -30,29 +30,11 @@
  *   form of this software.
  *
  ****************************************************************************/
-#ifndef __AVS_UTILS_H__
-#define __AVS_UTILS_H__
+#ifndef __MPEGTS_PARSER_H__
+#define __MPEGTS_PARSER_H__
 
-#include <inttypes.h>
+#include "mpeg_parser.h"
 
-typedef struct {
-    char *string;
-    int32_t start;
-    int32_t end;
-} avs_trim_info_t;
+extern mpeg_parser_t mpegts_parser;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-extern int avs_string_erase_invalid_strings( char *str );
-
-extern char *avs_string_get_fuction_parameters( char **str, const char *search_word );
-
-extern int avs_string_convert_calculate_string_to_result_number( avs_trim_info_t* info );
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* __AVS_UTILS_H__ */
+#endif /* __MPEGTS_PARSER_H__ */

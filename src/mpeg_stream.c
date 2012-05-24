@@ -42,6 +42,30 @@
 #include "mpeg_common.h"
 #include "mpeg_stream.h"
 
+extern int mpeg_stream_judge_type( uint8_t stream_type )
+{
+    int judge = STREAM_IS_UNKNOWN;
+    switch( stream_type )
+    {
+        case STREAM_VIDEO_MPEG1 :
+        case STREAM_VIDEO_MPEG2 :
+            judge = STREAM_IS_VIDEO;
+            break;
+        case STREAM_AUDIO_MP1 :
+        case STREAM_AUDIO_MP2 :
+        case STREAM_AUDIO_AAC :
+#if 0
+        case STREAM_AUDIO_AC3 :
+        case STREAM_AUDIO_DTS :
+#endif
+            judge = STREAM_IS_AUDIO;
+            break;
+        default :
+            break;
+    }
+    return judge;
+}
+
 extern int64_t mpeg_pes_get_timestamp( uint8_t *time_stamp_data )
 {
     return (int64_t)(time_stamp_data[0] & 0x0E) << 29
@@ -76,8 +100,6 @@ extern int mpeg_pes_check_start_code( uint8_t *start_code, mpeg_pes_packet_star_
             { 0xF9, 0xFF },         /* PS Trasnport on TS           */
             { 0xFF, 0xFF }          /* Program Stream Directory     */
         };
-    if( start_code[0] != pes_start_code_common_head[0] )
-        return -1;
     if( memcmp( start_code, pes_start_code_common_head, PES_PACKET_STATRT_CODE_SIZE - 1 ) )
         return -1;
     if( (start_code[PES_PACKET_STATRT_CODE_SIZE - 1] & pes_stream_id_list[start_code_type].mask) != pes_stream_id_list[start_code_type].code )

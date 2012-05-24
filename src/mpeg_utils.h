@@ -1,5 +1,5 @@
 /*****************************************************************************
- * mpegts_utils.h
+ * mpeg_utils.h
  *****************************************************************************
  *
  * Copyright (C) 2012 maki
@@ -30,55 +30,61 @@
  *   form of this software.
  *
  ****************************************************************************/
-#ifndef __MPEGTS_UTILS_H__
-#define __MPEGTS_UTILS_H__
+#ifndef __MPEG_UTILS_H__
+#define __MPEG_UTILS_H__
+
+#include <inttypes.h>
 
 #include "mpeg_common.h"
 
 typedef struct {
-    uint8_t         stream_type;
-    uint16_t        program_id;
-} mpegts_pid_in_pmt_t;
-
-typedef struct {
-    FILE                   *input;
-    uint8_t                 video_stream_type;
-    uint8_t                 audio_stream_type;
-    int32_t                 packet_size;
-    int32_t                 sync_byte_position;
-    int64_t                 read_position;
-    int32_t                 pid_list_num_in_pat;
-    uint16_t               *pid_list_in_pat;
-    int32_t                 pid_list_num_in_pmt;
-    mpegts_pid_in_pmt_t    *pid_list_in_pmt;
-    uint32_t                packet_check_count_num;
-    uint32_t                packet_check_retry_num;
-    uint16_t                pmt_program_id;
-    uint16_t                pcr_program_id;
+    int64_t                 file_position;
+    uint32_t                sample_size;
     int64_t                 pcr;
     int64_t                 video_key_pts;
     int64_t                 video_pts;
     int64_t                 video_dts;
     int64_t                 audio_pts;
     int64_t                 audio_dts;
-    mpeg_video_frame_type   video_frame_type;
-    int8_t                  video_order_in_gop;
-} mpegts_info_t;
+    int64_t                 gop_number;
+    uint8_t                 progressive_sequence;
+    uint8_t                 closed_gop;
+    uint8_t                 picture_coding_type;
+    uint16_t                temporal_reference;
+    uint8_t                 picture_structure;
+    uint8_t                 progressive_frame;
+    uint8_t                 repeat_first_field;
+    uint8_t                 top_field_first;
+} stream_info_t;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-extern int mpegts_api_get_info( mpegts_info_t *info );
+extern int mpeg_api_create_sample_list( void *ih );
 
-extern int mpegts_api_set_pmt_program_id( mpegts_info_t *info, uint16_t pmt_program_id );
+extern int mpeg_api_get_sample_info( void *ih, mpeg_sample_type sample_type, uint32_t sample_number, stream_info_t *stream_info );
 
-extern void mpegts_api_initialize_info( mpegts_info_t *info, FILE *input );
+extern int mpeg_api_get_sample_data( void *ih, mpeg_sample_type sample_type, uint32_t sample_number, uint8_t **dst_buffer, uint32_t *dst_read_size, get_sample_data_mode get_mode );
 
-extern void mpegts_api_release_info( mpegts_info_t *info );
+extern int64_t mpeg_api_get_pcr( void *ih );
+
+extern int mpeg_api_get_video_frame( void *ih, stream_info_t *stream_info );
+
+extern int mpeg_api_get_audio_frame( void *ih, stream_info_t *stream_info );
+
+extern int mpeg_api_parse( void *ih );
+
+extern int mpeg_api_get_stream_info( void *ih, stream_info_t *stream_info );
+
+extern int mpeg_api_set_pmt_program_id( void *ih, uint16_t pmt_program_id );
+
+extern void *mpeg_api_initialize_info( const char *mpegts );
+
+extern void mpeg_api_release_info( void *ih );
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __MPEGTS_UTILS_H__ */
+#endif /* __MPEG_UTILS_H__ */

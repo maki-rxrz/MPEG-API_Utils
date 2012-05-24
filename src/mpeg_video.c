@@ -59,8 +59,6 @@ extern int mpeg_video_check_start_code( uint8_t *start_code, mpeg_video_star_cod
             0x01,                   /* Slice Start Code - Min   */
             0xAF                    /* Slice Start Code - Max   */
         };
-    if( start_code[0] != video_start_code_common_head[0] )
-        return -1;
     if( memcmp( start_code, video_start_code_common_head, MPEG_VIDEO_STATRT_CODE_SIZE - 1 ) )
         return -1;
     if( start_code_type == MPEG_VIDEO_START_CODE_SSC )
@@ -81,7 +79,7 @@ static void read_sequence_header( uint8_t *data, mpeg_video_sequence_header_t *s
     sequence->aspect_ratio_information    =   (data[3] & 0xF0) >> 4;
     sequence->frame_rate_code             =    data[3] & 0x0F;
     sequence->bit_rate                    =   (data[4] << 10) | (data[5] << 2) | ((data[6] & 0xC0) >> 6);
-    // marker_bit '1'                     = !!(data[6] & 0x20);
+    /* marker_bit '1'                     = !!(data[6] & 0x20); */
     sequence->vbv_buffer_size             =  ((data[6] & 0x1F) << 5) | ((data[6] & 0xF8) >> 3);
     sequence->constrained_parameters_flag = !!(data[6] & 0x04);
     sequence->load_intra_quantiser_matrix = !!(data[6] & 0x02);
@@ -147,9 +145,8 @@ static void read_picture_header( uint8_t *data, mpeg_video_picture_header_t *pic
     get_nextbits( p, mask, extra_bit_picutre );
     while( extra_bit_picutre )
     {
-        // 8bits.
         //uint8_t extra_information_picutre;
-        ++p;
+        ++p;            /* 8its skip */
         get_nextbits( p, mask, extra_bit_picutre );
     }
 #undef get_nextbits
@@ -174,7 +171,7 @@ static void read_sequence_extension( uint8_t *data, mpeg_video_sequence_extensio
     sequence_ext->horizontal_size_extension    =  ((data[1] & 0x01) << 1) | ((data[2] & 0x80) >> 7);
     sequence_ext->vertical_size_extension      =   (data[2] & 0x60) >> 5;
     sequence_ext->bit_rate_extension           =  ((data[2] & 0x1F) << 7) | ((data[3] & 0xFE) >> 1);
-    // marker_bit '1'                          = !!(data[3] & 0x01);
+    /* marker_bit '1'                          = !!(data[3] & 0x01); */
     sequence_ext->vbv_buffer_size_extension    =    data[4];
     sequence_ext->low_delay                    = !!(data[5] & 0x80);
     sequence_ext->frame_rate_extension_n       =   (data[5] & 0x60) >> 5;
@@ -199,7 +196,7 @@ static void read_sequence_display_extension( uint8_t *data, mpeg_video_sequence_
         sequence_display_ext->matrix_coefficients      = 0;
     }
     sequence_display_ext->display_horizontal_size      =   (p[0] << 6) | (p[1] >> 2);
-    // marker_bit '1'                                  = !!(p[1] & 0x02)
+    /* marker_bit '1'                                  = !!(p[1] & 0x02); */
     sequence_display_ext->display_vertical_size        =  ((p[1] & 0x01) << 13) | (p[2] << 5) | (p[3] >> 3);
 }
 
@@ -217,7 +214,7 @@ static void read_sequence_scalable_extension( uint8_t *data, mpeg_video_sequence
     if( sequence_scalable_ext->scalable_mode == spatial_scalability )
     {
         sequence_scalable_ext->lower_layer_prediction_horizontal_size =  ((data[1] & 0x3F) << 8) | data[2];
-        // marker_bit '1'                                             = !!(data[3] & 0x80);
+        /* marker_bit '1'                                             = !!(data[3] & 0x80); */
         sequence_scalable_ext->lower_layer_prediction_vertical_size   =  ((data[3] & 0x7F) << 7) | (data[4] >> 1);
         sequence_scalable_ext->horizontal_subsampling_factor_m        =  ((data[4] & 0x01) << 4) | (data[5] >> 4);
         sequence_scalable_ext->horizontal_subsampling_factor_n        =  ((data[4] & 0x0F) << 1) | !!(data[5] & 0x80);
@@ -345,16 +342,16 @@ static void read_picture_temporal_scalable_extension( uint8_t *data, mpeg_video_
 {
     picture_temporal_scalable_ext->reference_select_code       =   (data[0] & 0x0C) >> 2;
     picture_temporal_scalable_ext->forward_temporal_reference  =  ((data[0] & 0x03) << 8) | data[1];
-    // marker_bit '1'                                          = !!(data[2] & 0x80);
+    /* marker_bit '1'                                          = !!(data[2] & 0x80); */
     picture_temporal_scalable_ext->backward_temporal_reference =   (data[2] & 0x7F) << 3 | (data[3] >> 5);
 }
 
 static void read_picture_spatial_scalable_extension( uint8_t *data, mpeg_video_picture_spatial_scalable_extension_t *picture_spatial_scalable_ext )
 {
     picture_spatial_scalable_ext->lower_layer_temporal_reference           =  ((data[0] & 0x08) << 6) | (data[1] >> 2);
-    // marker_bit '1'                                                      = !!(data[1] & 0x02);
+    /* marker_bit '1'                                                      = !!(data[1] & 0x02); */
     picture_spatial_scalable_ext->lower_layer_horizontal_offset            =  ((data[1] & 0x01) << 14) | (data[2] << 6) | (data[3] >> 2);
-    // marker_bit '1'                                                      = !!(data[3] & 0x02);
+    /* marker_bit '1'                                                      = !!(data[3] & 0x02); */
     picture_spatial_scalable_ext->lower_layer_vertical_offset              =  ((data[3] & 0x01) << 14) | (data[4] << 6) | (data[5] >> 2);
     picture_spatial_scalable_ext->spatial_temporal_weight_code_table_index =    data[5] & 0x02;
     picture_spatial_scalable_ext->lower_layer_progressive_frame            = !!(data[6] & 0x80);
@@ -366,12 +363,12 @@ static void read_copyright_extension( uint8_t *data, mpeg_video_copyright_extens
     copyright_ext->copyright_flag       = !!(data[0] & 0x08);
     copyright_ext->copyright_identifier =  ((data[0] & 0x07) << 5) | (data[1] >> 3);
     copyright_ext->original_or_copy     = !!(data[1] & 0x04);
-    // reserved     7bit                =  ((data[1] & 0x03) << 5) | (data[2] >> 3);
-    // marker_bit '1'                   = !!(data[2] & 0x04);
+    /* reserved     7bit                =  ((data[1] & 0x03) << 5) | (data[2] >> 3); */
+    /* marker_bit '1'                   = !!(data[2] & 0x04); */
     copyright_ext->copyright_number_1   =  ((data[2] & 0x03) << 20) | (data[3] << 12) | (data[4] << 4) | (data[5] >> 4);
-    // marker_bit '1'                   = !!(data[5] & 0x08);
+    /* marker_bit '1'                   = !!(data[5] & 0x08); */
     copyright_ext->copyright_number_2   =  ((data[5] & 0x07) << 19) | (data[6] << 11) | (data[7] << 3) | (data[7] >> 5);
-    // marker_bit '1'                   = !!(data[7] & 0x40);
+    /* marker_bit '1'                   = !!(data[7] & 0x40); */
     copyright_ext->copyright_number_3   =  ((data[8] & 0x3F) << 16) | (data[9] << 8) | data[10];
 }
 

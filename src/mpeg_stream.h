@@ -33,6 +33,8 @@
 #ifndef __MPEG_STREAM_H__
 #define __MPEG_STREAM_H__
 
+#include <inttypes.h>
+
 #define PES_PACKET_STATRT_CODE_SIZE                 (4)
 #define PES_PACKET_HEADER_CHECK_SIZE                (5)
 #define PES_PACKET_PTS_DTS_DATA_SIZE                (10)
@@ -298,6 +300,8 @@ typedef enum {
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+extern int mpeg_stream_judge_type( uint8_t stream_type );
 
 extern int64_t mpeg_pes_get_timestamp( uint8_t *time_stamp_data );
 

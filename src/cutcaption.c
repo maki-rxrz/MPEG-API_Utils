@@ -43,7 +43,7 @@
 #include "config.h"
 
 #include "avs_utils.h"
-#include "mpegts_utils.h"
+#include "mpeg_utils.h"
 
 #define PROGRAM_VERSION                 "1.0.3"
 
@@ -1161,29 +1161,32 @@ static void parse_reader_offset( param_t *p )
         }
     if( delay_type == MPEG_READER_DEALY_NONE )
         return;
-    /* file open. */
-    FILE *ts = file_open( p->input, ".ts", "rb" );
-    if( !ts )
-        return;
     /* parse. */
-    mpegts_info_t info;
-    mpegts_api_initialize_info( &info, ts );
-    info.video_stream_type = STREAM_VIDEO_MPEG2;
-    info.audio_stream_type = STREAM_AUDIO_AAC;
+    char mpegts[strlen( p->input ) + 4];
+    strcpy( mpegts, p->input );
+    strcat( mpegts, ".ts" );
+    void *info = mpeg_api_initialize_info( mpegts );
+    if( !info )
+        return;
     if( p->pmt_program_id )
-        if( 0 > mpegts_api_set_pmt_program_id( &info, p->pmt_program_id ) )
-            goto end_parse_reader_offset;
-    int get_info_result = mpegts_api_get_info( &info );
+        if( 0 > mpeg_api_set_pmt_program_id( info, p->pmt_program_id ) )
+            goto end_parse;
+    stream_info_t stream_info;
+    int get_info_result = mpeg_api_get_stream_info( info, &stream_info );
     if( !get_info_result )
     {
+        int64_t pcr           = stream_info.pcr;
+        int64_t video_key_pts = stream_info.video_key_pts;
+        int64_t video_pts     = stream_info.video_pts;
+        int64_t audio_pts     = stream_info.audio_pts;
         /* check wrap around. */
-        int64_t video_key_offset = (info.pcr > info.video_key_pts + p->wrap_around_check_v) ? TS_TIMESTMAP_WRAP_AROUND_TIME : 0;
-        int64_t video_odr_offset = (info.pcr > info.video_pts     + p->wrap_around_check_v) ? TS_TIMESTMAP_WRAP_AROUND_TIME : 0;
-        int64_t audio_offset     = (info.pcr > info.audio_pts     + p->wrap_around_check_v) ? TS_TIMESTMAP_WRAP_AROUND_TIME : 0;
+        int64_t video_key_offset = (pcr > video_key_pts + p->wrap_around_check_v) ? TS_TIMESTMAP_WRAP_AROUND_TIME : 0;
+        int64_t video_odr_offset = (pcr > video_pts     + p->wrap_around_check_v) ? TS_TIMESTMAP_WRAP_AROUND_TIME : 0;
+        int64_t audio_offset     = (pcr > audio_pts     + p->wrap_around_check_v) ? TS_TIMESTMAP_WRAP_AROUND_TIME : 0;
         /* calculate delay. */
-        int64_t video_key_start = (info.video_key_pts >= 0) ? (info.pcr - (info.video_key_pts + video_key_offset)) / 90 : 0;
-        int64_t video_odr_start = (info.video_pts     >= 0) ? (info.pcr - (info.video_pts     + video_odr_offset)) / 90 : 0;
-        int64_t audio_start     = (info.audio_pts     >= 0) ? (info.pcr - (info.audio_pts     + audio_offset)    ) / 90 : 0;
+        int64_t video_key_start = (video_key_pts >= 0) ? (pcr - (video_key_pts + video_key_offset)) / 90 : 0;
+        int64_t video_odr_start = (video_pts     >= 0) ? (pcr - (video_pts     + video_odr_offset)) / 90 : 0;
+        int64_t audio_start     = (audio_pts     >= 0) ? (pcr - (audio_pts     + audio_offset)    ) / 90 : 0;
         switch( delay_type )
         {
             case MPEG_READER_DEALY_VIDEO_GOP_KEYFRAME :
@@ -1204,9 +1207,8 @@ static void parse_reader_offset( param_t *p )
     }
     else if( get_info_result > 0 )
         dprintf( LOG_LV1, "[reader] MPEG-TS not have both video and audio stream.\n" );
-end_parse_reader_offset:
-    mpegts_api_release_info( &info );
-    fclose( ts );
+end_parse:
+    mpeg_api_release_info( info );
 }
 
 static void output_caption( param_t *p )

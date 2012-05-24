@@ -34,6 +34,23 @@
 #define __MPEG_COMMON_H__
 
 typedef enum {
+    SAMPLE_TYPE_VIDEO,
+    SAMPLE_TYPE_AUDIO
+} mpeg_sample_type;
+
+typedef enum {
+    GET_SAMPLE_DATA_CONTAINER,
+    GET_SAMPLE_DATA_PES_PACKET,
+    GET_SAMPLE_DATA_RAW
+} get_sample_data_mode;
+
+enum {
+    STREAM_IS_UNKNOWN = 0x00,
+    STREAM_IS_VIDEO   = 0x01,
+    STREAM_IS_AUDIO   = 0x02
+};
+
+typedef enum {
     STREAM_VIDEO_MPEG1 = 0x01,      /* ISO/IEC 11172 Video                                  */
     STREAM_VIDEO_MPEG2 = 0x02,      /* ITU-T Rec. H.262 | ISO/IEC 13818-2 Video or ISO/IEC  */
                                     /*           11172-2 constrained parameter video stream */
@@ -48,9 +65,10 @@ typedef enum {
 } mpeg_stream_type;
 
 typedef enum {
-    MPEG_VIDEO_I_FRAME = 0x01,
-    MPEG_VIDEO_P_FRAME = 0x10,
-    MPEG_VIDEO_B_FRAME = 0x11
+    MPEG_VIDEO_UNKNOWN_FRAME = 0x00,
+    MPEG_VIDEO_I_FRAME       = 0x01,
+    MPEG_VIDEO_P_FRAME       = 0x10,
+    MPEG_VIDEO_B_FRAME       = 0x11
 } mpeg_video_frame_type;
 
 #endif /* __MPEG_COMMON_H__ */

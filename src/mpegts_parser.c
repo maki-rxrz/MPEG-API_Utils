@@ -1,5 +1,5 @@
 /*****************************************************************************
- * mpegts_utils.c
+ * mpegts_parser.c
  *****************************************************************************
  *
  * Copyright (C) 2012 maki
@@ -42,7 +42,7 @@
 #include "mpeg_common.h"
 #include "mpeg_stream.h"
 #include "mpegts_def.h"
-#include "mpegts_utils.h"
+#include "mpegts_parser.h"
 
 #define SYNC_BYTE                           '\x47'
 
@@ -54,6 +54,41 @@
 #define TS_PACKET_FIRST_CHECK_COUNT_NUM     (4)
 #define TS_PACKET_SEARCH_CHECK_COUNT_NUM    (1000)
 #define TS_PACKET_SEARCH_RETRY_COUNT_NUM    (5)
+
+typedef enum {
+    PARSER_STATUS_NON_PARSING = 0,
+    PARSER_STATUS_PARSED
+} parser_status_type;
+
+typedef struct {
+    uint8_t         stream_type;
+    uint16_t        program_id;
+} mpegts_pid_in_pmt_t;
+
+typedef struct {
+    int32_t                 status;
+    FILE                   *input;
+    int32_t                 packet_size;
+    int32_t                 sync_byte_position;
+    int64_t                 read_position;
+    int64_t                 read_last_position;
+    int64_t                 video_position;
+    int64_t                 audio_position;
+    int32_t                 pid_list_num_in_pat;
+    uint16_t               *pid_list_in_pat;
+    int32_t                 pid_list_num_in_pmt;
+    mpegts_pid_in_pmt_t    *pid_list_in_pmt;
+    uint32_t                packet_check_count_num;
+    uint32_t                packet_check_retry_num;
+    uint16_t                pmt_program_id;
+    uint16_t                pcr_program_id;
+    uint16_t                video_program_id;
+    uint16_t                audio_program_id;
+    uint8_t                 video_stream_type;
+    uint8_t                 audio_stream_type;
+    int64_t                 pcr;
+    int64_t                 gop_number;
+} mpegts_info_t;
 
 static int32_t mpegts_check_sync_byte_position( FILE *input, int32_t packet_size, int packet_check_count )
 {
@@ -170,7 +205,7 @@ static int mpegts_read_packet_header( mpegts_info_t *info, mpegts_packet_header_
     h->continuity_counter            =  (ts_header[3] & 0x0F);
     /* ready next. */
     info->sync_byte_position = -1;
-    //info->read_position      = ftello( info->input ) - TS_PACKET_HEADER_SIZE;
+    //info->read_position = info->read_last_position = ftello( info->input ) - TS_PACKET_HEADER_SIZE;
     return 0;
 }
 
@@ -391,6 +426,7 @@ static int mpegts_parse_pat( mpegts_info_t *info )
     /* ready next. */
     info->sync_byte_position = -1;
     info->read_position      = read_pos;
+    info->read_last_position = ftello( info->input );
     return 0;
 }
 
@@ -508,6 +544,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
     /* ready next. */
     info->sync_byte_position = -1;
     info->read_position      = read_pos;
+    info->read_last_position = ftello( info->input );
     return 0;
 }
 
@@ -594,6 +631,7 @@ static int mpegts_get_pcr( mpegts_info_t *info )
     /* ready next. */
     info->sync_byte_position = -1;
     info->read_position      = read_pos;
+    info->read_last_position = ftello( info->input );
     return 0;
 }
 
@@ -657,11 +695,12 @@ static int mpegts_get_stream_timestamp( mpegts_info_t *info, uint16_t program_id
         /* setup. */
         *pts_set_p = pts;
         *dts_set_p = dts;
-        /* reset position. */
-        fseeko( info->input, read_pos, SEEK_SET );
         /* ready next. */
         info->sync_byte_position = 0;
         info->read_position      = read_pos;
+        info->read_last_position = ftello( info->input );
+        /* reset position. */
+        fseeko( info->input, read_pos, SEEK_SET );
     }
     while( pts < 0 );
     return 0;
@@ -933,9 +972,9 @@ static void show_video_info( mpeg_video_info_t *video_info, start_code_searching
     }
 }
 
-static int mpegts_get_video_picture_info( mpegts_info_t *info, uint16_t program_id, mpeg_video_info_t *video_info )
+static int mpegts_get_mpeg_video_picture_info( mpegts_info_t *info, uint16_t program_id, mpeg_video_info_t *video_info )
 {
-    dprintf( LOG_LV2, "[check] mpegts_get_video_picture_info()\n" );
+    dprintf( LOG_LV2, "[check] mpegts_get_mpeg_video_picture_info()\n" );
     /* parse payload data. */
     mpegts_packet_header_t h;
     start_code_searching_status searching_status = NON_DETECT;
@@ -1047,7 +1086,9 @@ static int mpegts_get_video_picture_info( mpegts_info_t *info, uint16_t program_
                 /* debug. */
                 show_video_info( video_info, searching_status );
                 /* check the status detection. */
-                if( searching_status == DETECT_SSC )
+                if( searching_status == DETECT_GSC )
+                    ++info->gop_number;
+                else if( searching_status == DETECT_SSC )
                     goto end_get_video_picture_info;
                 /* cleanup buffer. */
                 memset( mpeg_video_head_data, 0, MPEG_VIDEO_STATRT_CODE_SIZE );
@@ -1064,125 +1105,430 @@ end_get_video_picture_info:
     return 0;
 }
 
-static int mpegts_get_video_pts( mpegts_info_t *info )
+static uint32_t mpegts_get_sample_packets_num( mpegts_info_t *info, uint16_t program_id )
 {
-    dprintf( LOG_LV2, "[check] mpegts_get_video_pts()\n" );
-    /* search program id. */
-    uint16_t program_id = mpegts_get_program_id( info, info->video_stream_type );
-    if( program_id == TS_PID_ERR )
+    dprintf( LOG_LV2, "[check] mpegts_get_sample_packets_num()\n" );
+    mpegts_packet_header_t h;
+    if( mpegts_search_program_id_packet( info, &h, program_id ) )
         return -1;
+    uint32_t ts_packet_count = 0;
+    do
+    {
+        ++ts_packet_count;
+        if( mpegts_search_program_id_packet( info, &h, program_id ) )
+            break;
+    }
+    while( !h.payload_unit_start_indicator );
+    dprintf( LOG_LV3, "[debug] ts_packet_count:%d\n", ts_packet_count );
+    return ts_packet_count;
+}
+
+static void mpegts_get_sample_payload_data( mpegts_info_t *info, uint16_t program_id, uint32_t ts_packet_count, uint8_t *buffer, uint32_t *read_size, get_sample_data_mode get_mode )
+{
+    dprintf( LOG_LV2, "[check] mpegts_get_sample_payload_data()\n" );
+    mpegts_packet_header_t h;
+    int32_t ts_packet_length;
+    *read_size = 0;
+    for( uint32_t i = 0; i < ts_packet_count; ++i )
+    {
+        if( mpegts_seek_packet_payload_data( info, &h, program_id, &ts_packet_length, 0, 1 ) )
+            return;
+        if( get_mode == GET_SAMPLE_DATA_RAW && h.payload_unit_start_indicator )
+        {
+            /* skip PES Packet Start Code. */
+            fseeko( info->input, PES_PACKET_STATRT_CODE_SIZE, SEEK_CUR );
+            ts_packet_length -= PES_PACKET_STATRT_CODE_SIZE;
+            /* skip PES packet header. */
+            uint8_t pes_header_check_buffer[PES_PACKET_HEADER_CHECK_SIZE];
+            fread( pes_header_check_buffer, 1, PES_PACKET_HEADER_CHECK_SIZE, info->input );
+            ts_packet_length -= PES_PACKET_HEADER_CHECK_SIZE;
+            mpeg_pes_header_info_t pes_info;
+            mpeg_pes_get_header_info( pes_header_check_buffer, &pes_info );
+            dprintf( LOG_LV3, "[debug] PES packet_len:%d, pts_flag:%d, dts_flag:%d, header_len:%d\n"
+                     , pes_info.packet_length, pes_info.pts_flag, pes_info.dts_flag, pes_info.header_length );
+            fseeko( info->input, pes_info.header_length, SEEK_CUR );
+            ts_packet_length -= pes_info.header_length;
+        }
+        /* read packet data. */
+        if( ts_packet_length > 0 )
+        {
+            fread( buffer + *read_size, 1, ts_packet_length, info->input );
+            *read_size += ts_packet_length;
+        }
+    }
+}
+
+static void mpegts_get_sample_ts_packet_data( mpegts_info_t *info, uint16_t program_id, uint32_t ts_packet_count, uint8_t *buffer, uint32_t *read_size )
+{
+    dprintf( LOG_LV2, "[check] mpegts_get_sample_ts_packet_data()\n" );
+    mpegts_packet_header_t h;
+    *read_size = 0;
+    for( uint32_t i = 0; i < ts_packet_count; ++i )
+    {
+        /* read packet data. */
+        fread( buffer + *read_size, 1, TS_PACKET_SIZE, info->input );
+        *read_size += TS_PACKET_SIZE;
+        /* seek next packet. */
+        if( mpegts_search_program_id_packet( info, &h, program_id ) )
+            break;
+        fseeko( info->input, -(TS_PACKET_HEADER_SIZE), SEEK_CUR );
+    }
+}
+
+static int get_sample_data( void *ih, mpeg_sample_type sample_type, int64_t position, uint8_t **dst_buffer, uint32_t *dst_read_size, get_sample_data_mode get_mode )
+{
+    mpegts_info_t *info = (mpegts_info_t *)ih;
+    if( !info || position < 0 )
+        return -1;
+    /* check program id. */
+    uint16_t program_id = TS_PID_ERR;
+    if( sample_type == SAMPLE_TYPE_VIDEO )
+        program_id = info->video_program_id;
+    else if( sample_type == SAMPLE_TYPE_AUDIO )
+        program_id = info->audio_program_id;
+    if( program_id & MPEGTS_ILLEGAL_PROGRAM_ID_MASK )
+        return -1;
+    /* seek reading start position. */
+    fseeko( info->input, position, SEEK_SET );
+    info->sync_byte_position = 0;
+    /* check packets num. */
+    uint32_t ts_packet_count = mpegts_get_sample_packets_num( info, program_id );
+    if( !ts_packet_count )
+        return -1;
+    fseeko( info->input, position, SEEK_SET );      /* reset position. */
+    info->sync_byte_position = 0;
+    /* allocate buffer. */
+    uint32_t buffer_size = TS_PACKET_SIZE * ts_packet_count;
+    uint8_t *buffer = malloc( buffer_size );
+    if( !buffer )
+        return -1;
+    dprintf( LOG_LV3, "[debug] buffer_size:%d\n", buffer_size );
+    /* get data. */
+    uint32_t read_size;
+    if( get_mode == GET_SAMPLE_DATA_CONTAINER )
+        mpegts_get_sample_ts_packet_data( info, program_id, ts_packet_count, buffer, &read_size );
+    else
+        mpegts_get_sample_payload_data( info, program_id, ts_packet_count, buffer, &read_size, get_mode );
+    dprintf( LOG_LV3, "[debug] read_size:%d\n", read_size );
+    *dst_buffer    = buffer;
+    *dst_read_size = read_size;
+    return 0;
+}
+
+static int64_t get_sample_position( void *ih )
+{
+    mpegts_info_t *info = (mpegts_info_t *)ih;
+    if( !info )
+        return -1;
+    return ftello( info->input );
+}
+
+static int set_sample_position( void *ih, int64_t position )
+{
+    mpegts_info_t *info = (mpegts_info_t *)ih;
+    if( !info || position < 0 )
+        return -1;
+    fseeko( info->input, position, SEEK_SET );
+    return 0;
+}
+
+static int seek_next_sample_position( void *ih, mpeg_sample_type sample_type )
+{
+    mpegts_info_t *info = (mpegts_info_t *)ih;
+    if( !info )
+        return -1;
+    int64_t seek_position = -1;
+    if( sample_type == SAMPLE_TYPE_VIDEO )
+        seek_position = info->video_position;
+    else if( sample_type == SAMPLE_TYPE_AUDIO )
+        seek_position = info->audio_position;
+    if( seek_position < 0 )
+        return -1;
+    fseeko( info->input, seek_position, SEEK_SET );
+    return 0;
+}
+
+static int64_t get_pcr( void *ih )
+{
+    mpegts_info_t *info = (mpegts_info_t *)ih;
+    if( !info )
+        return -1;
+    if( info->pcr < 0 )
+    {
+        fpos_t start_position;
+        fgetpos( info->input, &start_position );
+        int result = mpegts_get_pcr( info );
+        fsetpos( info->input, &start_position );
+        if( result )
+            return -1;
+    }
+    return info->pcr;
+}
+
+static int get_video_info( void *ih, video_sample_info_t *video_sample_info )
+{
+    dprintf( LOG_LV2, "[mpegts_parser] get_video_info()\n" );
+    mpegts_info_t *info = (mpegts_info_t *)ih;
+    if( !info )
+        return -1;
+    uint16_t program_id = info->video_program_id;
     /* get timestamp. */
     int64_t pts = -1, dts = -1;
     if( mpegts_get_stream_timestamp( info, program_id, PES_PACKET_START_CODE_VIDEO_STREAM, &pts, &dts ) )
         return -1;
+    int64_t read_last_position = info->read_last_position;
     /* parse payload data. */
-    mpeg_video_info_t video_info;
-    memset( &video_info, 0, sizeof(mpeg_video_info_t) );
-    if( mpegts_get_video_picture_info( info, program_id, &video_info ) )
+    int64_t gop_number = -1;
+    uint8_t progressive_sequence = 0;
+    uint8_t closed_gop = 0;
+    uint8_t picture_coding_type = MPEG_VIDEO_UNKNOWN_FRAME;
+    uint16_t temporal_reference = -1;
+    uint8_t picture_structure = 0;
+    uint8_t progressive_frame = 0;
+    uint8_t repeat_first_field = 0;
+    uint8_t top_field_first = 0;
+    if( info->video_stream_type == STREAM_VIDEO_MPEG2 )
+    {
+        mpeg_video_info_t video_info;
+        //memset( &video_info, 0, sizeof(mpeg_video_info_t) );
+        if( !mpegts_get_mpeg_video_picture_info( info, program_id, &video_info ) )
+        {
+            gop_number           = info->gop_number;
+            progressive_sequence = video_info.sequence_ext.progressive_sequence;
+            closed_gop           = video_info.gop.closed_gop;
+            picture_coding_type  = video_info.picture.picture_coding_type;
+            temporal_reference   = video_info.picture.temporal_reference;
+            picture_structure    = video_info.picture_coding_ext.picture_structure;
+            progressive_frame    = video_info.picture_coding_ext.progressive_frame;
+            repeat_first_field   = video_info.picture_coding_ext.repeat_first_field;
+            top_field_first      = video_info.picture_coding_ext.top_field_first;
+        }
+        //read_last_position = ftello( info->input );
+    }
+    /* check packets num. */
+    fseeko( info->input, info->read_position, SEEK_SET );
+    uint32_t ts_packet_count = mpegts_get_sample_packets_num( info, program_id );
+    if( !ts_packet_count )
         return -1;
+    read_last_position = ftello( info->input ) - TS_PACKET_HEADER_SIZE;
+    fseeko( info->input, read_last_position, SEEK_SET );
+    info->sync_byte_position = 0;
     /* setup. */
-    info->video_pts          = pts;
-    info->video_dts          = dts;
-    info->video_frame_type   = video_info.picture.picture_coding_type;
-    info->video_order_in_gop = video_info.picture.temporal_reference;
-    if( info->video_frame_type == MPEG_VIDEO_I_FRAME )
-        info->video_key_pts = pts;
+    video_sample_info->file_position        = info->read_position;
+    video_sample_info->sample_size          = TS_PACKET_SIZE * ts_packet_count;
+    video_sample_info->pts                  = pts;
+    video_sample_info->dts                  = dts;
+    video_sample_info->gop_number           = gop_number;
+    video_sample_info->progressive_sequence = progressive_sequence;
+    video_sample_info->closed_gop           = closed_gop;
+    video_sample_info->picture_coding_type  = picture_coding_type;
+    video_sample_info->temporal_reference   = temporal_reference;
+    video_sample_info->picture_structure    = picture_structure;
+    video_sample_info->progressive_frame    = progressive_frame;
+    video_sample_info->repeat_first_field   = repeat_first_field;
+    video_sample_info->top_field_first      = top_field_first;
     static const char frame[4] = { '?', 'I', 'P', 'B' };
     dprintf( LOG_LV2, "[check] Video PTS:%"PRId64" [%"PRId64"ms], [%c] temporal_reference:%d\n"
-                    , info->video_pts, info->video_pts / 90, frame[info->video_frame_type], info->video_order_in_gop );
+                    , pts, pts / 90, frame[picture_coding_type], temporal_reference );
     dprintf( LOG_LV2, "[check] file position:%"PRId64"\n", info->read_position );
     /* ready next. */
     info->sync_byte_position = -1;
+    info->video_position     = read_last_position;
     return 0;
 }
 
-static int mpegts_get_audio_pts( mpegts_info_t *info )
+static int get_audio_info( void *ih, audio_sample_info_t *audio_sample_info )
 {
-    dprintf( LOG_LV2, "[check] mpegts_get_audio_pts()\n" );
-    /* search program id. */
-    uint16_t program_id = mpegts_get_program_id( info, info->audio_stream_type );
-    if( program_id == TS_PID_ERR )
+    dprintf( LOG_LV2, "[mpegts_parser] get_audio_info()\n" );
+    mpegts_info_t *info = (mpegts_info_t *)ih;
+    if( !info )
         return -1;
+    uint16_t program_id = info->audio_program_id;
     /* get timestamp. */
     int64_t pts = -1, dts = -1;
     if( mpegts_get_stream_timestamp( info, program_id, PES_PACKET_START_CODE_AUDIO_STREAM, &pts, &dts ) )
         return -1;
+    int64_t read_last_position = info->read_last_position;
+    /* check packets num. */
+    fseeko( info->input, info->read_position, SEEK_SET );
+    uint32_t ts_packet_count = mpegts_get_sample_packets_num( info, program_id );
+    if( !ts_packet_count )
+        return -1;
+    read_last_position = ftello( info->input ) - TS_PACKET_HEADER_SIZE;
+    fseeko( info->input, read_last_position, SEEK_SET );
+    info->sync_byte_position = 0;
     /* setup. */
-    info->audio_pts = pts;
-    info->audio_dts = dts;
-    dprintf( LOG_LV2, "[check] Audio PTS:%"PRId64" [%"PRId64"ms]\n", info->audio_pts, info->audio_pts / 90 );
+    audio_sample_info->file_position = info->read_position;
+    audio_sample_info->sample_size   = TS_PACKET_SIZE * ts_packet_count;
+    audio_sample_info->pts           = pts;
+    audio_sample_info->dts           = dts;
+    dprintf( LOG_LV2, "[check] Audio PTS:%"PRId64" [%"PRId64"ms]\n", pts, pts / 90 );
     dprintf( LOG_LV2, "[check] file position:%"PRId64"\n", info->read_position );
     /* ready next. */
     info->sync_byte_position = -1;
+    info->audio_position     = read_last_position;
     return 0;
 }
 
-extern int mpegts_api_get_info( mpegts_info_t *info )
+static void set_pmt_first_info( mpegts_info_t *info )
 {
-    dprintf( LOG_LV2, "[check] mpegts_get_info()\n" );
-    if( !info || !info->input )
-        return -1;
-    fpos_t start_fpos;
-    fgetpos( info->input, &start_fpos );
-    /* check MPEG2-TS and PAT/PMT/PCR packet. */
-    if( mpegts_first_check( info ) )
-        return -1;
-    if( !info->pid_list_in_pat )
-        if( mpegts_parse_pat( info ) )
-            return -1;
-    if( mpegts_parse_pmt( info ) )
-        goto fail_get_info;
-    if( mpegts_get_pcr( info ) )
-        goto fail_get_info;
-    /* check video and audio PTS. */
-    enum {
-        BOTH_VA_NONE  = 0x11,
-        VIDEO_NONE    = 0x10,
-        AUDIO_NONE    = 0x01,
-        BOTH_VA_EXIST = 0x00
-    };
-    int check_stream_exist = BOTH_VA_EXIST;
-    fsetpos( info->input, &start_fpos );
-    check_stream_exist |= mpegts_get_video_pts( info ) ? VIDEO_NONE : 0;
-    if( !(check_stream_exist & VIDEO_NONE) )
-        while( info->video_order_in_gop || info->video_key_pts < 0 )
-            if( mpegts_get_video_pts( info ) )
-                break;
-    fsetpos( info->input, &start_fpos );
-    check_stream_exist |= mpegts_get_audio_pts( info ) ? AUDIO_NONE : 0;
-    fsetpos( info->input, &start_fpos );
-    return (check_stream_exist == BOTH_VA_NONE);
-fail_get_info:
+    dprintf( LOG_LV2, "[check] [sub] set_pmt_first_info()\n" );
+    /* search program id and stream typeÅD*/
+    uint8_t va_exist = STREAM_IS_UNKNOWN;
+    int pid_list_index = 0;
+    while( pid_list_index < info->pid_list_num_in_pmt )
+    {
+        int judge = mpeg_stream_judge_type( info->pid_list_in_pmt[pid_list_index].stream_type );
+        if( judge == STREAM_IS_VIDEO )
+        {
+            info->video_program_id  = info->pid_list_in_pmt[pid_list_index].program_id;
+            info->video_stream_type = info->pid_list_in_pmt[pid_list_index].stream_type;
+            va_exist |= judge;
+        }
+        else if( judge == STREAM_IS_AUDIO )
+        {
+            info->audio_program_id  = info->pid_list_in_pmt[pid_list_index].program_id;
+            info->audio_stream_type = info->pid_list_in_pmt[pid_list_index].stream_type;
+            va_exist |= judge;
+        }
+        if( (va_exist & STREAM_IS_VIDEO) && (va_exist & STREAM_IS_AUDIO) )
+            break;
+        ++pid_list_index;
+    }
+}
+
+static void release_pid_list( mpegts_info_t *info )
+{
     if( info->pid_list_in_pmt )
+    {
         free( info->pid_list_in_pmt );
+        info->pid_list_in_pmt = NULL;
+    }
     if( info->pid_list_in_pat )
+    {
         free( info->pid_list_in_pat );
-    fsetpos( info->input, &start_fpos );
+        info->pid_list_in_pat = NULL;
+    }
+    info->status = PARSER_STATUS_NON_PARSING;
+}
+
+static int parse_pmt_info( mpegts_info_t *info )
+{
+    dprintf( LOG_LV2, "[check] [sub] parse_pmt_info()\n" );
+    if( mpegts_parse_pmt( info ) )
+        goto fail_parse;
+    if( mpegts_get_pcr( info ) )
+        goto fail_parse;
+    set_pmt_first_info( info );
+    return 0;
+fail_parse:
+    release_pid_list( info );
     return -1;
 }
 
-extern int mpegts_api_set_pmt_program_id( mpegts_info_t *info, uint16_t pmt_program_id )
+static int set_pmt_program_id( mpegts_info_t *info, uint16_t program_id )
 {
-    dprintf( LOG_LV2, "[check] mpegts_api_set_pmt_program_id()\n"
-                      "        pmt_program_id: 0x%04X\n", pmt_program_id );
-    if( pmt_program_id & MPEGTS_ILLEGAL_PROGRAM_ID_MASK )
-    {
-        dprintf( LOG_LV2, "[check] illegal PID is specified. using PID in PAT.\n" );
-        return 1;
-    }
+    dprintf( LOG_LV2, "[check] set_pmt_program_id()\n" );
     if( info->pid_list_in_pat )
         free( info->pid_list_in_pat );
     info->pid_list_in_pat = malloc( sizeof(uint16_t) );
     if( !info->pid_list_in_pat )
         return -1;
     info->pid_list_num_in_pat = 1;
-    info->pid_list_in_pat[0]  = pmt_program_id;
-    return 0;
+    info->pid_list_in_pat[0]  = program_id;
+    if( info->status == PARSER_STATUS_NON_PARSING )
+        return 0;
+    /* reset pmt information. */
+    if( info->pid_list_in_pmt )
+    {
+        free( info->pid_list_in_pmt );
+        info->pid_list_in_pmt = NULL;
+    }
+    fpos_t start_position;
+    fgetpos( info->input, &start_position );
+    int result = parse_pmt_info( info );
+    fsetpos( info->input, &start_position );
+    return result;
 }
 
-extern void mpegts_api_initialize_info( mpegts_info_t *info, FILE *input )
+static int set_program_id( void *ih, mpegts_select_pid_type pid_type, uint16_t program_id )
 {
-    memset( info, 0, sizeof(mpegts_info_t) );
+    mpegts_info_t *info = (mpegts_info_t *)ih;
+    if( !info )
+        return -1;
+    dprintf( LOG_LV2, "[mpegts_parser] set_program_id()\n"
+                      "[check] program_id: 0x%04X\n", program_id );
+    if( program_id & MPEGTS_ILLEGAL_PROGRAM_ID_MASK )
+    {
+        dprintf( LOG_LV2, "[check] illegal PID is specified. using PID in PAT.\n" );
+        return 1;
+    }
+    int result = 0;
+    switch( pid_type )
+    {
+        case PID_TYPE_PAT :
+            result = -1;
+            break;
+        case PID_TYPE_PMT :
+            result = set_pmt_program_id( info, program_id );
+            break;
+        case PID_TYPE_VIDEO :
+            info->video_program_id  = program_id;
+            //info->video_stream_type = 0;        // FIXME
+            break;
+        case PID_TYPE_AUDIO :
+            info->audio_program_id  = program_id;
+            //info->audio_stream_type = 0;        // FIXME
+            break;
+        default :
+            result = -1;
+            break;
+    }
+    return result;
+}
+
+static uint16_t get_program_id( void *ih, uint8_t stream_type )
+{
+    dprintf( LOG_LV2, "[mpegts_parser] get_program_id()\n"
+                      "[check] stream_type: 0x%02X\n", stream_type );
+    mpegts_info_t *info = (mpegts_info_t *)ih;
+    if( !info )
+        return TS_PID_ERR;
+    return mpegts_get_program_id( info, stream_type );
+}
+
+static int parse( void *ih )
+{
+    dprintf( LOG_LV2, "[mpegts_parser] parse()\n" );
+    mpegts_info_t *info = (mpegts_info_t *)ih;
+    if( !info || !info->input )
+        return -1;
+    if( info->status == PARSER_STATUS_PARSED )
+        release_pid_list( info );
+    fpos_t start_position;
+    fgetpos( info->input, &start_position );
+    if( !info->pid_list_in_pat && mpegts_parse_pat( info ) )
+        goto fail_parse;
+    int result = parse_pmt_info( info );
+    fsetpos( info->input, &start_position );
+    if( !result )
+        info->status = PARSER_STATUS_PARSED;
+    return result;
+fail_parse:
+    fsetpos( info->input, &start_position );
+    return -1;
+}
+
+static void *initialize( const char *mpegts )
+{
+    dprintf( LOG_LV2, "[mpegts_parser] initialize()\n" );
+    mpegts_info_t *info = calloc( sizeof(mpegts_info_t), 1 );
+    if( !info )
+        return NULL;
+    FILE *input = fopen( mpegts, "rb" );
+    if( !input )
+        goto fail_initialize;
+    /* initialize. */
     info->input                   = input;
     info->packet_size             = TS_PACKET_SIZE;
     info->sync_byte_position      = -1;
@@ -1190,16 +1536,43 @@ extern void mpegts_api_initialize_info( mpegts_info_t *info, FILE *input )
     info->packet_check_count_num  = TS_PACKET_SEARCH_CHECK_COUNT_NUM;
     info->packet_check_retry_num  = TS_PACKET_SEARCH_RETRY_COUNT_NUM;
     info->pcr                     = -1;
-    info->video_key_pts           = -1;
-    info->video_pts               = -1;
-    info->audio_pts               = -1;
-    info->video_order_in_gop      = -1;
+    info->gop_number              = -1;
+    /* first check. */
+    if( mpegts_first_check( info ) )
+        goto fail_initialize;
+    return info;
+fail_initialize:
+    if( input )
+        fclose( input );
+    if( info )
+        free( info );
+    return NULL;
 }
 
-extern void mpegts_api_release_info( mpegts_info_t *info )
+static void release( void *ih )
 {
-    if( info->pid_list_in_pmt )
-        free( info->pid_list_in_pmt );
-    if( info->pid_list_in_pat )
-        free( info->pid_list_in_pat );
+    dprintf( LOG_LV2, "[mpegts_parser] release()\n" );
+    mpegts_info_t *info = (mpegts_info_t *)ih;
+    if( !info )
+        return;
+    /*  release. */
+    release_pid_list( info );
+    if( info->input )
+        fclose( info->input );
+    free( info );
 }
+
+mpeg_parser_t mpegts_parser = {
+    initialize,
+    release,
+    parse,
+    set_program_id,
+    get_program_id,
+    get_video_info,
+    get_audio_info,
+    get_pcr,
+    get_sample_position,
+    set_sample_position,
+    seek_next_sample_position,
+    get_sample_data
+};

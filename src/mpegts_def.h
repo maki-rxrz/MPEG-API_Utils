@@ -33,6 +33,8 @@
 #ifndef __MPEGTS_DEF_H__
 #define __MPEGTS_DEF_H__
 
+#include <inttypes.h>
+
 #define MPEGTS_ILLEGAL_PROGRAM_ID_MASK      (0xE000)
 
 typedef enum {
