@@ -195,14 +195,14 @@ static int mpegts_read_packet_header( mpegts_info_t *info, mpegts_packet_header_
     uint8_t ts_header[TS_PACKET_HEADER_SIZE];
     fread( ts_header, 1, TS_PACKET_HEADER_SIZE, info->input );
     /* setup header data. */
-    h->sync_byte                     =   ts_header[0];
-    h->transport_error_indicator     =  (ts_header[1] & 0x80) >> 7;
-    h->payload_unit_start_indicator  =  (ts_header[1] & 0x40) >> 6;
-    h->transport_priority            =  (ts_header[1] & 0x20) >> 5;
-    h->program_id                    = ((ts_header[1] & 0x1F) << 8) | ts_header[2];
-    h->transport_scrambling_control  =  (ts_header[3] & 0xC0) >> 6;
-    h->adaptation_field_control      =  (ts_header[3] & 0x30) >> 4;
-    h->continuity_counter            =  (ts_header[3] & 0x0F);
+    h->sync_byte                     =    ts_header[0];
+    h->transport_error_indicator     = !!(ts_header[1] & 0x80);
+    h->payload_unit_start_indicator  = !!(ts_header[1] & 0x40);
+    h->transport_priority            = !!(ts_header[1] & 0x20);
+    h->program_id                    =  ((ts_header[1] & 0x1F) << 8) | ts_header[2];
+    h->transport_scrambling_control  =   (ts_header[3] & 0xC0) >> 6;
+    h->adaptation_field_control      =   (ts_header[3] & 0x30) >> 4;
+    h->continuity_counter            =   (ts_header[3] & 0x0F);
     /* ready next. */
     info->sync_byte_position = -1;
     //info->read_position = info->read_last_position = ftello( info->input ) - TS_PACKET_HEADER_SIZE;
@@ -1107,7 +1107,7 @@ end_get_video_picture_info:
 
 static uint32_t mpegts_get_sample_packets_num( mpegts_info_t *info, uint16_t program_id )
 {
-    dprintf( LOG_LV2, "[check] mpegts_get_sample_packets_num()\n" );
+    dprintf( LOG_LV3, "[debug] mpegts_get_sample_packets_num()\n" );
     mpegts_packet_header_t h;
     if( mpegts_search_program_id_packet( info, &h, program_id ) )
         return -1;
@@ -1307,6 +1307,7 @@ static int get_video_info( void *ih, video_sample_info_t *video_sample_info )
     }
     /* check packets num. */
     fseeko( info->input, info->read_position, SEEK_SET );
+    info->sync_byte_position = 0;
     uint32_t ts_packet_count = mpegts_get_sample_packets_num( info, program_id );
     if( !ts_packet_count )
         return -1;
@@ -1350,7 +1351,8 @@ static int get_audio_info( void *ih, audio_sample_info_t *audio_sample_info )
         return -1;
     int64_t read_last_position = info->read_last_position;
     /* check packets num. */
-    fseeko( info->input, info->read_position, SEEK_SET );
+    //fseeko( info->input, info->read_position, SEEK_SET );
+    //info->sync_byte_position = 0;
     uint32_t ts_packet_count = mpegts_get_sample_packets_num( info, program_id );
     if( !ts_packet_count )
         return -1;
