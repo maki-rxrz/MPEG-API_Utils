@@ -340,6 +340,8 @@ static int mpegts_get_table_section_data( mpegts_info_t *info, uint16_t search_p
         ts_packet_length -= read_size;
         read_count += read_size;
         dprintf( LOG_LV4, "[check] section data read:%d, rest_packet:%d\n", read_size, ts_packet_length );
+        /* ready next. */
+        info->sync_byte_position = ts_packet_length + info->packet_size - TS_PACKET_SIZE;
     }
     /* reset buffering start packet position. */
     fsetpos( info->input, &start_pos );
@@ -427,7 +429,7 @@ static int mpegts_parse_pat( mpegts_info_t *info )
     dprintf( LOG_LV2, "\n" );
     dprintf( LOG_LV2, "[check] file position:%"PRId64"\n", read_pos );
     /* ready next. */
-    info->sync_byte_position = -1;
+    info->sync_byte_position = ts_packet_length + info->packet_size - TS_PACKET_SIZE;
     info->read_position      = read_pos;
     return 0;
 }
@@ -544,7 +546,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
     dprintf( LOG_LV2, "\n" );
     dprintf( LOG_LV2, "[check] file position:%"PRId64"\n", read_pos );
     /* ready next. */
-    info->sync_byte_position = -1;
+    info->sync_byte_position = ts_packet_length + info->packet_size - TS_PACKET_SIZE;
     info->read_position      = read_pos;
     return 0;
 }
@@ -630,7 +632,7 @@ static int mpegts_get_pcr( mpegts_info_t *info )
     dprintf( LOG_LV2, "[check] PCR:%"PRId64" [%"PRId64"ms]\n", info->pcr, info->pcr / 90 );
     dprintf( LOG_LV2, "[check] file position:%"PRId64"\n", read_pos );
     /* ready next. */
-    info->sync_byte_position = -1;
+    info->sync_byte_position = ts_packet_length + info->packet_size - TS_PACKET_SIZE;
     info->read_position      = read_pos;
     return 0;
 }
@@ -1098,6 +1100,8 @@ static int mpegts_get_mpeg_video_picture_info( mpegts_info_t *info, uint16_t pro
         }
         dprintf( LOG_LV4, "[debug] continue next packet. buf:0x%02X 0x%02X 0x%02X 0x--\n"
                         , mpeg_video_head_data[0], mpeg_video_head_data[1], mpeg_video_head_data[2] );
+        /* ready next. */
+        info->sync_byte_position = info->packet_size - TS_PACKET_SIZE;
     }
     while( 1 );
 end_get_video_picture_info:
@@ -1310,7 +1314,7 @@ static int get_video_info( void *ih, video_sample_info_t *video_sample_info )
         return -1;
     int64_t read_last_position = ftello( info->input ) - TS_PACKET_HEADER_SIZE;
     fseeko( info->input, read_last_position, SEEK_SET );
-    info->sync_byte_position = 0;
+    //info->sync_byte_position = 0;
     /* setup. */
     video_sample_info->file_position        = info->read_position;
     video_sample_info->sample_size          = TS_PACKET_SIZE * ts_packet_count;
@@ -1354,7 +1358,7 @@ static int get_audio_info( void *ih, audio_sample_info_t *audio_sample_info )
         return -1;
     int64_t read_last_position = ftello( info->input ) - TS_PACKET_HEADER_SIZE;
     fseeko( info->input, read_last_position, SEEK_SET );
-    info->sync_byte_position = 0;
+    //info->sync_byte_position = 0;
     /* setup. */
     audio_sample_info->file_position = info->read_position;
     audio_sample_info->sample_size   = TS_PACKET_SIZE * ts_packet_count;
