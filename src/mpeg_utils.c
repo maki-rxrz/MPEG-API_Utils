@@ -409,7 +409,7 @@ extern int mpeg_api_set_pmt_program_id( void *ih, uint16_t pmt_program_id )
 extern void *mpeg_api_initialize_info( const char *mpegts )
 {
     mpeg_api_info_t *info = malloc( sizeof(mpeg_api_info_t) );
-    if( !info || !info->parser_info )
+    if( !info )
         return NULL;
     void *parser_info = parser->initialize( mpegts );
     if( !parser_info )
