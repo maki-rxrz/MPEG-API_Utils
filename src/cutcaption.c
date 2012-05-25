@@ -43,6 +43,7 @@
 #include "config.h"
 
 #include "avs_utils.h"
+#include "d2v_parser.h"
 #include "mpeg_utils.h"
 
 #define PROGRAM_VERSION                 "1.0.4"
@@ -142,16 +143,20 @@ typedef void (*cut_caption_func)( param_t *p, FILE *input, FILE *output );
 static void cut_ass( param_t *p, FILE *input, FILE *output );
 static void cut_srt( param_t *p, FILE *input, FILE *output );
 
+typedef void (*correct_func)( param_t *p );
+static void correct_d2v_input( param_t *p );
+
 static const struct {
     char               *ext;
     output_mode_type    mode;
     cut_caption_func    cut_func;
+    correct_func        correct_func;
 } input_array[INPUT_EXT_MAX] =
     {
-        { ".ass", OUTPUT_ASS , cut_ass },
-        { ".srt", OUTPUT_SRT , cut_srt },
-        { ".ts" , OUTPUT_DUAL, NULL    },
-        { ".d2v", OUTPUT_DUAL, NULL    }
+        { ".ass", OUTPUT_ASS , cut_ass, NULL              },
+        { ".srt", OUTPUT_SRT , cut_srt, NULL              },
+        { ".ts" , OUTPUT_DUAL, NULL   , NULL              },
+        { ".d2v", OUTPUT_DUAL, NULL   , correct_d2v_input }
     };
 
 typedef int (*load_list_func)( param_t *p, FILE *list, const char *search_word );
@@ -425,13 +430,22 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
         {
             char *ext = strrchr( p->input, '.' );
             if( ext )
+            {
                 for( int i = 0; i < INPUT_EXT_MAX; ++i )
                     if( !strcasecmp( ext, input_array[i].ext ) )
                     {
+                        if( input_array[i].correct_func )
+                        {
+                            input_array[i].correct_func( p );
+                            ext = strrchr( p->input, '.' );
+                            if( !ext )
+                                ext = p->input + strlen( p->input );
+                        }
                         p->output_mode = input_array[i].mode;
                         *ext           = '\0';
                         break;
                     }
+            }
         }
         ++i;
     }
@@ -1146,6 +1160,54 @@ static void cut_srt( param_t *p, FILE *input, FILE *output )
                 break;
         }
     }
+}
+
+#include <mbstring.h>
+static void correct_d2v_input( param_t *p )
+{
+    void *d2v_info = d2v_parser.parse( p->input );
+    if( !d2v_info )
+        goto end_correct;
+    const char *filename = d2v_parser.get_filename( d2v_info, 0 );
+    if( !filename )
+        goto end_correct;
+    /* check input path. */
+    char *input;
+    unsigned char *str  = NULL;
+    unsigned char *str2 = (unsigned char *)(p->input);
+    while( 1 )
+    {
+        static const unsigned char sep[] = "\\/";
+        str2 = _mbspbrk( str2, sep );
+        if( !str2 )
+            break;
+        str2 += 1;
+        str = str2;
+    }
+    if( !str || filename[1] == ':' )
+    {
+        input = strdup( filename );
+        if( !input )
+            goto end_correct;
+    }
+    else
+    {
+        size_t path_size = str - (unsigned char *)(p->input);
+        size_t len = path_size + strlen( filename ) + 1;
+        input = malloc( len + 10 );
+        if( !input )
+            goto end_correct;
+        strncpy( input, p->input, path_size );
+        input[path_size] = '\0';
+        strcat( input, filename );
+    }
+    dprintf( LOG_LV2, "[check] correct input filename from d2v.\n"
+                      "        %s\n"
+                      "        %s\n", p->input, input );
+    free( p->input );
+    p->input = input;
+end_correct:
+    d2v_parser.release( d2v_info );
 }
 
 static void parse_reader_offset( param_t *p )
