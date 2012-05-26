@@ -555,13 +555,16 @@ static int mpegts_get_pcr( mpegts_info_t *info )
 {
     dprintf( LOG_LV2, "[check] mpegts_get_pcr()\n" );
     info->pcr = -1;
+    uint16_t program_id = info->pcr_program_id;
+    if( program_id & MPEGTS_ILLEGAL_PROGRAM_ID_MASK )
+        return -1;
     int32_t ts_packet_length;
     int64_t read_pos;
     /* search. */
     mpegts_packet_header_t h;
     do
     {
-        if( mpegts_search_program_id_packet( info, &h, info->pcr_program_id ) )
+        if( mpegts_search_program_id_packet( info, &h, program_id ) )
             return -1;
         show_packet_header_info( &h );
         ts_packet_length = TS_PACKET_SIZE - TS_PACKET_HEADER_SIZE;
@@ -1275,6 +1278,8 @@ static int get_video_info( void *ih, video_sample_info_t *video_sample_info )
     if( !info )
         return -1;
     uint16_t program_id = info->video_program_id;
+    if( program_id & MPEGTS_ILLEGAL_PROGRAM_ID_MASK )
+        return -1;
     /* get timestamp. */
     int64_t pts = -1, dts = -1;
     if( mpegts_get_stream_timestamp( info, program_id, PES_PACKET_START_CODE_VIDEO_STREAM, &pts, &dts ) )
@@ -1346,6 +1351,8 @@ static int get_audio_info( void *ih, audio_sample_info_t *audio_sample_info )
     if( !info )
         return -1;
     uint16_t program_id = info->audio_program_id;
+    if( program_id & MPEGTS_ILLEGAL_PROGRAM_ID_MASK )
+        return -1;
     /* get timestamp. */
     int64_t pts = -1, dts = -1;
     if( mpegts_get_stream_timestamp( info, program_id, PES_PACKET_START_CODE_AUDIO_STREAM, &pts, &dts ) )
@@ -1537,6 +1544,9 @@ static void *initialize( const char *mpegts )
     info->read_position           = -1;
     info->packet_check_count_num  = TS_PACKET_SEARCH_CHECK_COUNT_NUM;
     info->packet_check_retry_num  = TS_PACKET_SEARCH_RETRY_COUNT_NUM;
+    info->pcr_program_id          = TS_PID_ERR;
+    info->video_program_id        = TS_PID_ERR;
+    info->audio_program_id        = TS_PID_ERR;
     info->pcr                     = -1;
     info->gop_number              = -1;
     /* first check. */
