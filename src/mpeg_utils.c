@@ -219,6 +219,19 @@ fail_create_list:
     return -1;
 }
 
+extern uint32_t mpeg_api_get_sample_num( void *ih, mpeg_sample_type sample_type )
+{
+    mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
+    if( !info || !info->parser_info )
+        return 0;
+    uint32_t sample_number = 0;
+    if( sample_type == SAMPLE_TYPE_VIDEO )
+        sample_number = info->sample_list.video_num;
+    else if( sample_type == SAMPLE_TYPE_AUDIO )
+        sample_number = info->sample_list.audio_num;
+    return sample_number;
+}
+
 extern int mpeg_api_get_sample_info( void *ih, mpeg_sample_type sample_type, uint32_t sample_number, stream_info_t *stream_info )
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
