@@ -1196,6 +1196,13 @@ static int set_pmt_program_id( mpegts_info_t *info, uint16_t program_id )
     if( info->status == PARSER_STATUS_NON_PARSING )
         return 0;
     /* reset pmt information. */
+    info->sync_byte_position = -1;
+    info->read_position      = -1;
+    info->pcr_program_id     = TS_PID_ERR;
+    info->video_program_id   = TS_PID_ERR;
+    info->audio_program_id   = TS_PID_ERR;
+    info->pcr                = -1;
+    info->gop_number         = -1;
     if( info->pid_list_in_pmt )
     {
         free( info->pid_list_in_pmt );
