@@ -42,9 +42,17 @@
 #include "mpeg_common.h"
 #include "mpeg_stream.h"
 
+static const uint8_t video_start_code_common_head[MPEG_VIDEO_START_CODE_SIZE - 1] = { 0x00, 0x00, 0x01 };
+
+extern int mpeg_video_check_start_code_common_head( uint8_t *start_code )
+{
+    if( memcmp( start_code, video_start_code_common_head, MPEG_VIDEO_START_CODE_SIZE - 1 ) )
+        return -1;
+    return 0;
+}
+
 extern int mpeg_video_check_start_code( uint8_t *start_code, mpeg_video_start_code_type start_code_type )
 {
-    static const uint8_t video_start_code_common_head[MPEG_VIDEO_START_CODE_SIZE - 1] = { 0x00, 0x00, 0x01 };
     static const uint8_t mpeg_video_start_code[MPEG_VIDEO_START_CODE_MAX + 1] =
         {
             /* Sequence Hedaer */
