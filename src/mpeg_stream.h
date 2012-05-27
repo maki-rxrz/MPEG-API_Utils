@@ -318,6 +318,11 @@ typedef enum {
     DETECT_SSC
 } mpeg_video_start_code_searching_status;
 
+#define PAL_FRAME_RATE_NUM      (25)
+#define PAL_FRAME_RATE_DEN      (1)
+#define NTSC_FRAME_RATE_NUM     (30000)
+#define NTSC_FRAME_RATE_DEN     (1001)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -339,6 +344,8 @@ extern mpeg_video_extension_type mpeg_video_check_extension_start_code_identifie
 extern int32_t mpeg_video_get_header_info( uint8_t *buf, mpeg_video_start_code_type start_code, mpeg_video_info_t *video_info );
 
 extern void mpeg_video_debug_header_info( mpeg_video_info_t *video_info, mpeg_video_start_code_searching_status searching_status );
+
+extern void mpeg_video_get_frame_rate( mpeg_video_info_t *video_info, uint32_t *fps_numerator, uint32_t *fps_denominator );
 
 #ifdef __cplusplus
 }

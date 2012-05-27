@@ -41,8 +41,8 @@
 
 #include "mpeg_common.h"
 #include "mpeg_stream.h"
+#include "mpeg_parser.h"
 #include "mpegts_def.h"
-#include "mpegts_parser.h"
 
 #define SYNC_BYTE                           '\x47'
 
@@ -844,7 +844,7 @@ static int mpegts_get_mpeg_video_picture_info( mpegts_info_t *info, uint16_t pro
                     mpeg_video_debug_header_info( video_info, searching_status );
                     /* check the status detection. */
                     if( searching_status == DETECT_GSC )
-                        ++info->gop_number;
+                        ++ info->gop_number;
                     else if( searching_status == DETECT_SSC )
                         goto end_get_video_picture_info;
                     /* cleanup buffer. */
@@ -935,7 +935,7 @@ static void mpegts_get_sample_ts_packet_data( mpegts_info_t *info, uint16_t prog
     }
 }
 
-static int get_sample_data( void *ih, mpeg_sample_type sample_type, int64_t position, uint8_t **dst_buffer, uint32_t *dst_read_size, get_sample_data_mode get_mode )
+static int get_sample_data( void *ih, mpeg_sample_type sample_type, int64_t position, uint32_t sample_size, uint8_t **dst_buffer, uint32_t *dst_read_size, get_sample_data_mode get_mode )
 {
     mpegts_info_t *info = (mpegts_info_t *)ih;
     if( !info || position < 0 )
@@ -951,18 +951,12 @@ static int get_sample_data( void *ih, mpeg_sample_type sample_type, int64_t posi
     /* seek reading start position. */
     fseeko( info->input, position, SEEK_SET );
     info->sync_byte_position = 0;
-    /* check packets num. */
-    uint32_t ts_packet_count = mpegts_get_sample_packets_num( info, program_id );
-    if( !ts_packet_count )
-        return -1;
-    fseeko( info->input, position, SEEK_SET );      /* reset position. */
-    info->sync_byte_position = 0;
     /* allocate buffer. */
-    uint32_t buffer_size = TS_PACKET_SIZE * ts_packet_count;
-    uint8_t *buffer = malloc( buffer_size );
+    uint8_t *buffer = malloc( sample_size );
     if( !buffer )
         return -1;
-    dprintf( LOG_LV3, "[debug] buffer_size:%d\n", buffer_size );
+    dprintf( LOG_LV3, "[debug] buffer_size:%d\n", sample_size );
+    uint32_t ts_packet_count = sample_size / TS_PACKET_SIZE;
     /* get data. */
     uint32_t read_size;
     if( get_mode == GET_SAMPLE_DATA_CONTAINER )
@@ -1308,6 +1302,7 @@ static void *initialize( const char *mpegts )
         goto fail_initialize;
     return info;
 fail_initialize:
+    dprintf( LOG_LV2, "[mpegts_parser] failed initialize.\n" );
     if( input )
         fclose( input );
     if( info )

@@ -851,3 +851,31 @@ extern void mpeg_video_debug_header_info( mpeg_video_info_t *video_info, mpeg_vi
             break;
     }
 }
+
+#define FRAME_RATE_CODE_MAX         (9)
+
+extern void mpeg_video_get_frame_rate( mpeg_video_info_t *video_info, uint32_t *fps_numerator, uint32_t *fps_denominator )
+{
+    uint8_t frame_rate_code        = video_info->sequence.frame_rate_code;
+    uint8_t frame_rate_extension_n = video_info->sequence_ext.frame_rate_extension_n;
+    uint8_t frame_rate_extension_d = video_info->sequence_ext.frame_rate_extension_d;
+    if( frame_rate_code > FRAME_RATE_CODE_MAX )
+        return;
+    static const struct {
+        uint32_t    fps_num;
+        uint32_t    fps_den;
+    } frame_rate_code_list[FRAME_RATE_CODE_MAX] =
+        {
+            {     0,    0 },
+            { 24000, 1001 },
+            {    24,    1 },
+            {    25,    1 },
+            { 30000, 1001 },
+            {    30,    1 },
+            {    50,    1 },
+            { 60000, 1001 },
+            {    60,    1 }
+        };
+    *fps_numerator   = frame_rate_code_list[frame_rate_code].fps_num * (frame_rate_extension_n + 1);
+    *fps_denominator = frame_rate_code_list[frame_rate_code].fps_den * (frame_rate_extension_d + 1);
+}

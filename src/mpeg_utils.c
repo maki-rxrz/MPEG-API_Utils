@@ -39,11 +39,8 @@
 #include <string.h>
 #include <inttypes.h>
 
-//#include "mpeg_parser.h"
-#include "mpegts_parser.h"
+#include "mpeg_parser.h"
 #include "mpeg_utils.h"
-
-static const mpeg_parser_t *parser = &(mpegts_parser);
 
 typedef struct {
     uint8_t                 progressive_sequence;
@@ -78,6 +75,7 @@ typedef struct {
 } sample_list_t;
 
 typedef struct {
+    mpeg_parser_t          *parser;
     void                   *parser_info;
     sample_list_t           sample_list;
 } mpeg_api_info_t;
@@ -91,6 +89,7 @@ extern int mpeg_api_create_sample_list( void *ih )
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
         return -1;
+    mpeg_parser_t *parser = info->parser;
     void *parser_info = info->parser_info;
     memset( &(info->sample_list), 0, sizeof(sample_list_t) );
     int64_t start_position = parser->get_sample_position( parser_info );
@@ -279,6 +278,7 @@ extern int mpeg_api_get_sample_data( void *ih, mpeg_sample_type sample_type, uin
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info || !dst_buffer || !dst_read_size )
         return -1;
+    mpeg_parser_t *parser = info->parser;
     void *parser_info = info->parser_info;
     sample_list_data_t *list;
     int64_t list_num;
@@ -300,7 +300,8 @@ extern int mpeg_api_get_sample_data( void *ih, mpeg_sample_type sample_type, uin
         return -1;
     /* get sample data. */
     int64_t file_position = list[sample_number].file_position;
-    return parser->get_sample_data( parser_info, sample_type, file_position, dst_buffer, dst_read_size, get_mode );
+    uint32_t sample_size  = list[sample_number].sample_size;
+    return parser->get_sample_data( parser_info, sample_type, file_position, sample_size, dst_buffer, dst_read_size, get_mode );
 }
 
 extern int64_t mpeg_api_get_pcr( void *ih )
@@ -308,7 +309,7 @@ extern int64_t mpeg_api_get_pcr( void *ih )
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
         return -1;
-    return parser->get_pcr( info->parser_info );
+    return info->parser->get_pcr( info->parser_info );
 }
 
 extern int mpeg_api_get_video_frame( void *ih, stream_info_t *stream_info )
@@ -316,6 +317,7 @@ extern int mpeg_api_get_video_frame( void *ih, stream_info_t *stream_info )
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
         return -1;
+    mpeg_parser_t *parser = info->parser;
     void *parser_info = info->parser_info;
     parser->seek_next_sample_position( parser_info, SAMPLE_TYPE_VIDEO );
     /* get video. */
@@ -344,6 +346,7 @@ extern int mpeg_api_get_audio_frame( void *ih, stream_info_t *stream_info )
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
         return -1;
+    mpeg_parser_t *parser = info->parser;
     void *parser_info = info->parser_info;
     /* get audio. */
     parser->seek_next_sample_position( parser_info, SAMPLE_TYPE_AUDIO );
@@ -363,7 +366,7 @@ extern int mpeg_api_parse( void *ih )
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
         return -1;
-    return parser->parse( info->parser_info );
+    return info->parser->parse( info->parser_info );
 }
 
 extern int mpeg_api_get_stream_info( void *ih, stream_info_t *stream_info )
@@ -371,6 +374,7 @@ extern int mpeg_api_get_stream_info( void *ih, stream_info_t *stream_info )
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
         return -1;
+    mpeg_parser_t *parser = info->parser;
     void *parser_info = info->parser_info;
     int64_t start_position = parser->get_sample_position( parser_info );
     /* parse. */
@@ -415,19 +419,33 @@ extern int mpeg_api_set_pmt_program_id( void *ih, uint16_t pmt_program_id )
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
         return -1;
-    parser->set_program_id( info->parser_info, PID_TYPE_PMT, pmt_program_id );
+    info->parser->set_program_id( info->parser_info, PID_TYPE_PMT, pmt_program_id );
     return 0;
 }
 
-extern void *mpeg_api_initialize_info( const char *mpegts )
+extern void *mpeg_api_initialize_info( const char *mpeg )
 {
     mpeg_api_info_t *info = malloc( sizeof(mpeg_api_info_t) );
     if( !info )
         return NULL;
-    void *parser_info = parser->initialize( mpegts );
+    mpeg_parser_t *parser;
+    void *parser_info;
+    static mpeg_parser_t *parsers[MPEG_PARSER_NUM] =
+        {
+            &mpegts_parser,
+            &mpeges_parser
+        };
+    for( int i = 0; i < MPEG_PARSER_NUM; ++i )
+    {
+        parser = parsers[i];
+        parser_info = parser->initialize( mpeg );
+        if( parser_info )
+            break;
+    }
     if( !parser_info )
         goto fail_initialize;
     memset( info, 0, sizeof(mpeg_api_info_t) );
+    info->parser      = parser;
     info->parser_info = parser_info;
     return info;
 fail_initialize:
@@ -444,7 +462,7 @@ extern void mpeg_api_release_info( void *ih )
     if( !info )
         return;
     if( info->parser_info )
-        parser->release( info->parser_info );
+        info->parser->release( info->parser_info );
     if( info->sample_list.video_gop )
         free( info->sample_list.video_gop );
     if( info->sample_list.video )

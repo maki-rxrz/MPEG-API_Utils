@@ -81,7 +81,7 @@ extern int mpeg_api_get_stream_info( void *ih, stream_info_t *stream_info );
 
 extern int mpeg_api_set_pmt_program_id( void *ih, uint16_t pmt_program_id );
 
-extern void *mpeg_api_initialize_info( const char *mpegts );
+extern void *mpeg_api_initialize_info( const char *mpeg );
 
 extern void mpeg_api_release_info( void *ih );
 
