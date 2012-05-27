@@ -710,278 +710,12 @@ static int mpegts_get_stream_timestamp( mpegts_info_t *info, uint16_t program_id
     return 0;
 }
 
-typedef enum {
-    NON_DETECT = -1,
-    DETECT_SHC,
-    DETECT_SESC,
-    DETECT_SDE,
-    DETECT_SSE,
-    DETECT_ESC,
-    DETECT_UDSC,
-    DETECT_SEC,
-    DETECT_GSC,
-    DETECT_PSC,
-    DETECT_PCESC,
-    DETECT_QME,
-    DETECT_PDE,
-    DETECT_PTSE,
-    DETECT_PSSE,
-    DETECT_CPRE,
-    DETECT_SSC
-} start_code_searching_status;
-
-static void show_video_info( mpeg_video_info_t *video_info, start_code_searching_status searching_status )
-{
-    /* debug. */
-    switch( searching_status )
-    {
-        case DETECT_SHC :
-            dprintf( LOG_LV2,
-                    "[check] detect Sequence Start Code.\n"
-                    "        frame_size:%dx%d\n"
-                    "        aspect_ratio_code:%d\n"
-                    "        frame_rate_code:%d\n"
-                    "        bit_rate:%d\n"
-                    "        vbv_buffer_size:%d\n"
-                    "        constrained_parameters_flag:%d\n"
-                    "        load_intra_quantiser_matrix:%d\n"
-                    "        load_non_intra_quantiser_matrix:%d\n"
-                    , video_info->sequence.horizontal_size
-                    , video_info->sequence.vertical_size
-                    , video_info->sequence.aspect_ratio_information
-                    , video_info->sequence.frame_rate_code
-                    , video_info->sequence.bit_rate
-                    , video_info->sequence.vbv_buffer_size
-                    , video_info->sequence.constrained_parameters_flag
-                    , video_info->sequence.load_intra_quantiser_matrix
-                    , video_info->sequence.load_non_intra_quantiser_matrix );
-            break;
-        case DETECT_SESC :
-            dprintf( LOG_LV2,
-                    "        profile_and_level_indication:%d\n"
-                    "        progressive_sequence:%d\n"
-                    "        chroma_format:%d\n"
-                    "        horizontal_size_extension:%d\n"
-                    "        vertical_size_extension:%d\n"
-                    "        bit_rate_extension:%d\n"
-                    "        vbv_buffer_size_extension:%d\n"
-                    "        low_delay:%d\n"
-                    "        frame_rate_extension_n:%d\n"
-                    "        frame_rate_extension_d:%d\n"
-                    , video_info->sequence_ext.profile_and_level_indication
-                    , video_info->sequence_ext.progressive_sequence
-                    , video_info->sequence_ext.chroma_format
-                    , video_info->sequence_ext.horizontal_size_extension
-                    , video_info->sequence_ext.vertical_size_extension
-                    , video_info->sequence_ext.bit_rate_extension
-                    , video_info->sequence_ext.vbv_buffer_size_extension
-                    , video_info->sequence_ext.low_delay
-                    , video_info->sequence_ext.frame_rate_extension_n
-                    , video_info->sequence_ext.frame_rate_extension_d );
-            break;
-        case DETECT_SDE :
-            dprintf( LOG_LV2,
-                    "        video_format:%d\n"
-                    "        colour_description:%d\n"
-                    "        colour_primaries:%d\n"
-                    "        transfer_characteristics:%d\n"
-                    "        matrix_coefficients:%d\n"
-                    "        display_horizontal_size:%d\n"
-                    "        display_vertical_size:%d\n"
-                    , video_info->sequence_display_ext.video_format
-                    , video_info->sequence_display_ext.colour_description
-                    , video_info->sequence_display_ext.colour_primaries
-                    , video_info->sequence_display_ext.transfer_characteristics
-                    , video_info->sequence_display_ext.matrix_coefficients
-                    , video_info->sequence_display_ext.display_horizontal_size
-                    , video_info->sequence_display_ext.display_vertical_size );
-            break;
-        case DETECT_SSE :
-            dprintf( LOG_LV2,
-                    "        scalable_mode:%d\n"
-                    "        layer_id:%d\n"
-                    "        lower_layer_prediction_horizontal_size:%d\n"
-                    "        lower_layer_prediction_vertical_size:%d\n"
-                    "        horizontal_subsampling_factor_m:%d\n"
-                    "        horizontal_subsampling_factor_n:%d\n"
-                    "        vertical_subsampling_factor_m:%d\n"
-                    "        vertical_subsampling_factor_n:%d\n"
-                    "        picture_mux_enable:%d\n"
-                    "        mux_to_progressive_sequence:%d\n"
-                    "        picture_mux_order:%d\n"
-                    "        picture_mux_factor:%d\n"
-                    , video_info->sequence_scalable_ext.scalable_mode
-                    , video_info->sequence_scalable_ext.layer_id
-                    , video_info->sequence_scalable_ext.lower_layer_prediction_horizontal_size
-                    , video_info->sequence_scalable_ext.lower_layer_prediction_vertical_size
-                    , video_info->sequence_scalable_ext.horizontal_subsampling_factor_m
-                    , video_info->sequence_scalable_ext.horizontal_subsampling_factor_n
-                    , video_info->sequence_scalable_ext.vertical_subsampling_factor_m
-                    , video_info->sequence_scalable_ext.vertical_subsampling_factor_n
-                    , video_info->sequence_scalable_ext.picture_mux_enable
-                    , video_info->sequence_scalable_ext.mux_to_progressive_sequence
-                    , video_info->sequence_scalable_ext.picture_mux_order
-                    , video_info->sequence_scalable_ext.picture_mux_factor );
-            break;
-        case DETECT_ESC :
-        case DETECT_UDSC :
-        case DETECT_SEC :
-            break;
-        case DETECT_GSC :
-            dprintf( LOG_LV2,
-                    "[check] detect GOP Start Code.\n"
-                    "        time_code:%d\n"
-                    "        closed_gop:%d\n"
-                    "        broken_link:%d\n"
-                    , video_info->gop.time_code
-                    , video_info->gop.closed_gop
-                    , video_info->gop.broken_link );
-            break;
-        case DETECT_PSC :
-            dprintf( LOG_LV2,
-                    "[check] detect Picture Start Code.\n"
-                    "        temporal_reference:%d\n"
-                    "        picture_coding_type:%d\n"
-                    "        vbv_delay:%d\n"
-                    "        full_pel_forward_vector:%d\n"
-                    "        forward_f_code:%d\n"
-                    "        full_pel_backword_vector:%d\n"
-                    "        backward_f_code:%d\n"
-                    , video_info->picture.temporal_reference
-                    , video_info->picture.picture_coding_type
-                    , video_info->picture.vbv_delay
-                    , video_info->picture.full_pel_forward_vector
-                    , video_info->picture.forward_f_code
-                    , video_info->picture.full_pel_backword_vector
-                    , video_info->picture.backward_f_code );
-            break;
-        case DETECT_PCESC :
-            dprintf( LOG_LV2,
-                    "        forward_horizontal:%d\n"
-                    "        forward_vertical:%d\n"
-                    "        backward_horizontal:%d\n"
-                    "        backward_vertical:%d\n"
-                    "        intra_dc_precision:%d\n"
-                    "        picture_structure:%d\n"
-                    "        top_field_first:%d\n"
-                    "        frame_predictive_frame_dct:%d\n"
-                    "        concealment_motion_vectors:%d\n"
-                    "        q_scale_type:%d\n"
-                    "        intra_vlc_format:%d\n"
-                    "        alternate_scan:%d\n"
-                    "        repeat_first_field:%d\n"
-                    "        chroma_420_type:%d\n"
-                    "        progressive_frame:%d\n"
-                    "        composite_display_flag:%d\n"
-                    "        v_axis:%d\n"
-                    "        field_sequence:%d\n"
-                    "        sub_carrier:%d\n"
-                    "        burst_amplitude:%d\n"
-                    "        sub_carrier_phase:%d\n"
-                    , video_info->picture_coding_ext.f_code[0].horizontal
-                    , video_info->picture_coding_ext.f_code[0].vertical
-                    , video_info->picture_coding_ext.f_code[1].horizontal
-                    , video_info->picture_coding_ext.f_code[1].vertical
-                    , video_info->picture_coding_ext.intra_dc_precision
-                    , video_info->picture_coding_ext.picture_structure
-                    , video_info->picture_coding_ext.top_field_first
-                    , video_info->picture_coding_ext.frame_predictive_frame_dct
-                    , video_info->picture_coding_ext.concealment_motion_vectors
-                    , video_info->picture_coding_ext.q_scale_type
-                    , video_info->picture_coding_ext.intra_vlc_format
-                    , video_info->picture_coding_ext.alternate_scan
-                    , video_info->picture_coding_ext.repeat_first_field
-                    , video_info->picture_coding_ext.chroma_420_type
-                    , video_info->picture_coding_ext.progressive_frame
-                    , video_info->picture_coding_ext.composite_display_flag
-                    , video_info->picture_coding_ext.v_axis
-                    , video_info->picture_coding_ext.field_sequence
-                    , video_info->picture_coding_ext.sub_carrier
-                    , video_info->picture_coding_ext.burst_amplitude
-                    , video_info->picture_coding_ext.sub_carrier_phase );
-            break;
-        case DETECT_QME :
-            dprintf( LOG_LV2,
-                    "        load_intra_quantiser_matrix:%d\n"
-                    "        load_non_intra_quantiser_matrix:%d\n"
-                    "        load_chroma_intra_quantiser_matrix:%d\n"
-                    "        load_chroma_non_intra_quantiser_matrix:%d\n"
-                    , video_info->quant_matrix_ext.load_intra_quantiser_matrix
-                    , video_info->quant_matrix_ext.load_non_intra_quantiser_matrix
-                    , video_info->quant_matrix_ext.load_chroma_intra_quantiser_matrix
-                    , video_info->quant_matrix_ext.load_chroma_non_intra_quantiser_matrix );
-            break;
-        case DETECT_PDE :
-            dprintf( LOG_LV2,
-                    "        number_of_frame_centre_offsets:%d\n"
-                    "        offsets[0].horizontal:%d\n"
-                    "        offsets[0].vertical_offset:%d\n"
-                    "        offsets[1].horizontal:%d\n"
-                    "        offsets[1].vertical_offset:%d\n"
-                    "        offsets[2].horizontal:%d\n"
-                    "        offsets[2].vertical_offset:%d\n"
-                    , video_info->picture_display_ext.number_of_frame_centre_offsets
-                    , video_info->picture_display_ext.frame_centre_offsets[0].horizontal_offset
-                    , video_info->picture_display_ext.frame_centre_offsets[0].vertical_offset
-                    , video_info->picture_display_ext.frame_centre_offsets[1].horizontal_offset
-                    , video_info->picture_display_ext.frame_centre_offsets[1].vertical_offset
-                    , video_info->picture_display_ext.frame_centre_offsets[2].horizontal_offset
-                    , video_info->picture_display_ext.frame_centre_offsets[2].vertical_offset );
-            break;
-        case DETECT_PTSE :
-            dprintf( LOG_LV2,
-                    "        reference_select_code:%d\n"
-                    "        forward_temporal_reference:%d\n"
-                    "        backward_temporal_reference:%d\n"
-                    , video_info->picture_temporal_scalable_ext.reference_select_code
-                    , video_info->picture_temporal_scalable_ext.forward_temporal_reference
-                    , video_info->picture_temporal_scalable_ext.backward_temporal_reference );
-            break;
-        case DETECT_PSSE :
-            dprintf( LOG_LV2,
-                    "        lower_layer_temporal_reference:%d\n"
-                    "        lower_layer_horizontal_offset:%d\n"
-                    "        lower_layer_vertical_offset:%d\n"
-                    "        spatial_temporal_weight_code_table_index:%d\n"
-                    "        lower_layer_progressive_frame:%d\n"
-                    "        lower_layer_deinterlaced_field_select:%d\n"
-                    , video_info->picture_spatial_scalable_ext.lower_layer_temporal_reference
-                    , video_info->picture_spatial_scalable_ext.lower_layer_horizontal_offset
-                    , video_info->picture_spatial_scalable_ext.lower_layer_vertical_offset
-                    , video_info->picture_spatial_scalable_ext.spatial_temporal_weight_code_table_index
-                    , video_info->picture_spatial_scalable_ext.lower_layer_progressive_frame
-                    , video_info->picture_spatial_scalable_ext.lower_layer_deinterlaced_field_select );
-            break;
-        case DETECT_CPRE :
-            dprintf( LOG_LV2,
-                    "        copyright_flag:%d\n"
-                    "        copyright_identifier:%d\n"
-                    "        original_or_copy:%d\n"
-                    "        copyright_number_1:%d\n"
-                    "        copyright_number_2:%d\n"
-                    "        copyright_number_3:%d\n"
-                    , video_info->copyright_ext.copyright_flag
-                    , video_info->copyright_ext.copyright_identifier
-                    , video_info->copyright_ext.original_or_copy
-                    , video_info->copyright_ext.copyright_number_1
-                    , video_info->copyright_ext.copyright_number_2
-                    , video_info->copyright_ext.copyright_number_3 );
-            break;
-        case DETECT_SSC :
-            dprintf( LOG_LV2,
-                    "[check] detect Slice Start Code.\n" );
-            break;
-        default :
-            break;
-    }
-}
-
 static int mpegts_get_mpeg_video_picture_info( mpegts_info_t *info, uint16_t program_id, mpeg_video_info_t *video_info )
 {
     dprintf( LOG_LV2, "[check] mpegts_get_mpeg_video_picture_info()\n" );
     /* parse payload data. */
     mpegts_packet_header_t h;
-    start_code_searching_status searching_status = NON_DETECT;
+    mpeg_video_start_code_searching_status searching_status = NON_DETECT;
     int32_t ts_packet_length;
     uint8_t mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE];
     int no_exist_start_indicator = 1;
@@ -1024,9 +758,9 @@ static int mpegts_get_mpeg_video_picture_info( mpegts_info_t *info, uint16_t pro
             if( !mpeg_video_check_start_code_common_head( mpeg_video_head_data ) )
             {
                 static const struct {
-                    mpeg_video_start_code_type  start_code;
-                    uint32_t                    read_size;
-                    start_code_searching_status status;
+                    mpeg_video_start_code_type             start_code;
+                    uint32_t                               read_size;
+                    mpeg_video_start_code_searching_status status;
                 } code_list[MPEG_VIDEO_START_CODE_MAX] =
                     {
                         { MPEG_VIDEO_START_CODE_SHC , MPEG_VIDEO_SEQUENCE_SECTION_HEADER_SIZE , DETECT_SHC  },
@@ -1051,8 +785,8 @@ static int mpegts_get_mpeg_video_picture_info( mpegts_info_t *info, uint16_t pro
                         fseeko( info->input, -1, SEEK_CUR );
                         int extension = mpeg_video_check_extension_start_code_identifier( identifier );
                         static const struct {
-                            start_code_searching_status     searching_status;
-                            uint32_t                        read_size;
+                            mpeg_video_start_code_searching_status searching_status;
+                            uint32_t                               read_size;
                         } extention_type_list[EXTENSION_TYPE_MAX] =
                             {
                                 { NON_DETECT  , 0                                                   },
@@ -1071,6 +805,8 @@ static int mpegts_get_mpeg_video_picture_info( mpegts_info_t *info, uint16_t pro
                         if( !read_size )
                             continue;
                     }
+                    int64_t reset_position = ftello( info->input );
+                    int32_t rest_ts_packet_length = ts_packet_length;
                     /* get header/extension information. */
                     uint8_t buf[read_size];
                     uint8_t *buf_p = buf;
@@ -1088,9 +824,24 @@ static int mpegts_get_mpeg_video_picture_info( mpegts_info_t *info, uint16_t pro
                     }
                     fread( buf_p, 1, read_size, info->input );
                     ts_packet_length -= read_size;
-                    mpeg_video_get_header_info( buf, start_code, video_info );
+                    int32_t check_size = mpeg_video_get_header_info( buf, start_code, video_info );
+                    if( check_size < read_size )
+                    {
+                        /* reset position. */
+                        fseeko( info->input, reset_position, SEEK_SET );
+                        ts_packet_length = rest_ts_packet_length;
+                        int64_t seek_size = check_size;
+                        while( ts_packet_length < seek_size )
+                        {
+                            seek_size -= ts_packet_length;
+                            if( mpegts_seek_packet_payload_data( info, &h, program_id, &ts_packet_length, 0, 1 ) )
+                                return -1;
+                        }
+                        fseeko( info->input, seek_size, SEEK_CUR );
+                        ts_packet_length -= seek_size;
+                    }
                     /* debug. */
-                    show_video_info( video_info, searching_status );
+                    mpeg_video_debug_header_info( video_info, searching_status );
                     /* check the status detection. */
                     if( searching_status == DETECT_GSC )
                         ++info->gop_number;

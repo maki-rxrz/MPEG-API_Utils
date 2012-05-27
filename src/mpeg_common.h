@@ -69,8 +69,8 @@ typedef enum {
 typedef enum {
     MPEG_VIDEO_UNKNOWN_FRAME = 0x00,
     MPEG_VIDEO_I_FRAME       = 0x01,
-    MPEG_VIDEO_P_FRAME       = 0x10,
-    MPEG_VIDEO_B_FRAME       = 0x11
+    MPEG_VIDEO_P_FRAME       = 0x02,
+    MPEG_VIDEO_B_FRAME       = 0x03
 } mpeg_video_frame_type;
 
 #endif /* __MPEG_COMMON_H__ */

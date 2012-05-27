@@ -80,8 +80,8 @@ typedef struct {
 
 #define MPEG_VIDEO_START_CODE_SIZE                      (4)
 
-#define MPEG_VIDEO_SEQUENCE_SECTION_HEADER_SIZE         (135)
-#define MPEG_VIDEO_GOP_SECTION_HEADER_SIZE              (6)
+#define MPEG_VIDEO_SEQUENCE_SECTION_HEADER_SIZE         (136)
+#define MPEG_VIDEO_GOP_SECTION_HEADER_SIZE              (4)
 #define MPEG_VIDEO_PICTURE_SECTION_HEADER_SIZE          (5)
 #define MPEG_VIDEO_SLICE_SECTION_HEADER_SIZE            (2)
 //#define MPEG_VIDEO_MACROBLOCK_SECTION_HEADER_SIZE       (0)
@@ -91,12 +91,13 @@ typedef struct {
 #define MPEG_VIDEO_SEQUENCE_SCALABLE_EXTENSION_SIZE             (7)
 #define MPEG_VIDEO_PICTURE_CODING_EXTENSION_SIZE                (7)
 #define MPEG_VIDEO_QUANT_MATRIX_EXTENSION_SIZE                  (257)
-#define MPEG_VIDEO_PICTURE_DISPLAY_EXTENSION_SIZE               (13)
-#define MPEG_VIDEO_PICTURE_TEMPORAL_SCALABLE_EXTENSION_SIZE     (7)
-#define MPEG_VIDEO_PICTURE_SPATIAL_SCALABLE_EXTENSION_SIZE      (11)
-#define MPEG_VIDEO_COPYRIGHT_EXTENSION_SIZE                     (10)
+#define MPEG_VIDEO_PICTURE_DISPLAY_EXTENSION_SIZE               (14)
+#define MPEG_VIDEO_PICTURE_TEMPORAL_SCALABLE_EXTENSION_SIZE     (4)
+#define MPEG_VIDEO_PICTURE_SPATIAL_SCALABLE_EXTENSION_SIZE      (7)
+#define MPEG_VIDEO_COPYRIGHT_EXTENSION_SIZE                     (11)
 
-#define MPEG_VIDEO_HEADER_EXTENSION_MIN_SIZE            MPEG_VIDEO_SEQUENCE_EXTENSION_SIZE
+#define MPEG_VIDEO_HEADER_EXTENSION_MIN_SIZE            MPEG_VIDEO_PICTURE_TEMPORAL_SCALABLE_EXTENSION_SIZE
+#define MPEG_VIDEO_HEADER_EXTENSION_MAX_SIZE            MPEG_VIDEO_QUANT_MATRIX_EXTENSION_SIZE
 
 typedef enum {
     MPEG_VIDEO_START_CODE_SHC  = 0,         /* Sequence Header Code */
@@ -245,18 +246,18 @@ typedef struct {
     uint32_t        copyright_number_3;
 } mpeg_video_copyright_extension_t;
 
-#if 0
 typedef struct {
     uint8_t         slice_vertical_position_extension;
     uint8_t         priority_breakpoint;
     uint8_t         quantiser_scale_code;
-    uint8_t         intra_slice_flag
+    uint8_t         intra_slice_flag;
     uint8_t         intra_slice;
 //    uint8_t         reserved_bits;
 //    uint8_t         extra_bit_slice;
 //    uint8_t         extra_information_slice;
 } mpeg_video_slice_header_t;
 
+#if 0
 typedef struct {
     uint8_t         reference_select_code;
     uint16_t        forward_temporal_reference;
@@ -277,8 +278,8 @@ typedef struct {
     mpeg_video_picture_temporal_scalable_extension_t    picture_temporal_scalable_ext;
     mpeg_video_picture_spatial_scalable_extension_t     picture_spatial_scalable_ext;
     mpeg_video_copyright_extension_t                    copyright_ext;
-#if 0
     mpeg_video_slice_header_t                           slice;
+#if 0
     mpeg_video_macroblock_header_t                      macroblock;
 #endif
 } mpeg_video_info_t;
@@ -296,6 +297,26 @@ typedef enum {
     COPYRIGHT_EXT                 = 9,      /* Copyright extension                  */
     EXTENSION_TYPE_MAX
 } mpeg_video_extension_type;
+
+typedef enum {
+    NON_DETECT = -1,
+    DETECT_SHC,
+    DETECT_SESC,
+    DETECT_SDE,
+    DETECT_SSE,
+    DETECT_ESC,
+    DETECT_UDSC,
+    DETECT_SEC,
+    DETECT_GSC,
+    DETECT_PSC,
+    DETECT_PCESC,
+    DETECT_QME,
+    DETECT_PDE,
+    DETECT_PTSE,
+    DETECT_PSSE,
+    DETECT_CPRE,
+    DETECT_SSC
+} mpeg_video_start_code_searching_status;
 
 #ifdef __cplusplus
 extern "C" {
@@ -315,7 +336,9 @@ extern int mpeg_video_check_start_code( uint8_t *start_code, mpeg_video_start_co
 
 extern mpeg_video_extension_type mpeg_video_check_extension_start_code_identifier( uint8_t identifier_buf );
 
-extern void mpeg_video_get_header_info( uint8_t *buf, mpeg_video_start_code_type start_code, mpeg_video_info_t *video_info );
+extern int32_t mpeg_video_get_header_info( uint8_t *buf, mpeg_video_start_code_type start_code, mpeg_video_info_t *video_info );
+
+extern void mpeg_video_debug_header_info( mpeg_video_info_t *video_info, mpeg_video_start_code_searching_status searching_status );
 
 #ifdef __cplusplus
 }
