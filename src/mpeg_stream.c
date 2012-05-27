@@ -42,6 +42,8 @@
 #include "mpeg_common.h"
 #include "mpeg_stream.h"
 
+static const uint8_t pes_start_code_common_head[PES_PACKET_STATRT_CODE_SIZE - 1] = { 0x00, 0x00, 0x01 };
+
 extern int mpeg_stream_judge_type( uint8_t stream_type )
 {
     int judge = STREAM_IS_UNKNOWN;
@@ -75,9 +77,15 @@ extern int64_t mpeg_pes_get_timestamp( uint8_t *time_stamp_data )
                   | (time_stamp_data[4] & 0xFE) >> 1;
 }
 
+extern int mpeg_video_check_start_code_common_head( uint8_t *start_code )
+{
+    if( memcmp( start_code, pes_start_code_common_head, PES_PACKET_STATRT_CODE_SIZE - 1 ) )
+        return -1;
+    return 0;
+}
+
 extern int mpeg_pes_check_start_code( uint8_t *start_code, mpeg_pes_packet_star_code_type start_code_type )
 {
-    static const uint8_t pes_start_code_common_head[PES_PACKET_STATRT_CODE_SIZE - 1] = { 0x00, 0x00, 0x01 };
     static const struct {
         uint8_t     mask;
         uint8_t     code;

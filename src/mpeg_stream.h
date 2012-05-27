@@ -309,6 +309,8 @@ extern int mpeg_pes_check_start_code( uint8_t *start_code, mpeg_pes_packet_star_
 
 extern void mpeg_pes_get_header_info( uint8_t *buf, mpeg_pes_header_info_t *pes_info );
 
+extern int mpeg_video_check_start_code_common_head( uint8_t *start_code );
+
 extern int mpeg_video_check_start_code( uint8_t *start_code, mpeg_video_star_code_type start_code_type );
 
 extern mpeg_video_extension_type mpeg_video_check_extension_start_code_identifier( uint8_t identifier_buf );
