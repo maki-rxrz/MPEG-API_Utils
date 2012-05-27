@@ -42,7 +42,7 @@
 #include "mpeg_common.h"
 #include "mpeg_stream.h"
 
-extern int mpeg_video_check_start_code( uint8_t *start_code, mpeg_video_star_code_type start_code_type )
+extern int mpeg_video_check_start_code( uint8_t *start_code, mpeg_video_start_code_type start_code_type )
 {
     static const uint8_t video_start_code_common_head[MPEG_VIDEO_START_CODE_SIZE - 1] = { 0x00, 0x00, 0x01 };
     static const uint8_t mpeg_video_start_code[MPEG_VIDEO_START_CODE_MAX + 1] =
@@ -510,7 +510,7 @@ extern mpeg_video_extension_type mpeg_video_check_extension_start_code_identifie
     return extension_type;
 }
 
-extern void mpeg_video_get_header_info( uint8_t *buf, mpeg_video_star_code_type start_code, mpeg_video_info_t *video_info )
+extern void mpeg_video_get_header_info( uint8_t *buf, mpeg_video_start_code_type start_code, mpeg_video_info_t *video_info )
 {
     switch( start_code )
     {

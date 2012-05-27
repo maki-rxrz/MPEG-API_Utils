@@ -57,7 +57,7 @@ typedef enum {
     PES_PACKET_START_CODE_PS_TRANSPORT_ON_TS           ,
     PES_PACKET_START_CODE_PROGRAM_STREAM_DIRECTORY     ,
     PES_PACKET_START_CODE_MAX
-} mpeg_pes_packet_star_code_type;
+} mpeg_pes_packet_start_code_type;
 
 typedef struct {
     uint16_t        packet_length;
@@ -107,7 +107,7 @@ typedef enum {
     MPEG_VIDEO_START_CODE_PSC  = 5,         /* Picture Start Code   */
     MPEG_VIDEO_START_CODE_SSC  = 6,         /* Slice Start Code     */
     MPEG_VIDEO_START_CODE_MAX
-} mpeg_video_star_code_type;
+} mpeg_video_start_code_type;
 
 typedef struct {
     uint16_t        horizontal_size;
@@ -305,17 +305,17 @@ extern int mpeg_stream_judge_type( uint8_t stream_type );
 
 extern int64_t mpeg_pes_get_timestamp( uint8_t *time_stamp_data );
 
-extern int mpeg_pes_check_start_code( uint8_t *start_code, mpeg_pes_packet_star_code_type start_code_type );
+extern int mpeg_pes_check_start_code( uint8_t *start_code, mpeg_pes_packet_start_code_type start_code_type );
 
 extern void mpeg_pes_get_header_info( uint8_t *buf, mpeg_pes_header_info_t *pes_info );
 
 extern int mpeg_video_check_start_code_common_head( uint8_t *start_code );
 
-extern int mpeg_video_check_start_code( uint8_t *start_code, mpeg_video_star_code_type start_code_type );
+extern int mpeg_video_check_start_code( uint8_t *start_code, mpeg_video_start_code_type start_code_type );
 
 extern mpeg_video_extension_type mpeg_video_check_extension_start_code_identifier( uint8_t identifier_buf );
 
-extern void mpeg_video_get_header_info( uint8_t *buf, mpeg_video_star_code_type start_code, mpeg_video_info_t *video_info );
+extern void mpeg_video_get_header_info( uint8_t *buf, mpeg_video_start_code_type start_code, mpeg_video_info_t *video_info );
 
 #ifdef __cplusplus
 }

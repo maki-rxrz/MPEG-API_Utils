@@ -84,7 +84,7 @@ extern int mpeg_video_check_start_code_common_head( uint8_t *start_code )
     return 0;
 }
 
-extern int mpeg_pes_check_start_code( uint8_t *start_code, mpeg_pes_packet_star_code_type start_code_type )
+extern int mpeg_pes_check_start_code( uint8_t *start_code, mpeg_pes_packet_start_code_type start_code_type )
 {
     static const struct {
         uint8_t     mask;

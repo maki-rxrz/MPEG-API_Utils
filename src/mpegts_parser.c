@@ -657,7 +657,7 @@ static uint16_t mpegts_get_program_id( mpegts_info_t *info, mpeg_stream_type str
     return info->pid_list_in_pmt[pid_list_index].program_id;
 }
 
-static int mpegts_get_stream_timestamp( mpegts_info_t *info, uint16_t program_id, mpeg_pes_packet_star_code_type start_code, int64_t *pts_set_p, int64_t *dts_set_p )
+static int mpegts_get_stream_timestamp( mpegts_info_t *info, uint16_t program_id, mpeg_pes_packet_start_code_type start_code, int64_t *pts_set_p, int64_t *dts_set_p )
 {
     dprintf( LOG_LV2, "[check] mpegts_get_stream_timestamp()\n" );
     mpegts_packet_header_t h;
@@ -1024,7 +1024,7 @@ static int mpegts_get_mpeg_video_picture_info( mpegts_info_t *info, uint16_t pro
             if( !mpeg_video_check_start_code_common_head( mpeg_video_head_data ) )
             {
                 static const struct {
-                    mpeg_video_star_code_type   start_code;
+                    mpeg_video_start_code_type  start_code;
                     uint32_t                    read_size;
                     start_code_searching_status status;
                 } code_list[MPEG_VIDEO_START_CODE_MAX] =
@@ -1041,9 +1041,9 @@ static int mpegts_get_mpeg_video_picture_info( mpegts_info_t *info, uint16_t pro
                 {
                     if( !code_list[i].read_size || mpeg_video_check_start_code( mpeg_video_head_data, code_list[i].start_code ) )
                         continue;
-                    mpeg_video_star_code_type start_code = code_list[i].start_code;
-                    uint32_t read_size                   = code_list[i].read_size;
-                    searching_status                     = code_list[i].status;
+                    mpeg_video_start_code_type start_code = code_list[i].start_code;
+                    uint32_t read_size                    = code_list[i].read_size;
+                    searching_status                      = code_list[i].status;
                     if( start_code == MPEG_VIDEO_START_CODE_ESC )
                     {
                         uint8_t identifier;
