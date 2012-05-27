@@ -44,7 +44,7 @@
 
 extern int mpeg_video_check_start_code( uint8_t *start_code, mpeg_video_star_code_type start_code_type )
 {
-    static const uint8_t video_start_code_common_head[MPEG_VIDEO_STATRT_CODE_SIZE - 1] = { 0x00, 0x00, 0x01 };
+    static const uint8_t video_start_code_common_head[MPEG_VIDEO_START_CODE_SIZE - 1] = { 0x00, 0x00, 0x01 };
     static const uint8_t mpeg_video_start_code[MPEG_VIDEO_START_CODE_MAX + 1] =
         {
             /* Sequence Hedaer */
@@ -59,15 +59,15 @@ extern int mpeg_video_check_start_code( uint8_t *start_code, mpeg_video_star_cod
             0x01,                   /* Slice Start Code - Min   */
             0xAF                    /* Slice Start Code - Max   */
         };
-    if( memcmp( start_code, video_start_code_common_head, MPEG_VIDEO_STATRT_CODE_SIZE - 1 ) )
+    if( memcmp( start_code, video_start_code_common_head, MPEG_VIDEO_START_CODE_SIZE - 1 ) )
         return -1;
     if( start_code_type == MPEG_VIDEO_START_CODE_SSC )
     {
-        if( start_code[MPEG_VIDEO_STATRT_CODE_SIZE - 1] < mpeg_video_start_code[start_code_type + 0]
-         || start_code[MPEG_VIDEO_STATRT_CODE_SIZE - 1] > mpeg_video_start_code[start_code_type + 1] )
+        if( start_code[MPEG_VIDEO_START_CODE_SIZE - 1] < mpeg_video_start_code[start_code_type + 0]
+         || start_code[MPEG_VIDEO_START_CODE_SIZE - 1] > mpeg_video_start_code[start_code_type + 1] )
             return -1;
     }
-    else if( start_code[MPEG_VIDEO_STATRT_CODE_SIZE - 1] != mpeg_video_start_code[start_code_type] )
+    else if( start_code[MPEG_VIDEO_START_CODE_SIZE - 1] != mpeg_video_start_code[start_code_type] )
         return -1;
     return 0;
 }

@@ -676,9 +676,9 @@ static int mpegts_get_stream_timestamp( mpegts_info_t *info, uint16_t program_id
         /* check file position. */
         read_pos = ftello( info->input ) - (TS_PACKET_SIZE - ts_packet_length);
         /* check PES Packet Start Code. */
-        uint8_t pes_packet_head_data[PES_PACKET_STATRT_CODE_SIZE];
-        fread( pes_packet_head_data, 1, PES_PACKET_STATRT_CODE_SIZE, info->input );
-        ts_packet_length -= PES_PACKET_STATRT_CODE_SIZE;
+        uint8_t pes_packet_head_data[PES_PACKET_START_CODE_SIZE];
+        fread( pes_packet_head_data, 1, PES_PACKET_START_CODE_SIZE, info->input );
+        ts_packet_length -= PES_PACKET_START_CODE_SIZE;
         if( mpeg_pes_check_start_code( pes_packet_head_data, start_code ) )
             continue;
         /* check PES packet length, flags. */
@@ -983,7 +983,7 @@ static int mpegts_get_mpeg_video_picture_info( mpegts_info_t *info, uint16_t pro
     mpegts_packet_header_t h;
     start_code_searching_status searching_status = NON_DETECT;
     int32_t ts_packet_length;
-    uint8_t mpeg_video_head_data[MPEG_VIDEO_STATRT_CODE_SIZE];
+    uint8_t mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE];
     int no_exist_start_indicator = 1;
     do
     {
@@ -995,8 +995,8 @@ static int mpegts_get_mpeg_video_picture_info( mpegts_info_t *info, uint16_t pro
         if( h.payload_unit_start_indicator )
         {
             /* skip PES Packet Start Code. */
-            fseeko( info->input, PES_PACKET_STATRT_CODE_SIZE, SEEK_CUR );
-            ts_packet_length -= PES_PACKET_STATRT_CODE_SIZE;
+            fseeko( info->input, PES_PACKET_START_CODE_SIZE, SEEK_CUR );
+            ts_packet_length -= PES_PACKET_START_CODE_SIZE;
             /* check PES packet length, flags. */
             uint8_t pes_header_check_buffer[PES_PACKET_HEADER_CHECK_SIZE];
             fread( pes_header_check_buffer, 1, PES_PACKET_HEADER_CHECK_SIZE, info->input );
@@ -1011,14 +1011,14 @@ static int mpegts_get_mpeg_video_picture_info( mpegts_info_t *info, uint16_t pro
         /* check Stream Start Code. */
         if( no_exist_start_indicator )
         {
-            fread( mpeg_video_head_data, 1, MPEG_VIDEO_STATRT_CODE_SIZE - 1, info->input );
-            ts_packet_length -= MPEG_VIDEO_STATRT_CODE_SIZE - 1;
+            fread( mpeg_video_head_data, 1, MPEG_VIDEO_START_CODE_SIZE - 1, info->input );
+            ts_packet_length -= MPEG_VIDEO_START_CODE_SIZE - 1;
             no_exist_start_indicator = 0;
         }
         /* search. */
         while( ts_packet_length )
         {
-            fread( &(mpeg_video_head_data[MPEG_VIDEO_STATRT_CODE_SIZE - 1]), 1, 1, info->input );
+            fread( &(mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE - 1]), 1, 1, info->input );
             --ts_packet_length;
             /* check Start Code. */
             if( !mpeg_video_check_start_code_common_head( mpeg_video_head_data ) )
@@ -1097,11 +1097,11 @@ static int mpegts_get_mpeg_video_picture_info( mpegts_info_t *info, uint16_t pro
                     else if( searching_status == DETECT_SSC )
                         goto end_get_video_picture_info;
                     /* cleanup buffer. */
-                    memset( mpeg_video_head_data, 0, MPEG_VIDEO_STATRT_CODE_SIZE );
+                    memset( mpeg_video_head_data, 0, MPEG_VIDEO_START_CODE_SIZE );
                     break;
                 }
             }
-            for( int i = 1; i < MPEG_VIDEO_STATRT_CODE_SIZE; ++i )
+            for( int i = 1; i < MPEG_VIDEO_START_CODE_SIZE; ++i )
                 mpeg_video_head_data[i - 1] = mpeg_video_head_data[i];
         }
         dprintf( LOG_LV4, "[debug] continue next packet. buf:0x%02X 0x%02X 0x%02X 0x--\n"
@@ -1145,8 +1145,8 @@ static void mpegts_get_sample_payload_data( mpegts_info_t *info, uint16_t progra
         if( get_mode == GET_SAMPLE_DATA_RAW && h.payload_unit_start_indicator )
         {
             /* skip PES Packet Start Code. */
-            fseeko( info->input, PES_PACKET_STATRT_CODE_SIZE, SEEK_CUR );
-            ts_packet_length -= PES_PACKET_STATRT_CODE_SIZE;
+            fseeko( info->input, PES_PACKET_START_CODE_SIZE, SEEK_CUR );
+            ts_packet_length -= PES_PACKET_START_CODE_SIZE;
             /* skip PES packet header. */
             uint8_t pes_header_check_buffer[PES_PACKET_HEADER_CHECK_SIZE];
             fread( pes_header_check_buffer, 1, PES_PACKET_HEADER_CHECK_SIZE, info->input );

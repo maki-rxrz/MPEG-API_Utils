@@ -42,7 +42,7 @@
 #include "mpeg_common.h"
 #include "mpeg_stream.h"
 
-static const uint8_t pes_start_code_common_head[PES_PACKET_STATRT_CODE_SIZE - 1] = { 0x00, 0x00, 0x01 };
+static const uint8_t pes_start_code_common_head[PES_PACKET_START_CODE_SIZE - 1] = { 0x00, 0x00, 0x01 };
 
 extern int mpeg_stream_judge_type( uint8_t stream_type )
 {
@@ -79,7 +79,7 @@ extern int64_t mpeg_pes_get_timestamp( uint8_t *time_stamp_data )
 
 extern int mpeg_video_check_start_code_common_head( uint8_t *start_code )
 {
-    if( memcmp( start_code, pes_start_code_common_head, PES_PACKET_STATRT_CODE_SIZE - 1 ) )
+    if( memcmp( start_code, pes_start_code_common_head, PES_PACKET_START_CODE_SIZE - 1 ) )
         return -1;
     return 0;
 }
@@ -108,9 +108,9 @@ extern int mpeg_pes_check_start_code( uint8_t *start_code, mpeg_pes_packet_star_
             { 0xF9, 0xFF },         /* PS Trasnport on TS           */
             { 0xFF, 0xFF }          /* Program Stream Directory     */
         };
-    if( memcmp( start_code, pes_start_code_common_head, PES_PACKET_STATRT_CODE_SIZE - 1 ) )
+    if( memcmp( start_code, pes_start_code_common_head, PES_PACKET_START_CODE_SIZE - 1 ) )
         return -1;
-    if( (start_code[PES_PACKET_STATRT_CODE_SIZE - 1] & pes_stream_id_list[start_code_type].mask) != pes_stream_id_list[start_code_type].code )
+    if( (start_code[PES_PACKET_START_CODE_SIZE - 1] & pes_stream_id_list[start_code_type].mask) != pes_stream_id_list[start_code_type].code )
         return -1;
     return 0;
 }

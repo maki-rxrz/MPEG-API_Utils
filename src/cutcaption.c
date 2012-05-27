@@ -62,8 +62,8 @@
 #define DEFAULT_FPS_DEN                 (1001)
 #define DEFAULT_LINE_MAX                (512)
 
-#define TS_TIMESTMAP_WRAP_AROUND_TIME                   (0x1FFFFFFFF)
-#define TS_TIMESTAMP_WRAP_AROUND_CHECK_VALUE            (450000)       /* 5sec x 90kHz */
+#define TS_TIMESTMAP_WRAP_AROUND_TIME               MPEG_TIMESTMAP_MAX_VALUE
+#define TS_TIMESTAMP_WRAP_AROUND_CHECK_VALUE        (450000)       /* 5sec x 90kHz */
 
 typedef enum {
     OUTPUT_NONE = 0x00,

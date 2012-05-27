@@ -33,6 +33,8 @@
 #ifndef __MPEG_COMMON_H__
 #define __MPEG_COMMON_H__
 
+#define MPEG_TIMESTMAP_MAX_VALUE        (0x1FFFFFFFFLL)
+
 typedef enum {
     SAMPLE_TYPE_VIDEO,
     SAMPLE_TYPE_AUDIO

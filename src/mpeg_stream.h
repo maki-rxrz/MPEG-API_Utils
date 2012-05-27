@@ -35,7 +35,7 @@
 
 #include <inttypes.h>
 
-#define PES_PACKET_STATRT_CODE_SIZE                 (4)
+#define PES_PACKET_START_CODE_SIZE                  (4)
 #define PES_PACKET_HEADER_CHECK_SIZE                (5)
 #define PES_PACKET_PTS_DTS_DATA_SIZE                (10)
 
@@ -78,7 +78,7 @@ typedef struct {
     uint8_t         header_length;
 } mpeg_pes_header_info_t;
 
-#define MPEG_VIDEO_STATRT_CODE_SIZE                     (4)
+#define MPEG_VIDEO_START_CODE_SIZE                      (4)
 
 #define MPEG_VIDEO_SEQUENCE_SECTION_HEADER_SIZE         (135)
 #define MPEG_VIDEO_GOP_SECTION_HEADER_SIZE              (6)
