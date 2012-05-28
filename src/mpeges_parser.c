@@ -105,7 +105,6 @@ static int mpeges_get_mpeg_video_picture_info( mpeges_info_t *info, mpeg_video_i
 {
     dprintf( LOG_LV2, "[check] mpeges_get_mpeg_video_picture_info()\n" );
     /* parse raw data. */
-    mpeg_video_start_code_searching_status searching_status = NON_DETECT;
     uint8_t mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE];
     if( fread( mpeg_video_head_data, 1, MPEG_VIDEO_START_CODE_SIZE - 1, info->input ) != MPEG_VIDEO_START_CODE_SIZE - 1)
         return -1;
@@ -117,93 +116,50 @@ static int mpeges_get_mpeg_video_picture_info( mpeges_info_t *info, mpeg_video_i
             break;
         if( !mpeg_video_check_start_code_common_head( mpeg_video_head_data ) )
         {
-            static const struct {
-                mpeg_video_start_code_type  start_code;
-                uint32_t                    read_size;
-                mpeg_video_start_code_searching_status status;
-            } code_list[MPEG_VIDEO_START_CODE_MAX] =
-                {
-                    { MPEG_VIDEO_START_CODE_SHC , MPEG_VIDEO_SEQUENCE_SECTION_HEADER_SIZE , DETECT_SHC  },
-                    { MPEG_VIDEO_START_CODE_ESC , MPEG_VIDEO_HEADER_EXTENSION_MIN_SIZE    , DETECT_ESC  },
-                    { MPEG_VIDEO_START_CODE_UDSC, 0                                       , DETECT_UDSC },
-                    { MPEG_VIDEO_START_CODE_SEC , 0                                       , DETECT_SEC  },
-                    { MPEG_VIDEO_START_CODE_GSC , MPEG_VIDEO_GOP_SECTION_HEADER_SIZE      , DETECT_GSC  },
-                    { MPEG_VIDEO_START_CODE_PSC , MPEG_VIDEO_PICTURE_SECTION_HEADER_SIZE  , DETECT_PSC  },
-                    { MPEG_VIDEO_START_CODE_SSC , MPEG_VIDEO_SLICE_SECTION_HEADER_SIZE    , DETECT_SSC  }
-                };
-            for( int i = 0; i < MPEG_VIDEO_START_CODE_MAX; ++i )
+            uint8_t identifier;
+            if( !fread( &identifier, 1, 1, info->input ) )
+                goto end_get_video_picture_info;
+            fseeko( info->input, -1, SEEK_CUR );
+            mpeg_video_start_code_info_t start_code_info;
+            if( mpeg_video_judge_start_code( mpeg_video_head_data, identifier, &start_code_info ) )
+                continue;
+            uint32_t read_size = start_code_info.read_size;
+            int64_t start_code_position = ftello( info->input ) - MPEG_VIDEO_START_CODE_SIZE;
+            /* get header/extension information. */
+            uint8_t buf[read_size];
+            if( fread( buf, 1, read_size, info->input ) != read_size )
+                goto end_get_video_picture_info;
+            int64_t check_size = mpeg_video_get_header_info( buf, start_code_info.start_code, video_info );
+            if( check_size < read_size )
+                fseeko( info->input, start_code_position + MPEG_VIDEO_START_CODE_SIZE + check_size, SEEK_SET );
+            /* debug. */
+            mpeg_video_debug_header_info( video_info, start_code_info.searching_status );
+            /* check the status detection. */
+            if( start_code_info.searching_status == DETECT_SHC )
+                read_position = start_code_position;
+            else if( start_code_info.searching_status == DETECT_SESC )
             {
-                if( !code_list[i].read_size || mpeg_video_check_start_code( mpeg_video_head_data, code_list[i].start_code ) )
-                    continue;
-                mpeg_video_start_code_type start_code = code_list[i].start_code;
-                uint32_t read_size                    = code_list[i].read_size;
-                searching_status                      = code_list[i].status;
-                if( start_code == MPEG_VIDEO_START_CODE_ESC )
-                {
-                    uint8_t identifier;
-                    if( !fread( &identifier, 1, 1, info->input ) )
-                        goto end_get_video_picture_info;
-                    fseeko( info->input, -1, SEEK_CUR );
-                    int extension = mpeg_video_check_extension_start_code_identifier( identifier );
-                    static const struct {
-                        mpeg_video_start_code_searching_status searching_status;
-                        uint32_t                               read_size;
-                    } extention_type_list[EXTENSION_TYPE_MAX] =
-                        {
-                            { NON_DETECT  , 0                                                   },
-                            { DETECT_SESC , MPEG_VIDEO_SEQUENCE_EXTENSION_SIZE                  },
-                            { DETECT_SDE  , MPEG_VIDEO_SEQUENCE_DISPLAY_EXTENSION_SIZE          },
-                            { DETECT_SSE  , MPEG_VIDEO_SEQUENCE_SCALABLE_EXTENSION_SIZE         },
-                            { DETECT_PCESC, MPEG_VIDEO_PICTURE_CODING_EXTENSION_SIZE            },
-                            { DETECT_QME  , MPEG_VIDEO_QUANT_MATRIX_EXTENSION_SIZE              },
-                            { DETECT_PDE  , MPEG_VIDEO_PICTURE_DISPLAY_EXTENSION_SIZE           },
-                            { DETECT_PTSE , MPEG_VIDEO_PICTURE_TEMPORAL_SCALABLE_EXTENSION_SIZE },
-                            { DETECT_PSSE , MPEG_VIDEO_PICTURE_SPATIAL_SCALABLE_EXTENSION_SIZE  },
-                            { DETECT_CPRE , MPEG_VIDEO_COPYRIGHT_EXTENSION_SIZE                 }
-                        };
-                    searching_status = extention_type_list[extension].searching_status;
-                    read_size        = extention_type_list[extension].read_size;
-                    if( !read_size )
-                        continue;
-                }
-                int64_t start_code_position = ftello( info->input ) - MPEG_VIDEO_START_CODE_SIZE;
-                /* get header/extension information. */
-                uint8_t buf[read_size];
-                if( fread( buf, 1, read_size, info->input ) != read_size )
-                    goto end_get_video_picture_info;
-                int64_t check_size = mpeg_video_get_header_info( buf, start_code, video_info );
-                if( check_size < read_size )
-                    fseeko( info->input, start_code_position + MPEG_VIDEO_START_CODE_SIZE + check_size, SEEK_SET );
-                /* debug. */
-                mpeg_video_debug_header_info( video_info, searching_status );
-                /* check the status detection. */
-                if( searching_status == DETECT_SHC )
-                    read_position = start_code_position;
-                else if( searching_status == DETECT_SESC )
-                {
-                    mpeg_video_get_frame_rate( video_info, &(info->fps_numerator), &(info->fps_denominator) );
-                    info->timestamp_base = 90 * 1000 * info->fps_denominator / info->fps_numerator;
-                }
-                else if( searching_status == DETECT_GSC )
-                {
-                    ++ info->gop_number;
-                    info->total_picture_num += info->picture_num;
-                    info->picture_num = -1;
-                }
-                else if( searching_status == DETECT_PSC )
-                {
-                    if( read_position == -1 )
-                        read_position = start_code_position;
-                    ++ info->picture_num;
-                    result = 0;
-                }
-                else if( searching_status == DETECT_SSC
-                      || searching_status == DETECT_SEC )
-                    goto end_get_video_picture_info;
-                /* cleanup buffer. */
-                memset( mpeg_video_head_data, 0, MPEG_VIDEO_START_CODE_SIZE );
-                break;
+                mpeg_video_get_frame_rate( video_info, &(info->fps_numerator), &(info->fps_denominator) );
+                info->timestamp_base = 90 * 1000 * info->fps_denominator / info->fps_numerator;
             }
+            else if( start_code_info.searching_status == DETECT_GSC )
+            {
+                ++ info->gop_number;
+                info->total_picture_num += info->picture_num;
+                info->picture_num = -1;
+            }
+            else if( start_code_info.searching_status == DETECT_PSC )
+            {
+                if( read_position == -1 )
+                    read_position = start_code_position;
+                ++ info->picture_num;
+                result = 0;
+            }
+            else if( start_code_info.searching_status == DETECT_SSC
+                  || start_code_info.searching_status == DETECT_SEC )
+                goto end_get_video_picture_info;
+            /* cleanup buffer. */
+            memset( mpeg_video_head_data, 0, MPEG_VIDEO_START_CODE_SIZE );
         }
         for( int i = 1; i < MPEG_VIDEO_START_CODE_SIZE; ++i )
             mpeg_video_head_data[i - 1] = mpeg_video_head_data[i];

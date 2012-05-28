@@ -535,10 +535,10 @@ static int32_t mpeg_video_get_extension_info( uint8_t *buf, mpeg_video_info_t *v
     return check_size;
 }
 
-extern mpeg_video_extension_type mpeg_video_check_extension_start_code_identifier( uint8_t identifier_buf )
+static mpeg_video_extension_type mpeg_video_check_extension_start_code_identifier( uint8_t identifier )
 {
     mpeg_video_extension_type extension_type = NON_EXTENSTION;
-    extension_start_code_identifier_code extension_start_code_identifier = identifier_buf >> 4;
+    extension_start_code_identifier_code extension_start_code_identifier = identifier >> 4;
     switch( extension_start_code_identifier )
     {
         /* Sequence Header */
@@ -850,6 +850,64 @@ extern void mpeg_video_debug_header_info( mpeg_video_info_t *video_info, mpeg_vi
         default :
             break;
     }
+}
+
+extern int mpeg_video_judge_start_code( uint8_t *start_code_data, uint8_t identifier, mpeg_video_start_code_info_t *start_code_info )
+{
+    int result = -1;
+    static const struct {
+        mpeg_video_start_code_type             start_code;
+        uint32_t                               read_size;
+        mpeg_video_start_code_searching_status status;
+    } code_list[MPEG_VIDEO_START_CODE_MAX] =
+        {
+            { MPEG_VIDEO_START_CODE_SHC , MPEG_VIDEO_SEQUENCE_SECTION_HEADER_SIZE , DETECT_SHC  },
+            { MPEG_VIDEO_START_CODE_ESC , MPEG_VIDEO_HEADER_EXTENSION_MIN_SIZE    , DETECT_ESC  },
+            { MPEG_VIDEO_START_CODE_UDSC, 0                                       , DETECT_UDSC },
+            { MPEG_VIDEO_START_CODE_SEC , 0                                       , DETECT_SEC  },
+            { MPEG_VIDEO_START_CODE_GSC , MPEG_VIDEO_GOP_SECTION_HEADER_SIZE      , DETECT_GSC  },
+            { MPEG_VIDEO_START_CODE_PSC , MPEG_VIDEO_PICTURE_SECTION_HEADER_SIZE  , DETECT_PSC  },
+            { MPEG_VIDEO_START_CODE_SSC , MPEG_VIDEO_SLICE_SECTION_HEADER_SIZE    , DETECT_SSC  }
+        };
+    for( int i = 0; i < MPEG_VIDEO_START_CODE_MAX; ++i )
+    {
+        if( !code_list[i].read_size || mpeg_video_check_start_code( start_code_data, code_list[i].start_code ) )
+            continue;
+        mpeg_video_start_code_type start_code                   = code_list[i].start_code;
+        uint32_t read_size                                      = code_list[i].read_size;
+        mpeg_video_start_code_searching_status searching_status = code_list[i].status;
+        if( start_code == MPEG_VIDEO_START_CODE_ESC )
+        {
+            int extension = mpeg_video_check_extension_start_code_identifier( identifier );
+            static const struct {
+                mpeg_video_start_code_searching_status searching_status;
+                uint32_t                               read_size;
+            } extention_type_list[EXTENSION_TYPE_MAX] =
+                {
+                    { NON_DETECT  , 0                                                   },
+                    { DETECT_SESC , MPEG_VIDEO_SEQUENCE_EXTENSION_SIZE                  },
+                    { DETECT_SDE  , MPEG_VIDEO_SEQUENCE_DISPLAY_EXTENSION_SIZE          },
+                    { DETECT_SSE  , MPEG_VIDEO_SEQUENCE_SCALABLE_EXTENSION_SIZE         },
+                    { DETECT_PCESC, MPEG_VIDEO_PICTURE_CODING_EXTENSION_SIZE            },
+                    { DETECT_QME  , MPEG_VIDEO_QUANT_MATRIX_EXTENSION_SIZE              },
+                    { DETECT_PDE  , MPEG_VIDEO_PICTURE_DISPLAY_EXTENSION_SIZE           },
+                    { DETECT_PTSE , MPEG_VIDEO_PICTURE_TEMPORAL_SCALABLE_EXTENSION_SIZE },
+                    { DETECT_PSSE , MPEG_VIDEO_PICTURE_SPATIAL_SCALABLE_EXTENSION_SIZE  },
+                    { DETECT_CPRE , MPEG_VIDEO_COPYRIGHT_EXTENSION_SIZE                 }
+                };
+            searching_status = extention_type_list[extension].searching_status;
+            read_size        = extention_type_list[extension].read_size;
+            if( !read_size )
+                continue;
+        }
+        /* setup. */
+        start_code_info->start_code       = start_code;
+        start_code_info->read_size        = read_size;
+        start_code_info->searching_status = searching_status;
+        result = 0;
+        break;
+    }
+    return result;
 }
 
 #define FRAME_RATE_CODE_MAX         (9)

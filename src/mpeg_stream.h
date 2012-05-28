@@ -318,6 +318,12 @@ typedef enum {
     DETECT_SSC
 } mpeg_video_start_code_searching_status;
 
+typedef struct {
+    mpeg_video_start_code_type              start_code;
+    uint32_t                                read_size;
+    mpeg_video_start_code_searching_status  searching_status;
+} mpeg_video_start_code_info_t;
+
 #define PAL_FRAME_RATE_NUM      (25)
 #define PAL_FRAME_RATE_DEN      (1)
 #define NTSC_FRAME_RATE_NUM     (30000)
@@ -339,7 +345,7 @@ extern int mpeg_video_check_start_code_common_head( uint8_t *start_code );
 
 extern int mpeg_video_check_start_code( uint8_t *start_code, mpeg_video_start_code_type start_code_type );
 
-extern mpeg_video_extension_type mpeg_video_check_extension_start_code_identifier( uint8_t identifier_buf );
+extern int mpeg_video_judge_start_code( uint8_t *start_code_data, uint8_t identifier, mpeg_video_start_code_info_t *start_code_info );
 
 extern int32_t mpeg_video_get_header_info( uint8_t *buf, mpeg_video_start_code_type start_code, mpeg_video_info_t *video_info );
 
