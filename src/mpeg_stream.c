@@ -48,17 +48,27 @@ extern int mpeg_stream_judge_type( uint8_t stream_type )
     switch( stream_type )
     {
         case STREAM_VIDEO_MPEG1 :
+            judge = STREAM_IS_MPEG1_VIDEO;
+            break;
         case STREAM_VIDEO_MPEG2 :
-            judge = STREAM_IS_VIDEO;
+        case STREAM_VIDEO_MPEG2_A :
+        case STREAM_VIDEO_MPEG2_B :
+        case STREAM_VIDEO_MPEG2_C :
+        case STREAM_VIDEO_MPEG2_D :
+            judge = STREAM_IS_MPEG2_VIDEO;
+            break;
+        case STREAM_VIDEO_MP4 :
+        case STREAM_VIDEO_AVC :
+            judge = STREAM_IS_MPEG4_VIDEO;
             break;
         case STREAM_AUDIO_MP1 :
         case STREAM_AUDIO_MP2 :
         case STREAM_AUDIO_AAC :
-#if 0
+            judge = STREAM_IS_MPEG_AUDIO;
+            break;
         case STREAM_AUDIO_AC3 :
         case STREAM_AUDIO_DTS :
-#endif
-            judge = STREAM_IS_AUDIO;
+            judge = STREAM_IS_DOLBY_AUDIO;
             break;
         default :
             break;
@@ -98,7 +108,12 @@ extern int mpeg_pes_check_start_code( uint8_t *start_code, mpeg_pes_packet_start
             { 0xF4, 0xFC },         /* ITU-T Reserved               */
             { 0xF8, 0xFF },         /* ITU-T Reserved               */
             { 0xF9, 0xFF },         /* PS Trasnport on TS           */
-            { 0xFF, 0xFF }          /* Program Stream Directory     */
+            { 0xFF, 0xFF },         /* Program Stream Directory     */
+            /* ... */
+            { 0xFF, 0xE2 },         /* MPEG-4 AVC Stream            */
+            { 0xFF, 0x0F },         /* VC-1 Video Stream 1          */
+            { 0xFF, 0x0D },         /* VC-1 Video Stream 2          */
+            { 0xFF, 0xFD },         /* AC-3/DTS Audio Stream        */
         };
     if( memcmp( start_code, pes_start_code_common_head, PES_PACKET_START_CODE_SIZE - 1 ) )
         return -1;

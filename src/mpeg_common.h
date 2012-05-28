@@ -47,23 +47,33 @@ typedef enum {
 } get_sample_data_mode;
 
 enum {
-    STREAM_IS_UNKNOWN = 0x00,
-    STREAM_IS_VIDEO   = 0x01,
-    STREAM_IS_AUDIO   = 0x02
+    STREAM_IS_UNKNOWN     = 0x00,
+    STREAM_IS_VIDEO       = 0x01,
+    STREAM_IS_MPEG1_VIDEO = 0x03,
+    STREAM_IS_MPEG2_VIDEO = 0x05,
+    STREAM_IS_MPEG4_VIDEO = 0x09,
+    STREAM_IS_AUDIO       = 0x10,
+    STREAM_IS_MPEG_AUDIO  = 0x30,
+    STREAM_IS_DOLBY_AUDIO = 0x50
 };
 
 typedef enum {
-    STREAM_VIDEO_MPEG1 = 0x01,      /* ISO/IEC 11172 Video                                  */
-    STREAM_VIDEO_MPEG2 = 0x02,      /* ITU-T Rec. H.262 | ISO/IEC 13818-2 Video or ISO/IEC  */
-                                    /*           11172-2 constrained parameter video stream */
-    STREAM_AUDIO_MP1   = 0x03,      /* ISO/IEC 11172 Audio                                  */
-    STREAM_AUDIO_MP2   = 0x04,      /* ISO/IEC 13818-3 Audio                                */
-    STREAM_AUDIO_AAC   = 0x0F,      /* ISO/IEC 13818-7 Audio with ADTS transport syntax     */
-#if 0
-    STREAM_AUDIO_AC3   = 0x81,      /* ... */
-    STREAM_AUDIO_DTS   = 0xEF,      /* ... */
-#endif
-    STREAM_INVAILED    = 0xFF
+    STREAM_VIDEO_MPEG1   = 0x01,    /* ISO/IEC 11172 Video                                                                            */
+    STREAM_VIDEO_MPEG2   = 0x02,    /* ITU-T Rec. H.262 | ISO/IEC 13818-2 Video or ISO/IEC 11172-2 constrained parameter video stream */
+    STREAM_AUDIO_MP1     = 0x03,    /* ISO/IEC 11172 Audio                                                                            */
+    STREAM_AUDIO_MP2     = 0x04,    /* ISO/IEC 13818-3 Audio                                                                          */
+    STREAM_VIDEO_MPEG2_A = 0x0A,    /* ISO/IEC 13818-6 type A                                                                         */
+    STREAM_VIDEO_MPEG2_B = 0x0B,    /* ISO/IEC 13818-6 type B                                                                         */
+    STREAM_VIDEO_MPEG2_C = 0x0C,    /* ISO/IEC 13818-6 type C                                                                         */
+    STREAM_VIDEO_MPEG2_D = 0x0D,    /* ISO/IEC 13818-6 type D                                                                         */
+    STREAM_AUDIO_AAC     = 0x0F,    /* ISO/IEC 13818-7 Audio with ADTS transport syntax                                               */
+    STREAM_VIDEO_MP4     = 0x10,    /* ISO/IEC 14496-2 Visual                                                                         */
+    STREAM_AUDIO_MP4     = 0x11,    /* ISO/IEC 14496-3 Audio with the LATM transport syntax as defined in ISO/IEC 14496-3 / AMD 1     */
+    STREAM_VIDEO_AVC     = 0x1B,    /* ISO/IEC 14496-10 */
+    STREAM_AUDIO_AC3     = 0x81,    /* ... */
+    STREAM_AUDIO_DTS     = 0xEF,    /* ... */
+    STREAM_VIDEO_VC1     = 0xFD,    /* ... */
+    STREAM_INVAILED      = 0xFF
 } mpeg_stream_type;
 
 typedef enum {
