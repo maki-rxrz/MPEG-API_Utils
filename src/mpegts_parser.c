@@ -55,18 +55,13 @@
 #define TS_PACKET_SEARCH_CHECK_COUNT_NUM    (1000)
 #define TS_PACKET_SEARCH_RETRY_COUNT_NUM    (5)
 
-typedef enum {
-    PARSER_STATUS_NON_PARSING = 0,
-    PARSER_STATUS_PARSED
-} parser_status_type;
-
 typedef struct {
     uint8_t         stream_type;
     uint16_t        program_id;
 } mpegts_pid_in_pmt_t;
 
 typedef struct {
-    int32_t                 status;
+    parser_status_type      status;
     FILE                   *input;
     int32_t                 packet_size;
     int32_t                 sync_byte_position;

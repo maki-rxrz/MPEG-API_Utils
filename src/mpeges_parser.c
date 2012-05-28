@@ -43,13 +43,8 @@
 #include "mpeg_stream.h"
 #include "mpeg_parser.h"
 
-typedef enum {
-    PARSER_STATUS_NON_PARSING = 0,
-    PARSER_STATUS_PARSED
-} parser_status_type;
-
 typedef struct {
-    int32_t                 status;
+    parser_status_type      status;
     FILE                   *input;
     int64_t                 read_position;
     int64_t                 video_position;
@@ -297,7 +292,7 @@ static int get_video_info( void *ih, video_sample_info_t *video_sample_info )
                     , pts, pts / 90, frame[picture_coding_type], temporal_reference );
     dprintf( LOG_LV2, "[check] file position:%"PRId64"\n", info->read_position );
     /* ready next. */
-    info->video_position     = read_last_position;
+    info->video_position = read_last_position;
     return 0;
 }
 
@@ -322,6 +317,7 @@ static int parse( void *ih )
     mpeges_info_t *info = (mpeges_info_t *)ih;
     if( !info || !info->input )
         return -1;
+    info->status = PARSER_STATUS_PARSED;
     return 0;
 }
 

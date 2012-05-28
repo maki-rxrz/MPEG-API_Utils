@@ -38,6 +38,11 @@
 #include "mpeg_common.h"
 
 typedef enum {
+    PARSER_STATUS_NON_PARSING = 0,
+    PARSER_STATUS_PARSED
+} parser_status_type;
+
+typedef enum {
     PID_TYPE_PAT,
     PID_TYPE_PMT,
     PID_TYPE_VIDEO,
