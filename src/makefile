@@ -5,6 +5,10 @@ TARGET  = $(BIN_DIR)/cutcaption.exe
 SRCS    = cutcaption.c d2v_parser.c avs_utils.c $(API_SRCS)
 OBJS    = $(SRCS:%.c=%.o)
 
+TARGET2 = $(BIN_DIR)/ts_parser.exe
+SRCS2   = ts_parser.c $(API_SRCS)
+OBJS2   = $(SRCS2:%.c=%.o)
+
 CC      = gcc
 LD      = gcc
 STRIP   = strip
@@ -14,9 +18,13 @@ LDFLAGS =
 
 .PHONY: all clean
 
-all: $(TARGET)
+all: $(TARGET) $(TARGET2)
 
 $(TARGET): $(OBJS)
+	$(LD) $(LDFLAGS) -o $@ $^
+	$(STRIP) $@
+
+$(TARGET2): $(OBJS2)
 	$(LD) $(LDFLAGS) -o $@ $^
 	$(STRIP) $@
 
