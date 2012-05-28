@@ -47,7 +47,7 @@ extern void dprintf( log_level level, const char *format, ... );
 #define _LARGEFILE_SOURCE
 #define _FILE_OFFSET_BITS 64
 
-#ifdef __MINGW32__
+#if defined(__MINGW32__) && defined(__i386__)
 #define fseeko fseeko64
 #define ftello ftello64
 #elif _MSC_VER

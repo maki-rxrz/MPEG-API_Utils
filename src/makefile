@@ -9,9 +9,9 @@ TARGET2 = $(BIN_DIR)/ts_parser.exe
 SRCS2   = ts_parser.c $(API_SRCS)
 OBJS2   = $(SRCS2:%.c=%.o)
 
-CC      = gcc
-LD      = gcc
-STRIP   = strip
+CC      = $(CROSS)gcc
+LD      = $(CROSS)gcc
+STRIP   = $(CROSS)strip
 
 CFLAGS  = -Wall -std=gnu99
 LDFLAGS = 
