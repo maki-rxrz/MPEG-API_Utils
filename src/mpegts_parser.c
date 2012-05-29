@@ -875,6 +875,8 @@ static void mpegts_get_sample_payload_data( mpegts_info_t *info, uint16_t progra
             fread( buffer + *read_size, 1, ts_packet_length, info->input );
             *read_size += ts_packet_length;
         }
+        /* ready next. */
+        info->sync_byte_position = info->packet_size - TS_PACKET_SIZE;
     }
 }
 
