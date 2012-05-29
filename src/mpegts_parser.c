@@ -827,14 +827,19 @@ static uint32_t mpegts_get_sample_packets_num( mpegts_info_t *info, uint16_t pro
     if( mpegts_search_program_id_packet( info, &h, program_id ) )
         return -1;
     uint32_t ts_packet_count = 0;
+    int8_t old_continuity_counter = h.continuity_counter;
     do
     {
         ++ts_packet_count;
+        fseeko( info->input, info->packet_size - TS_PACKET_HEADER_SIZE, SEEK_CUR );
         if( mpegts_search_program_id_packet( info, &h, program_id ) )
             break;
+        if( h.continuity_counter != ((old_continuity_counter + 1) & 0x0F) )
+            dprintf( LOG_LV3, "[debug] detect Drop!  ts_packet_count:%u  continuity_counter:%u --> %u\n", ts_packet_count, old_continuity_counter, h.continuity_counter );
+        old_continuity_counter = h.continuity_counter;
     }
     while( !h.payload_unit_start_indicator );
-    dprintf( LOG_LV3, "[debug] ts_packet_count:%d\n", ts_packet_count );
+    dprintf( LOG_LV3, "[debug] ts_packet_count:%u\n", ts_packet_count );
     return ts_packet_count;
 }
 
