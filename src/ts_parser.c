@@ -218,10 +218,9 @@ static void parse_mpeg( param_t *p )
                 dprintf( LOG_LV0, "  POS: %10"PRId64"", stream_info.file_position );
                 dprintf( LOG_LV0, "  size: %10d", stream_info.sample_size );
                 dprintf( LOG_LV0, "  PTS: %10"PRId64" [%8"PRId64"ms]", pts, pts / 90 );
-                if( dts == -1 )
-                    dprintf( LOG_LV0, "\n" );
-                else
-                    dprintf( LOG_LV0, "  DTS: %10"PRId64" [%8"PRId64"ms]\n", dts, dts / 90 );
+                if( dts != pts )
+                    dprintf( LOG_LV0, "  DTS: %10"PRId64" [%8"PRId64"ms]", dts, dts / 90 );
+                dprintf( LOG_LV0, "\n" );
             }
             dprintf( LOG_LV0, "[log] Audio\n" );
             for( uint32_t i = 0; ; ++i )
@@ -234,10 +233,9 @@ static void parse_mpeg( param_t *p )
                 dprintf( LOG_LV0, " [%8d]  POS: %10"PRId64"", i, stream_info.file_position );
                 dprintf( LOG_LV0, "  size: %10d", stream_info.sample_size );
                 dprintf( LOG_LV0, "  PTS: %"PRId64" [%"PRId64"ms]", pts, pts / 90 );
-                if( dts == -1 )
-                    dprintf( LOG_LV0, "\n" );
-                else
-                    dprintf( LOG_LV0, "  DTS: %"PRId64" [%"PRId64"ms]\n", dts, dts / 90 );
+                if( dts != pts )
+                    dprintf( LOG_LV0, "  DTS: %"PRId64" [%"PRId64"ms]", dts, dts / 90 );
+                dprintf( LOG_LV0, "\n" );
             }
         }
         else if( p->output_mode == OUTPUT_CREATE_LIST_GET_INFO )
@@ -263,7 +261,7 @@ static void parse_mpeg( param_t *p )
                 dprintf( LOG_LV0, "  POS: %10"PRId64"", stream_info.file_position );
                 dprintf( LOG_LV0, "  size: %10d", stream_info.sample_size );
                 dprintf( LOG_LV0, "  PTS: %10"PRId64" [%8"PRId64"ms]", pts, pts / 90 );
-                if( dts != -1 )
+                if( dts != pts )
                     dprintf( LOG_LV0, "  DTS: %10"PRId64" [%8"PRId64"ms]", dts, dts / 90 );
                 dprintf( LOG_LV0, "\n" );
             }
@@ -278,7 +276,7 @@ static void parse_mpeg( param_t *p )
                 dprintf( LOG_LV0, " [%8d]  POS: %10"PRId64"", i, stream_info.file_position );
                 dprintf( LOG_LV0, "  size: %10d", stream_info.sample_size );
                 dprintf( LOG_LV0, "  PTS: %"PRId64" [%"PRId64"ms]", pts, pts / 90 );
-                if( dts != -1 )
+                if( dts != pts )
                     dprintf( LOG_LV0, "  DTS: %"PRId64" [%"PRId64"ms]", dts, dts / 90 );
                 dprintf( LOG_LV0, "\n" );
             }

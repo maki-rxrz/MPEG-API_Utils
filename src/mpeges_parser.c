@@ -86,11 +86,10 @@ static void mpeges_get_stream_timestamp( mpeges_info_t *info, mpeg_video_info_t 
                       , video_info->picture.picture_coding_type, video_info->picture.temporal_reference );
     /* calculate timestamp. */
     int64_t pts = info->timestamp_base * (info->total_picture_num + video_info->picture.temporal_reference);
-    int64_t dts = -1;
-    uint8_t picture_coding_type = video_info->picture.picture_coding_type;
-    if( picture_coding_type != MPEG_VIDEO_B_FRAME
-     && video_info->picture.temporal_reference != info->picture_num )
-        dts = info->timestamp_base * (info->total_picture_num + info->picture_num - 1);
+    int64_t dts = (video_info->picture.picture_coding_type != MPEG_VIDEO_B_FRAME
+                 && video_info->picture.temporal_reference != info->picture_num)
+                 ? info->timestamp_base * (info->total_picture_num + info->picture_num - 1)
+                 : pts;
     /* setup. */
     *pts_set_p = pts;
     *dts_set_p = dts;
