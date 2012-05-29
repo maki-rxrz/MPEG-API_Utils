@@ -78,11 +78,14 @@ typedef struct {
     mpeg_parser_t          *parser;
     void                   *parser_info;
     sample_list_t           sample_list;
+    int64_t                 wrap_around_check_v;
 } mpeg_api_info_t;
 
 #define DEFAULT_GOP_SAMPLE_NUM              (40000)
 #define DEFAULT_VIDEO_SAMPLE_NUM            (50000)
 #define DEFAULT_AUDIO_SAMPLE_NUM            (80000)
+
+#define TS_TIMESTAMP_WRAP_AROUND_CHECK_VALUE        (0x0FFFFFFFFLL)
 
 extern int mpeg_api_create_sample_list( void *ih )
 {
@@ -103,6 +106,8 @@ extern int mpeg_api_create_sample_list( void *ih )
     if( !gop_list || !video_list || !audio_list )
         goto fail_create_list;
     /* create video lists. */
+    uint32_t wrap_around_count = 0;
+    int64_t comapre_ts = 0;
     int64_t i;
     int64_t gop_number = -1;
     for( i = 0; ; ++i )
@@ -140,13 +145,17 @@ extern int mpeg_api_create_sample_list( void *ih )
             }
             gop_list[gop_number].progressive_sequence = video_sample_info.progressive_sequence;
             gop_list[gop_number].closed_gop           = video_sample_info.closed_gop;
+            /* correct check. */
+            if( comapre_ts > video_sample_info.pts + info->wrap_around_check_v )
+                ++ wrap_around_count;
+            comapre_ts = video_sample_info.pts;
         }
         /* setup. */
         video_list[i].file_position       = video_sample_info.file_position;
         video_list[i].sample_size         = video_sample_info.sample_size;
         video_list[i].gop_number          = video_sample_info.gop_number;
-        video_list[i].timestamp.pts       = video_sample_info.pts;
-        video_list[i].timestamp.dts       = video_sample_info.dts;
+        video_list[i].timestamp.pts       = video_sample_info.pts + (wrap_around_count + (comapre_ts > video_sample_info.pts + info->wrap_around_check_v) ? 1 : 0 ) * MPEG_TIMESTMAP_MAX_VALUE;
+        video_list[i].timestamp.dts       = video_sample_info.dts + (wrap_around_count + (comapre_ts > video_sample_info.dts + info->wrap_around_check_v) ? 1 : 0 ) * MPEG_TIMESTMAP_MAX_VALUE;
         video_list[i].picture_coding_type = video_sample_info.picture_coding_type;
         video_list[i].temporal_reference  = video_sample_info.temporal_reference;
         video_list[i].progressive_frame   = video_sample_info.progressive_frame;
@@ -168,6 +177,8 @@ extern int mpeg_api_create_sample_list( void *ih )
     }
     parser->set_sample_position( parser_info, start_position );
     /* create audio sample list. */
+    comapre_ts = 0;
+    wrap_around_count = 0;
     for( i = 0; ; ++i )
     {
         if( i >= audio_list_size )
@@ -183,12 +194,16 @@ extern int mpeg_api_create_sample_list( void *ih )
         int result = parser->get_audio_info( parser_info, &audio_sample_info );
         if( result )
             break;
+        /* correct check. */
+        if( comapre_ts > audio_sample_info.pts + info->wrap_around_check_v )
+            ++ wrap_around_count;
+        comapre_ts = audio_sample_info.pts;
         /* setup. */
         audio_list[i].file_position       = audio_sample_info.file_position;
         audio_list[i].sample_size         = audio_sample_info.sample_size;
         audio_list[i].gop_number          = 0;
-        audio_list[i].timestamp.pts       = audio_sample_info.pts;
-        audio_list[i].timestamp.dts       = audio_sample_info.dts;
+        audio_list[i].timestamp.pts       = audio_sample_info.pts + wrap_around_count * MPEG_TIMESTMAP_MAX_VALUE;
+        audio_list[i].timestamp.dts       = audio_sample_info.dts + wrap_around_count * MPEG_TIMESTMAP_MAX_VALUE;
         audio_list[i].picture_coding_type = 0;
         audio_list[i].temporal_reference  = 0;
         audio_list[i].picture_structure   = 0;
@@ -445,8 +460,9 @@ extern void *mpeg_api_initialize_info( const char *mpeg )
     if( !parser_info )
         goto fail_initialize;
     memset( info, 0, sizeof(mpeg_api_info_t) );
-    info->parser      = parser;
-    info->parser_info = parser_info;
+    info->parser              = parser;
+    info->parser_info         = parser_info;
+    info->wrap_around_check_v = TS_TIMESTAMP_WRAP_AROUND_CHECK_VALUE;
     return info;
 fail_initialize:
     if( parser_info )
