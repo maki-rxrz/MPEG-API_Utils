@@ -52,7 +52,7 @@
 
 #define TS_PACKET_TYPE_NUM                  (3)
 #define TS_PACKET_FIRST_CHECK_COUNT_NUM     (4)
-#define TS_PACKET_SEARCH_CHECK_COUNT_NUM    (1000)
+#define TS_PACKET_SEARCH_CHECK_COUNT_NUM    (50000)
 #define TS_PACKET_SEARCH_RETRY_COUNT_NUM    (5)
 
 typedef struct {
