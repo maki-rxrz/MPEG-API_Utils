@@ -260,18 +260,13 @@ static int mpegts_search_program_id_packet( mpegts_info_t *info, mpegts_packet_h
     return 0;
 }
 
-#define SKIP_ADAPTATION_FIELD( i, h, l, s, n )      \
+#define SKIP_ADAPTATION_FIELD( i, h, l, s )         \
 {                                                   \
     if( (h).adaptation_field_control > 1 )          \
     {                                               \
         fread( &s, 1, 1, i->input );                \
         fseeko( i->input, s, SEEK_CUR );            \
         (l) -= 1 + s;                               \
-    }                                               \
-    else if( n )                                    \
-    {                                               \
-        fseeko( i->input, n, SEEK_CUR );            \
-        (l) -= n;                                   \
     }                                               \
 }
 
@@ -289,8 +284,17 @@ static int mpegts_get_table_section_header( mpegts_info_t *info, mpegts_packet_h
     *ts_packet_length = TS_PACKET_SIZE - TS_PACKET_HEADER_SIZE;
     /* check adaptation field. */
     uint8_t adaptation_field_size = 0;
-    SKIP_ADAPTATION_FIELD( info, *h, *ts_packet_length, adaptation_field_size, 1 )
+    SKIP_ADAPTATION_FIELD( info, *h, *ts_packet_length, adaptation_field_size )
     dprintf( LOG_LV4, "[check] adpf_size:%d\n", adaptation_field_size );
+    /* check pointer field. */
+    uint8_t pointer_field;
+    fread( &pointer_field, 1, 1, info->input );
+    -- *ts_packet_length;
+    if( pointer_field )
+    {
+        fseeko( info->input, pointer_field, SEEK_CUR );
+        *ts_packet_length -= pointer_field;
+    }
     /* read section header. */
     fread( section_header, 1, section_header_length, info->input );
     *ts_packet_length -= section_header_length;
@@ -309,7 +313,7 @@ static int mpegts_seek_packet_payload_data( mpegts_info_t *info, mpegts_packet_h
     *ts_packet_length = TS_PACKET_SIZE - TS_PACKET_HEADER_SIZE;
     /* check adaptation field. */
     uint8_t adaptation_field_size = 0;
-    SKIP_ADAPTATION_FIELD( info, *h, *ts_packet_length, adaptation_field_size, 0 )
+    SKIP_ADAPTATION_FIELD( info, *h, *ts_packet_length, adaptation_field_size )
     dprintf( LOG_LV4, "[check] adpf_size:%d\n", adaptation_field_size );
     return 0;
 }
