@@ -356,17 +356,17 @@ static int mpegts_search_pat_packet( mpegts_info_t *info, mpegts_pat_section_inf
             return -1;
     while( section_header[0] != PSI_TABLE_ID_PAT );
     /* setup header data. */
-    pat_si->table_id                 =   section_header[0];
-    pat_si->section_syntax_indicator =  (section_header[1] & 0x80) >> 7;
-    /* '0'              1 bit        =  (section_header[1] & 0x40) >> 6;        */
-    /* reserved '11'    2 bit        =  (section_header[1] & 0x30) >> 4;        */
-    pat_si->section_length           = ((section_header[1] & 0x0F) << 8) | section_header[2];
-    pat_si->transport_stream_id      =  (section_header[3] << 8) | section_header[4];
-    /* reserved '11'    2bit         =  (section_header[5] & 0xC0) >> 6;        */
-    pat_si->version_number           =  (section_header[5] & 0x3E) >> 1;
-    pat_si->current_next_indicator   =  (section_header[5] & 0x01);
-    pat_si->section_number           =  (section_header[6] & 0xC0) >> 6;
-    pat_si->last_section_number      =  (section_header[7] & 0xC0) >> 6;
+    pat_si->table_id                 =    section_header[0];
+    pat_si->section_syntax_indicator = !!(section_header[1] & 0x80);
+    /* '0'              1 bit        = !!(section_header[1] & 0x40);            */
+    /* reserved '11'    2 bit        =   (section_header[1] & 0x30) >> 4;       */
+    pat_si->section_length           =  ((section_header[1] & 0x0F) << 8) | section_header[2];
+    pat_si->transport_stream_id      =   (section_header[3] << 8) | section_header[4];
+    /* reserved '11'    2bit         =   (section_header[5] & 0xC0) >> 6;       */
+    pat_si->version_number           =   (section_header[5] & 0x3E) >> 1;
+    pat_si->current_next_indicator   =   (section_header[5] & 0x01);
+    pat_si->section_number           =    section_header[6];
+    pat_si->last_section_number      =    section_header[7];
     show_table_section_info( pat_si );
     return 0;
 }
@@ -409,7 +409,7 @@ static int mpegts_parse_pat( mpegts_info_t *info )
         uint8_t *section_data = &(section_buffer[read_count]);
         read_count += TS_PACKET_PAT_SECTION_DATA_SIZE;
         uint16_t program_number =  (section_data[0] << 8) | section_data[1];
-        /* '111'        3 bit   =  (section_data[2] & 0xC0) >> 4;       */
+        /* '111'        3 bit   =  (section_data[2] & 0xE0) >> 4;       */
         uint16_t pmt_program_id = ((section_data[2] & 0x1F) << 8) | section_data[3];
         dprintf( LOG_LV2, "[check] program_number:%d, pmt_PID:0x%04X\n", program_number, pmt_program_id );
         if( program_number )
