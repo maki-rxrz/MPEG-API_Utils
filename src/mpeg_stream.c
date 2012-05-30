@@ -42,40 +42,6 @@
 #include "mpeg_common.h"
 #include "mpeg_stream.h"
 
-extern int mpeg_stream_judge_type( uint8_t stream_type )
-{
-    int judge = STREAM_IS_UNKNOWN;
-    switch( stream_type )
-    {
-        case STREAM_VIDEO_MPEG1 :
-            judge = STREAM_IS_MPEG1_VIDEO;
-            break;
-        case STREAM_VIDEO_MPEG2 :
-        case STREAM_VIDEO_MPEG2_A :
-        case STREAM_VIDEO_MPEG2_B :
-        case STREAM_VIDEO_MPEG2_C :
-        case STREAM_VIDEO_MPEG2_D :
-            judge = STREAM_IS_MPEG2_VIDEO;
-            break;
-        case STREAM_VIDEO_MP4 :
-        case STREAM_VIDEO_AVC :
-            judge = STREAM_IS_MPEG4_VIDEO;
-            break;
-        case STREAM_AUDIO_MP1 :
-        case STREAM_AUDIO_MP2 :
-        case STREAM_AUDIO_AAC :
-            judge = STREAM_IS_MPEG_AUDIO;
-            break;
-        case STREAM_AUDIO_AC3 :
-        case STREAM_AUDIO_DTS :
-            judge = STREAM_IS_DOLBY_AUDIO;
-            break;
-        default :
-            break;
-    }
-    return judge;
-}
-
 extern int64_t mpeg_pes_get_timestamp( uint8_t *time_stamp_data )
 {
     return (int64_t)(time_stamp_data[0] & 0x0E) << 29
@@ -140,4 +106,111 @@ extern void mpeg_pes_get_header_info( uint8_t *buf, mpeg_pes_header_info_t *pes_
     pes_info->crc_flag                  = !!(buf[3] & 0x02);
     pes_info->extention_flag            = !!(buf[3] & 0x01);
     pes_info->header_length             = buf[4];
+}
+
+extern int mpeg_stream_judge_type( uint8_t stream_type )
+{
+    int judge = STREAM_IS_UNKNOWN;
+    switch( stream_type )
+    {
+        case STREAM_VIDEO_MPEG1 :
+            judge = STREAM_IS_MPEG1_VIDEO;
+            break;
+        case STREAM_VIDEO_MPEG2 :
+        case STREAM_VIDEO_MPEG2_A :
+        case STREAM_VIDEO_MPEG2_B :
+        case STREAM_VIDEO_MPEG2_C :
+        case STREAM_VIDEO_MPEG2_D :
+            judge = STREAM_IS_MPEG2_VIDEO;
+            break;
+        case STREAM_VIDEO_MP4 :
+        case STREAM_VIDEO_AVC :
+            judge = STREAM_IS_MPEG4_VIDEO;
+            break;
+        case STREAM_AUDIO_MP1 :
+        case STREAM_AUDIO_MP2 :
+        case STREAM_AUDIO_AAC :
+            judge = STREAM_IS_MPEG_AUDIO;
+            break;
+        case STREAM_AUDIO_AC3 :
+        case STREAM_AUDIO_DTS :
+            judge = STREAM_IS_DOLBY_AUDIO;
+            break;
+        default :
+            break;
+    }
+    return judge;
+}
+
+extern int32_t mpeg_stream_check_start_point( mpeg_stream_type stream_type, uint8_t *buffer, uint32_t buffer_size )
+{
+    int32_t start_point = -1;
+    switch( stream_type )
+    {
+        case STREAM_AUDIO_MP1 :
+        case STREAM_AUDIO_MP2 :
+            for( int i = 0; i < buffer_size - 4; ++i )
+            {
+                if( buffer[i+0] != 0xFF || (buffer[i+1] & 0xE0) != 0xE0 )
+                    continue;
+                int version_id = (buffer[i+1] & 0x18) >> 3;
+                if( version_id == 0x01 )                    /* MPEG Audio version ID : '01' reserved            */
+                    continue;
+                int layer = (buffer[i+1] & 0x06) >> 1;
+                if( !layer )                                /* layer : '00' reserved                            */
+                    continue;
+                /* protection_bit = buffer[i+1] & 0x01);            */
+                int bitrate_index = buffer[i+2] >> 4;
+                if( bitrate_index == 0x0F )                 /* bitrate index : '1111' bad                       */
+                    continue;
+                if( (buffer[i+2] & 0x0C) == 0x0C )          /* Sampling rate frequency index : '11' reserved    */
+                    continue;
+                /* check bitrate_index & channel_mode matrix. */
+                static const uint8_t ng_matrix[2][4] =
+                    {
+                        {  1,  2,  3,  5 },                 /* stereo :  32 /  48 /  56 /  80 */
+                        { 11, 12, 13, 14 }                  /* mono   : 224 / 256 / 320 / 384 */
+                    };
+                int channel_mode = (buffer[i+3] & 0x60) >> 5;
+                int index = (channel_mode == 3) ? 1 : 0;    /* '11' single channel  */
+                if( bitrate_index == ng_matrix[index][0] || bitrate_index == ng_matrix[index][1]
+                 || bitrate_index == ng_matrix[index][2] || bitrate_index == ng_matrix[index][3] )
+                    continue;
+                /* detect start point. */
+                start_point = i;
+                dprintf( LOG_LV3, "[debug] [MPEG-Audio] check_buffer_size:%d  start_point:%d  len:%d\n", buffer_size, start_point );
+                break;
+            }
+            break;
+        case STREAM_AUDIO_AAC :
+            for( int i = 0; i < buffer_size - 6; ++i )
+            {
+                if( buffer[i+0] != 0xFF || (buffer[i+1] & 0xF0) != 0xF0 )
+                    continue;
+                if( buffer[i+1] & 0x06 )                    /* layer : allways 0                            */
+                    continue;
+                /* protection absent = buffer[i+1] & 0x01;          */
+                if( (buffer[i+2] & 0xC0) == 0xC0 )          /* profile : '11' reserved                      */
+                    continue;
+                if( ((buffer[i+2] & 0x3C) >> 2) > 12 )      /* MPEG-4 sampling frequency index : 0-12       */
+                    continue;
+                int aac_frame_length = ((buffer[i+3] & 0x03) << 11) | (buffer[i+4] << 3) | (buffer[i+5] >> 5);
+                if( !aac_frame_length )                     /* aac frame length                             */
+                    continue;
+                // FIXME        /* this is most simple code. check end point by aac frame length.           */
+                /* detect start point. */
+                start_point = i;
+                dprintf( LOG_LV3, "[debug] [ADTS-AAC] check_buffer_size:%d  start_point:%d  len:%d\n", buffer_size, start_point, aac_frame_length );
+                break;
+            }
+            break;
+        case STREAM_AUDIO_AC3 :
+        case STREAM_AUDIO_DTS :
+            start_point = 0;        // FIXME
+            break;
+        default :
+            start_point = 0;
+            break;
+    }
+    return start_point;
 }

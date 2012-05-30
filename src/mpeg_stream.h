@@ -338,13 +338,15 @@ typedef struct {
 extern "C" {
 #endif
 
-extern int mpeg_stream_judge_type( uint8_t stream_type );
-
 extern int64_t mpeg_pes_get_timestamp( uint8_t *time_stamp_data );
 
 extern int mpeg_pes_check_start_code( uint8_t *start_code, mpeg_pes_packet_start_code_type start_code_type );
 
 extern void mpeg_pes_get_header_info( uint8_t *buf, mpeg_pes_header_info_t *pes_info );
+
+extern int mpeg_stream_judge_type( uint8_t stream_type );
+
+extern int32_t mpeg_stream_check_start_point( mpeg_stream_type stream_type, uint8_t *buffer, uint32_t buffer_size );
 
 extern int mpeg_video_check_start_code_common_head( uint8_t *start_code );
 

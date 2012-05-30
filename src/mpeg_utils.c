@@ -318,6 +318,8 @@ extern int mpeg_api_get_sample_data( void *ih, mpeg_sample_type sample_type, uin
         list_num = info->sample_list.audio_num;
         if( !list || sample_number >= list_num )
             return -1;
+        if( !sample_number && get_mode == GET_SAMPLE_DATA_RAW )
+            get_mode = GET_SAMPLE_DATA_RAW_SEARCH_HEAD;
     }
     else
         return -1;
