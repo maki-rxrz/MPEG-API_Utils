@@ -44,7 +44,7 @@
 
 #include "mpeg_utils.h"
 
-#define PROGRAM_VERSION                 "0.0.1"
+#define PROGRAM_VERSION                 "0.0.2"
 
 #ifndef REVISION_NUMBER
 #define REVISION_NUMBER                 "0"
