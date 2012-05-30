@@ -828,21 +828,47 @@ static uint32_t mpegts_get_sample_packets_num( mpegts_info_t *info, uint16_t pro
 {
     dprintf( LOG_LV3, "[debug] mpegts_get_sample_packets_num()\n" );
     mpegts_packet_header_t h;
+    int32_t ts_packet_length;
     if( mpegts_search_program_id_packet( info, &h, program_id ) )
         return -1;
+    fseeko( info->input, info->packet_size - TS_PACKET_HEADER_SIZE, SEEK_CUR );
+    info->sync_byte_position = -1;
     uint32_t ts_packet_count = 0;
     int8_t old_continuity_counter = h.continuity_counter;
     do
     {
         ++ts_packet_count;
-        fseeko( info->input, info->packet_size - TS_PACKET_HEADER_SIZE, SEEK_CUR );
-        if( mpegts_search_program_id_packet( info, &h, program_id ) )
+        if( mpegts_seek_packet_payload_data( info, &h, program_id, &ts_packet_length, 0, 1 ) )
             break;
         if( h.continuity_counter != ((old_continuity_counter + 1) & 0x0F) )
             dprintf( LOG_LV3, "[debug] detect Drop!  ts_packet_count:%u  continuity_counter:%u --> %u\n", ts_packet_count, old_continuity_counter, h.continuity_counter );
         old_continuity_counter = h.continuity_counter;
+        if( h.payload_unit_start_indicator )
+        {
+            /* skip PES Packet Start Code. */
+            fseeko( info->input, PES_PACKET_START_CODE_SIZE, SEEK_CUR );
+            ts_packet_length -= PES_PACKET_START_CODE_SIZE;
+            /* check PES packet header. */
+            uint8_t pes_header_check_buffer[PES_PACKET_HEADER_CHECK_SIZE];
+            fread( pes_header_check_buffer, 1, PES_PACKET_HEADER_CHECK_SIZE, info->input );
+            ts_packet_length -= PES_PACKET_HEADER_CHECK_SIZE;
+            mpeg_pes_header_info_t pes_info;
+            mpeg_pes_get_header_info( pes_header_check_buffer, &pes_info );
+            if( pes_info.pts_flag )
+            {
+                /* reset next start position. */
+                fseeko( info->input, ts_packet_length - TS_PACKET_SIZE, SEEK_CUR );
+                break;
+            }
+            dprintf( LOG_LV3, "[debug] Detect PES packet doesn't have PTS.\n"
+                              "        PES packet_len:%d, pts_flag:%d, dts_flag:%d, header_len:%d\n"
+                            , pes_info.packet_length, pes_info.pts_flag, pes_info.dts_flag, pes_info.header_length );
+        }
+        /* ready next. */
+        fseeko( info->input, ts_packet_length + info->packet_size - TS_PACKET_SIZE, SEEK_CUR );
+        info->sync_byte_position = -1;
     }
-    while( !h.payload_unit_start_indicator );
+    while( 1 );
     dprintf( LOG_LV3, "[debug] ts_packet_count:%u\n", ts_packet_count );
     return ts_packet_count;
 }
@@ -880,7 +906,8 @@ static void mpegts_get_sample_payload_data( mpegts_info_t *info, uint16_t progra
             *read_size += ts_packet_length;
         }
         /* ready next. */
-        info->sync_byte_position = info->packet_size - TS_PACKET_SIZE;
+        fseeko( info->input, info->packet_size - TS_PACKET_SIZE, SEEK_CUR );
+        info->sync_byte_position = -1;
     }
 }
 
@@ -1033,7 +1060,7 @@ static int get_video_info( void *ih, video_sample_info_t *video_sample_info )
     uint32_t ts_packet_count = mpegts_get_sample_packets_num( info, program_id );
     if( !ts_packet_count )
         return -1;
-    int64_t read_last_position = ftello( info->input ) - TS_PACKET_HEADER_SIZE;
+    int64_t read_last_position = ftello( info->input );
     fseeko( info->input, read_last_position, SEEK_SET );
     //info->sync_byte_position = 0;
     /* setup. */
@@ -1084,7 +1111,7 @@ static int get_audio_info( void *ih, audio_sample_info_t *audio_sample_info )
     uint32_t ts_packet_count = mpegts_get_sample_packets_num( info, program_id );
     if( !ts_packet_count )
         return -1;
-    int64_t read_last_position = ftello( info->input ) - TS_PACKET_HEADER_SIZE;
+    int64_t read_last_position = ftello( info->input );
     fseeko( info->input, read_last_position, SEEK_SET );
     //info->sync_byte_position = 0;
     /* setup. */
