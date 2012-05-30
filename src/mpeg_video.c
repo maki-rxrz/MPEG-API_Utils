@@ -716,7 +716,7 @@ extern void mpeg_video_debug_header_info( mpeg_video_info_t *video_info, mpeg_vi
         case DETECT_PSC :
             dprintf( LOG_LV2,
                     "[check] detect Picture Start Code.\n"
-                    "        temporal_reference:%u\n"
+                    "        temporal_reference:%d\n"
                     "        picture_coding_type:%u\n"
                     "        vbv_delay:%u\n"
                     "        full_pel_forward_vector:%u\n"
@@ -807,15 +807,15 @@ extern void mpeg_video_debug_header_info( mpeg_video_info_t *video_info, mpeg_vi
         case DETECT_PTSE :
             dprintf( LOG_LV2,
                     "        reference_select_code:%u\n"
-                    "        forward_temporal_reference:%u\n"
-                    "        backward_temporal_reference:%u\n"
+                    "        forward_temporal_reference:%d\n"
+                    "        backward_temporal_reference:%d\n"
                     , video_info->picture_temporal_scalable_ext.reference_select_code
                     , video_info->picture_temporal_scalable_ext.forward_temporal_reference
                     , video_info->picture_temporal_scalable_ext.backward_temporal_reference );
             break;
         case DETECT_PSSE :
             dprintf( LOG_LV2,
-                    "        lower_layer_temporal_reference:%u\n"
+                    "        lower_layer_temporal_reference:%d\n"
                     "        lower_layer_horizontal_offset:%u\n"
                     "        lower_layer_vertical_offset:%u\n"
                     "        spatial_temporal_weight_code_table_index:%u\n"

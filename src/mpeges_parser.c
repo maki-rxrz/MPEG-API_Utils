@@ -343,7 +343,7 @@ static int get_video_info( void *ih, video_sample_info_t *video_sample_info )
     uint8_t progressive_sequence = video_info.sequence_ext.progressive_sequence;
     uint8_t closed_gop           = video_info.gop.closed_gop;
     uint8_t picture_coding_type  = video_info.picture.picture_coding_type;
-    uint16_t temporal_reference  = video_info.picture.temporal_reference;
+    int16_t temporal_reference   = video_info.picture.temporal_reference;
     uint8_t picture_structure    = video_info.picture_coding_ext.picture_structure;
     uint8_t progressive_frame    = video_info.picture_coding_ext.progressive_frame;
     uint8_t repeat_first_field   = video_info.picture_coding_ext.repeat_first_field;

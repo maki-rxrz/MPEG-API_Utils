@@ -58,7 +58,7 @@ typedef struct {
     int64_t                 gop_number;
     timestamp_t             timestamp;
     uint8_t                 picture_coding_type;
-    uint16_t                temporal_reference;
+    int16_t                 temporal_reference;
     uint8_t                 picture_structure;
     uint8_t                 progressive_frame;
     uint8_t                 repeat_first_field;

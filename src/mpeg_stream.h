@@ -174,7 +174,7 @@ typedef struct {
 } mpeg_video_gop_header_t;
 
 typedef struct {
-    uint16_t        temporal_reference;
+    int16_t         temporal_reference;
     uint8_t         picture_coding_type;
     uint16_t        vbv_delay;
     uint8_t         full_pel_forward_vector;
@@ -229,12 +229,12 @@ typedef struct {
 
 typedef struct {
     uint8_t         reference_select_code;
-    uint16_t        forward_temporal_reference;
-    uint16_t        backward_temporal_reference;
+    int16_t         forward_temporal_reference;
+    int16_t         backward_temporal_reference;
 } mpeg_video_picture_temporal_scalable_extension_t;
 
 typedef struct {
-    uint16_t        lower_layer_temporal_reference;
+    int16_t         lower_layer_temporal_reference;
     int16_t         lower_layer_horizontal_offset;
     int16_t         lower_layer_vertical_offset;
     uint8_t         spatial_temporal_weight_code_table_index;
@@ -265,8 +265,8 @@ typedef struct {
 #if 0
 typedef struct {
     uint8_t         reference_select_code;
-    uint16_t        forward_temporal_reference;
-    uint16_t        backward_temporal_reference;
+    int16_t         forward_temporal_reference;
+    int16_t         backward_temporal_reference;
 } mpeg_video_macroblock_header_t;
 #endif
 

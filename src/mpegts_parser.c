@@ -1102,7 +1102,7 @@ static int get_video_info( void *ih, video_sample_info_t *video_sample_info )
     uint8_t progressive_sequence = 0;
     uint8_t closed_gop = 0;
     uint8_t picture_coding_type = MPEG_VIDEO_UNKNOWN_FRAME;
-    uint16_t temporal_reference = -1;
+    int16_t temporal_reference = -1;
     uint8_t picture_structure = 0;
     uint8_t progressive_frame = 0;
     uint8_t repeat_first_field = 0;
