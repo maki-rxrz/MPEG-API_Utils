@@ -40,6 +40,8 @@
 #include <inttypes.h>
 #include <stdarg.h>
 
+#include "config.h"
+
 #include "mpeg_utils.h"
 
 #define PROGRAM_VERSION                 "0.0.1"
@@ -301,8 +303,35 @@ static void parse_mpeg( param_t *p )
             uint32_t sample_video_num = mpeg_api_get_sample_num( info, SAMPLE_TYPE_VIDEO );
             uint32_t sample_audio_num = mpeg_api_get_sample_num( info, SAMPLE_TYPE_AUDIO );
             dprintf( LOG_LV0, "[log] sample num  Video:%8d  Audio:%8d\n", sample_video_num, sample_audio_num );
+            /* calculate audio delay time. */
+            int64_t audio_delay = 0;
+            if( sample_video_num && sample_audio_num )
+            {
+                stream_info_t stream_info;
+                if( mpeg_api_get_sample_info( info, SAMPLE_TYPE_AUDIO, 0, &stream_info ) )
+                    goto end_parse;
+                for( int i = 0; i < sample_video_num; ++i  )
+                {
+                    if( mpeg_api_get_sample_info( info, SAMPLE_TYPE_VIDEO, i, &stream_info ) )
+                        goto end_parse;
+                    if( stream_info.temporal_reference == -1 )
+                        break;
+                    if( !(stream_info.temporal_reference) )
+                    {
+                        audio_delay = stream_info.audio_pts - stream_info.video_pts;
+                        break;
+                    }
+                }
+            }
             /* get data. */
-            size_t dump_name_size = strlen( p->output ) + 11;
+            char delay_string[256];
+            int delay_str_len = 0;
+            if( audio_delay )
+            {
+                sprintf( delay_string, ". DELAY %"PRId64"ms", audio_delay / 90 );
+                delay_str_len = strlen( delay_string );
+            }
+            size_t dump_name_size = strlen( p->output ) + 11 + delay_str_len;
             char dump_name[dump_name_size];
             FILE *video = NULL, *audio = NULL;
             if( sample_video_num )
@@ -348,6 +377,8 @@ static void parse_mpeg( param_t *p )
             {
                 strcpy( dump_name, p->output );
                 strcat( dump_name, get_sample_list[get_index].ext );
+                if( audio_delay )
+                    strcat( dump_name, delay_string );
                 if( get_sample_list[get_index].get_mode == GET_SAMPLE_DATA_RAW )
                 {
                     static const char *audio_raw_ext[] = { NULL, ".mpa", ".aac", ".ac3", ".dts" };
