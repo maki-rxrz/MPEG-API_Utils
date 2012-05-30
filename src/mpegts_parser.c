@@ -1008,7 +1008,8 @@ static int get_video_info( void *ih, video_sample_info_t *video_sample_info )
     uint8_t progressive_frame = 0;
     uint8_t repeat_first_field = 0;
     uint8_t top_field_first = 0;
-    if( info->video_stream_type == STREAM_VIDEO_MPEG2 )
+    int stream_judge = mpeg_stream_judge_type( info->video_stream_type );
+    if( (stream_judge & STREAM_IS_MPEG_VIDEO) == STREAM_IS_MPEG_VIDEO )
     {
         gop_number = -1;
         mpeg_video_info_t video_info;
@@ -1109,8 +1110,8 @@ static void set_pmt_first_info( mpegts_info_t *info )
     int pid_list_index = 0;
     while( pid_list_index < info->pid_list_num_in_pmt )
     {
-        int judge = mpeg_stream_judge_type( info->pid_list_in_pmt[pid_list_index].stream_type );
-        if( judge & STREAM_IS_VIDEO )
+        int stream_judge = mpeg_stream_judge_type( info->pid_list_in_pmt[pid_list_index].stream_type );
+        if( stream_judge & STREAM_IS_VIDEO )
         {
             uint16_t program_id = info->pid_list_in_pmt[pid_list_index].program_id;
             mpegts_packet_header_t h;
@@ -1118,12 +1119,12 @@ static void set_pmt_first_info( mpegts_info_t *info )
             {
                 info->video_program_id  = info->pid_list_in_pmt[pid_list_index].program_id;
                 info->video_stream_type = info->pid_list_in_pmt[pid_list_index].stream_type;
-                va_exist |= judge;
+                va_exist |= stream_judge;
                 dprintf( LOG_LV2, "[check] video PID:0x%04X  stream_type:0x%02X\n", info->video_program_id, info->video_stream_type );
             }
             fsetpos( info->input, &start_position );
         }
-        else if( judge & STREAM_IS_AUDIO )
+        else if( stream_judge & STREAM_IS_AUDIO )
         {
             uint16_t program_id = info->pid_list_in_pmt[pid_list_index].program_id;
             mpegts_packet_header_t h;
@@ -1132,7 +1133,7 @@ static void set_pmt_first_info( mpegts_info_t *info )
             {
                 info->audio_program_id  = info->pid_list_in_pmt[pid_list_index].program_id;
                 info->audio_stream_type = info->pid_list_in_pmt[pid_list_index].stream_type;
-                va_exist |= judge;
+                va_exist |= stream_judge;
                 dprintf( LOG_LV2, "[check] audio PID:0x%04X  stream_type:0x%02X\n", info->audio_program_id, info->audio_stream_type );
             }
             fsetpos( info->input, &start_position );
