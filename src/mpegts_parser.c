@@ -709,6 +709,12 @@ static int mpegts_get_stream_timestamp( mpegts_info_t *info, uint16_t program_id
     return 0;
 }
 
+#define BYTE_DATA_SHIFT( data, size )           \
+{                                               \
+    for( int i = 1; i < size; ++i )             \
+        data[i - 1] = data[i];                  \
+}
+
 static int mpegts_get_mpeg_video_picture_info( mpegts_info_t *info, uint16_t program_id, mpeg_video_info_t *video_info )
 {
     dprintf( LOG_LV2, "[check] mpegts_get_mpeg_video_picture_info()\n" );
@@ -761,7 +767,10 @@ static int mpegts_get_mpeg_video_picture_info( mpegts_info_t *info, uint16_t pro
                 fseeko( info->input, -1, SEEK_CUR );
                 mpeg_video_start_code_info_t start_code_info;
                 if( mpeg_video_judge_start_code( mpeg_video_head_data, identifier, &start_code_info ) )
+                {
+                    BYTE_DATA_SHIFT( mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE )
                     continue;
+                }
                 uint32_t read_size = start_code_info.read_size;
                 int64_t reset_position = ftello( info->input );
                 int32_t rest_ts_packet_length = ts_packet_length;
@@ -809,10 +818,9 @@ static int mpegts_get_mpeg_video_picture_info( mpegts_info_t *info, uint16_t pro
                       || start_code_info.searching_status == DETECT_SEC )
                     goto end_get_video_picture_info;
                 /* cleanup buffer. */
-                memset( mpeg_video_head_data, 0, MPEG_VIDEO_START_CODE_SIZE );
+                memset( mpeg_video_head_data, 0xFF, MPEG_VIDEO_START_CODE_SIZE );
             }
-            for( int i = 1; i < MPEG_VIDEO_START_CODE_SIZE; ++i )
-                mpeg_video_head_data[i - 1] = mpeg_video_head_data[i];
+            BYTE_DATA_SHIFT( mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE )
         }
         dprintf( LOG_LV4, "[debug] continue next packet. buf:0x%02X 0x%02X 0x%02X 0x--\n"
                         , mpeg_video_head_data[0], mpeg_video_head_data[1], mpeg_video_head_data[2] );
