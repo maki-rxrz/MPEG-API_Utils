@@ -73,18 +73,19 @@ typedef struct {
 } audio_sample_info_t;
 
 typedef struct {
-    void *          (*initialize)( const char *input );
-    void            (*release)( void *ih );
-    int             (*parse)( void *ih );
-    int             (*set_program_id)( void *ih, mpegts_select_pid_type pid_type, uint16_t program_id );
-    uint16_t        (*get_program_id)( void *ih, uint8_t stream_type );
-    int             (*get_video_info)( void *ih, video_sample_info_t *video_info );
-    int             (*get_audio_info)( void *ih, audio_sample_info_t *audio_info );
-    int64_t         (*get_pcr)( void *ih );
-    int64_t         (*get_sample_position)( void *ih );
-    int             (*set_sample_position)( void *ih, int64_t position );
-    int             (*seek_next_sample_position)( void *ih, mpeg_sample_type sample_type );
-    int             (*get_sample_data)( void *ih, mpeg_sample_type sample_type, int64_t position, uint32_t sample_size, uint8_t **dst_buffer, uint32_t *dst_read_size, get_sample_data_mode get_mode );
+    void *              (*initialize)( const char *input );
+    void                (*release)( void *ih );
+    int                 (*parse)( void *ih );
+    int                 (*set_program_id)( void *ih, mpegts_select_pid_type pid_type, uint16_t program_id );
+    uint16_t            (*get_program_id)( void *ih, uint8_t stream_type );
+    int                 (*get_video_info)( void *ih, video_sample_info_t *video_info );
+    int                 (*get_audio_info)( void *ih, audio_sample_info_t *audio_info );
+    int64_t             (*get_pcr)( void *ih );
+    int64_t             (*get_sample_position)( void *ih );
+    int                 (*set_sample_position)( void *ih, int64_t position );
+    int                 (*seek_next_sample_position)( void *ih, mpeg_sample_type sample_type );
+    int                 (*get_sample_data)( void *ih, mpeg_sample_type sample_type, int64_t position, uint32_t sample_size, uint8_t **dst_buffer, uint32_t *dst_read_size, get_sample_data_mode get_mode );
+    mpeg_stream_type    (*get_sample_stream_type)( void *ih, mpeg_sample_type sample_type );
 } mpeg_parser_t;
 
 extern mpeg_parser_t mpeges_parser;

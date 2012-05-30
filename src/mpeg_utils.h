@@ -63,6 +63,8 @@ extern "C" {
 
 extern int mpeg_api_create_sample_list( void *ih );
 
+extern mpeg_stream_type mpeg_api_get_sample_stream_type( void *ih, mpeg_sample_type sample_type );
+
 extern uint32_t mpeg_api_get_sample_num( void *ih, mpeg_sample_type sample_type );
 
 extern int mpeg_api_get_sample_info( void *ih, mpeg_sample_type sample_type, uint32_t sample_number, stream_info_t *stream_info );

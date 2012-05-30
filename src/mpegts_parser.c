@@ -928,6 +928,20 @@ static void mpegts_get_sample_ts_packet_data( mpegts_info_t *info, uint16_t prog
     }
 }
 
+static mpeg_stream_type get_sample_stream_type( void *ih, mpeg_sample_type sample_type )
+{
+    mpegts_info_t *info = (mpegts_info_t *)ih;
+    if( !info )
+        return STREAM_INVAILED;
+    /* check stream type. */
+    mpeg_stream_type stream_type = STREAM_INVAILED;
+    if( sample_type == SAMPLE_TYPE_VIDEO )
+        stream_type = info->video_stream_type;
+    else if( sample_type == SAMPLE_TYPE_AUDIO )
+        stream_type = info->audio_stream_type;
+    return stream_type;
+}
+
 static int get_sample_data( void *ih, mpeg_sample_type sample_type, int64_t position, uint32_t sample_size, uint8_t **dst_buffer, uint32_t *dst_read_size, get_sample_data_mode get_mode )
 {
     mpegts_info_t *info = (mpegts_info_t *)ih;
@@ -1218,6 +1232,8 @@ static int set_pmt_program_id( mpegts_info_t *info, uint16_t program_id )
     info->pcr_program_id     = TS_PID_ERR;
     info->video_program_id   = TS_PID_ERR;
     info->audio_program_id   = TS_PID_ERR;
+    info->video_stream_type  = STREAM_INVAILED;
+    info->audio_stream_type  = STREAM_INVAILED;
     info->pcr                = -1;
     info->gop_number         = -1;
     if( info->pid_list_in_pmt )
@@ -1319,6 +1335,8 @@ static void *initialize( const char *mpegts )
     info->pcr_program_id          = TS_PID_ERR;
     info->video_program_id        = TS_PID_ERR;
     info->audio_program_id        = TS_PID_ERR;
+    info->video_stream_type       = STREAM_INVAILED;
+    info->audio_stream_type       = STREAM_INVAILED;
     info->pcr                     = -1;
     info->gop_number              = -1;
     /* first check. */
@@ -1359,5 +1377,6 @@ mpeg_parser_t mpegts_parser = {
     get_sample_position,
     set_sample_position,
     seek_next_sample_position,
-    get_sample_data
+    get_sample_data,
+    get_sample_stream_type
 };

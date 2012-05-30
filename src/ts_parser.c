@@ -309,15 +309,75 @@ static void parse_mpeg( param_t *p )
             {
                 strcpy( dump_name, p->output );
                 strcat( dump_name, get_sample_list[get_index].ext );
-                strcat( dump_name, ".video" );
+                if( get_sample_list[get_index].get_mode == GET_SAMPLE_DATA_RAW )
+                {
+                    static const char *video_raw_ext[] = { NULL, ".m1v", ".m2v", ".avc", ".vc1" };
+                    int index = 0;
+                    mpeg_stream_type stream_type = mpeg_api_get_sample_stream_type( info, SAMPLE_TYPE_VIDEO );
+                    switch( stream_type )
+                    {
+                        case STREAM_VIDEO_MPEG1 :
+                            index = 1;
+                            break;
+                        case STREAM_VIDEO_MPEG2 :
+                        case STREAM_VIDEO_MPEG2_A :
+                        case STREAM_VIDEO_MPEG2_B :
+                        case STREAM_VIDEO_MPEG2_C :
+                        case STREAM_VIDEO_MPEG2_D :
+                            index = 2;
+                            break;
+                        case STREAM_VIDEO_AVC :
+                            index = 3;
+                            break;
+                        case STREAM_VIDEO_VC1 :
+                            index = 4;
+                            break;
+                        default :
+                            break;
+                    }
+                    if( index )
+                        strcat( dump_name, video_raw_ext[index] );
+                    else
+                        strcat( dump_name, ".video" );
+                }
+                else
+                    strcat( dump_name, ".video" );
                 video = fopen( dump_name, "wb" );
             }
             if( sample_audio_num )
             {
-                char dump_name[dump_name_size];
                 strcpy( dump_name, p->output );
                 strcat( dump_name, get_sample_list[get_index].ext );
-                strcat( dump_name, ".audio" );
+                if( get_sample_list[get_index].get_mode == GET_SAMPLE_DATA_RAW )
+                {
+                    static const char *audio_raw_ext[] = { NULL, ".mpa", ".aac", ".ac3", ".dts" };
+                    int index = 0;
+                    mpeg_stream_type stream_type = mpeg_api_get_sample_stream_type( info, SAMPLE_TYPE_AUDIO );
+                    switch( stream_type )
+                    {
+                        case STREAM_AUDIO_MP1 :
+                        case STREAM_AUDIO_MP2 :
+                            index = 1;
+                            break;
+                        case STREAM_AUDIO_AAC :
+                            index = 2;
+                            break;
+                        case STREAM_AUDIO_AC3 :
+                            index = 3;
+                            break;
+                        case STREAM_AUDIO_DTS :
+                            index = 4;
+                            break;
+                        default :
+                            break;
+                    }
+                    if( index )
+                        strcat( dump_name, audio_raw_ext[index] );
+                    else
+                        strcat( dump_name, ".audio" );
+                }
+                else
+                    strcat( dump_name, ".audio" );
                 audio = fopen( dump_name, "wb" );
             }
             if( !video && !audio )
