@@ -154,8 +154,8 @@ extern int mpeg_api_create_sample_list( void *ih )
         video_list[i].file_position       = video_sample_info.file_position;
         video_list[i].sample_size         = video_sample_info.sample_size;
         video_list[i].gop_number          = video_sample_info.gop_number;
-        video_list[i].timestamp.pts       = video_sample_info.pts + (wrap_around_count + (comapre_ts > video_sample_info.pts + info->wrap_around_check_v) ? 1 : 0 ) * MPEG_TIMESTMAP_MAX_VALUE;
-        video_list[i].timestamp.dts       = video_sample_info.dts + (wrap_around_count + (comapre_ts > video_sample_info.dts + info->wrap_around_check_v) ? 1 : 0 ) * MPEG_TIMESTMAP_MAX_VALUE;
+        video_list[i].timestamp.pts       = video_sample_info.pts + (wrap_around_count + (comapre_ts > video_sample_info.pts + info->wrap_around_check_v) ? 1 : 0 ) * MPEG_TIMESTAMP_MAX_VALUE;
+        video_list[i].timestamp.dts       = video_sample_info.dts + (wrap_around_count + (comapre_ts > video_sample_info.dts + info->wrap_around_check_v) ? 1 : 0 ) * MPEG_TIMESTAMP_MAX_VALUE;
         video_list[i].picture_coding_type = video_sample_info.picture_coding_type;
         video_list[i].temporal_reference  = video_sample_info.temporal_reference;
         video_list[i].progressive_frame   = video_sample_info.progressive_frame;
@@ -202,8 +202,8 @@ extern int mpeg_api_create_sample_list( void *ih )
         audio_list[i].file_position       = audio_sample_info.file_position;
         audio_list[i].sample_size         = audio_sample_info.sample_size;
         audio_list[i].gop_number          = 0;
-        audio_list[i].timestamp.pts       = audio_sample_info.pts + wrap_around_count * MPEG_TIMESTMAP_MAX_VALUE;
-        audio_list[i].timestamp.dts       = audio_sample_info.dts + wrap_around_count * MPEG_TIMESTMAP_MAX_VALUE;
+        audio_list[i].timestamp.pts       = audio_sample_info.pts + wrap_around_count * MPEG_TIMESTAMP_MAX_VALUE;
+        audio_list[i].timestamp.dts       = audio_sample_info.dts + wrap_around_count * MPEG_TIMESTAMP_MAX_VALUE;
         audio_list[i].picture_coding_type = 0;
         audio_list[i].temporal_reference  = 0;
         audio_list[i].picture_structure   = 0;
