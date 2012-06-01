@@ -60,26 +60,26 @@ extern int mpeg_pes_check_start_code( uint8_t *start_code, mpeg_pes_packet_start
     } pes_stream_id_list[PES_PACKET_START_CODE_MAX] =
         {
             /* MPEG-1/2 stream type. */
-            { 0xBD, 0xFF },         /* Private Stream 1             */
-            { 0xBE, 0xFF },         /* Padding Stream               */
-            { 0xBF, 0xFF },         /* Private Stream 2             */
+            { 0xBD, 0xBD },         /* Private Stream 1             */
+            { 0xBE, 0xBE },         /* Padding Stream               */
+            { 0xBF, 0xBF },         /* Private Stream 2             */
             { 0xF0, 0xE0 },         /* Video Stream                 */
             { 0xE0, 0xC0 },         /* Audio Stream                 */
-            { 0xF3, 0xFF },         /* MHEG Reserved                */
+            { 0xF3, 0xF3 },         /* MHEG Reserved                */
             /* MPEG-2 stream type. */
-            { 0xBC, 0xFF },         /* Program Stream Map           */
-            { 0xF0, 0xFF },         /* License Management Message 1 */
-            { 0xF1, 0xFF },         /* License Management Message 2 */
-            { 0xF2, 0xFF },         /* DSM Control Command          */
+            { 0xBC, 0xBC },         /* Program Stream Map           */
+            { 0xF0, 0xF0 },         /* License Management Message 1 */
+            { 0xF1, 0xF1 },         /* License Management Message 2 */
+            { 0xF2, 0xF2 },         /* DSM Control Command          */
             { 0xF4, 0xFC },         /* ITU-T Reserved               */
-            { 0xF8, 0xFF },         /* ITU-T Reserved               */
-            { 0xF9, 0xFF },         /* PS Trasnport on TS           */
+            { 0xF8, 0xF8 },         /* ITU-T Reserved               */
+            { 0xF9, 0xF9 },         /* PS Trasnport on TS           */
             { 0xFF, 0xFF },         /* Program Stream Directory     */
-            /* ... */
+            /* User Private */
             { 0xFF, 0xE2 },         /* MPEG-4 AVC Stream            */
             { 0xFF, 0x0F },         /* VC-1 Video Stream 1          */
             { 0xFF, 0x0D },         /* VC-1 Video Stream 2          */
-            { 0xFF, 0xFD },         /* AC-3/DTS Audio Stream        */
+            { 0xFF, 0xFD }          /* AC-3/DTS Audio Stream        */
         };
     if( memcmp( start_code, pes_start_code_common_head, PES_PACKET_START_CODE_SIZE - 1 ) )
         return -1;
