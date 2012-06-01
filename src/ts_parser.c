@@ -226,20 +226,18 @@ static void parse_mpeg( param_t *p )
                 if( stream_info.gop_number < 0 )
                 {
                     dprintf( LOG_LV0, " [no GOP Picture data]" );
-                    dprintf( LOG_LV0, "  PTS: %10"PRId64" [%8"PRId64"ms]", pts, pts / 90 );
-                    if( dts == -1 )
-                        dprintf( LOG_LV0, "\n" );
-                    else
-                        dprintf( LOG_LV0, "  DTS: %10"PRId64" [%8"PRId64"ms]\n", dts, dts / 90 );
                     i = -1;
-                    continue;
                 }
-                if( gop_number < stream_info.gop_number )
+                else
                 {
-                    gop_number = stream_info.gop_number;
-                    dprintf( LOG_LV0, " [GOP:%6"PRId64"]  progr_sequence:%d  closed_gop:%d\n", gop_number, stream_info.progressive_sequence, stream_info.closed_gop );
+                    if( gop_number < stream_info.gop_number )
+                    {
+                        gop_number = stream_info.gop_number;
+                        dprintf( LOG_LV0, " [GOP:%6"PRId64"]  progr_sequence:%d  closed_gop:%d\n", gop_number, stream_info.progressive_sequence, stream_info.closed_gop );
+                    }
+                    dprintf( LOG_LV0, " [%8d]", i );
                 }
-                dprintf( LOG_LV0, " [%8d]  pict_struct:%d  order:%2d  [%c]", i, stream_info.picture_structure, stream_info.temporal_reference, frame[stream_info.picture_coding_type] );
+                dprintf( LOG_LV0, "  pict_struct:%d  order:%2d  [%c]", stream_info.picture_structure, stream_info.temporal_reference, frame[stream_info.picture_coding_type] );
                 dprintf( LOG_LV0, "  progr_frame:%d  rff:%d  tff:%d", stream_info.progressive_frame, stream_info.repeat_first_field, stream_info.top_field_first );
                 dprintf( LOG_LV0, "  POS: %10"PRId64"", stream_info.file_position );
                 dprintf( LOG_LV0, "  size: %10d", stream_info.sample_size );
@@ -477,9 +475,9 @@ static void parse_mpeg( param_t *p )
         }
     }
     else if( parse_result > 0 )
-        dprintf( LOG_LV0, "[log] MPEG-TS not have both video and audio stream.\n" );
+        dprintf( LOG_LV0, "[log] MPEG not have both video and audio stream.\n" );
     else
-        dprintf( LOG_LV0, "[log] MPEG-TS no read.\n" );
+        dprintf( LOG_LV0, "[log] MPEG no read.\n" );
 end_parse:
     mpeg_api_release_info( info );
 }
