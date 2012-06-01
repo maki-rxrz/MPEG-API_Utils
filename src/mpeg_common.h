@@ -46,7 +46,7 @@ typedef enum {
     GET_SAMPLE_DATA_RAW
 } get_sample_data_mode;
 
-enum {
+typedef enum {
     STREAM_IS_UNKNOWN     = 0x00,
     STREAM_IS_VIDEO       = 0x01,
     STREAM_IS_MPEG_VIDEO  = 0x03,
@@ -56,7 +56,7 @@ enum {
     STREAM_IS_AUDIO       = 0x10,
     STREAM_IS_MPEG_AUDIO  = 0x30,
     STREAM_IS_DOLBY_AUDIO = 0x50
-};
+} mpeg_stream_group_type;
 
 typedef enum {
     STREAM_VIDEO_MPEG1   = 0x01,    /* ISO/IEC 11172 Video                                                                            */

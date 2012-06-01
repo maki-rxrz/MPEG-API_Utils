@@ -108,9 +108,9 @@ extern void mpeg_pes_get_header_info( uint8_t *buf, mpeg_pes_header_info_t *pes_
     pes_info->header_length             = buf[4];
 }
 
-extern int mpeg_stream_judge_type( uint8_t stream_type )
+extern mpeg_stream_group_type mpeg_stream_judge_type( uint8_t stream_type )
 {
-    int judge = STREAM_IS_UNKNOWN;
+    mpeg_stream_group_type judge = STREAM_IS_UNKNOWN;
     switch( stream_type )
     {
         case STREAM_VIDEO_MPEG1 :

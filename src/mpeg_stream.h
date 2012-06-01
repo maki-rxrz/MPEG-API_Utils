@@ -349,7 +349,7 @@ extern int mpeg_pes_check_start_code( uint8_t *start_code, mpeg_pes_packet_start
 
 extern void mpeg_pes_get_header_info( uint8_t *buf, mpeg_pes_header_info_t *pes_info );
 
-extern int mpeg_stream_judge_type( uint8_t stream_type );
+extern mpeg_stream_group_type mpeg_stream_judge_type( uint8_t stream_type );
 
 extern int32_t mpeg_stream_check_start_point( mpeg_stream_type stream_type, uint8_t *buffer, uint32_t buffer_size );
 

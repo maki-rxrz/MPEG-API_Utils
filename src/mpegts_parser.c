@@ -1230,7 +1230,7 @@ static int get_video_info( void *ih, video_sample_info_t *video_sample_info )
     uint8_t progressive_frame = 0;
     uint8_t repeat_first_field = 0;
     uint8_t top_field_first = 0;
-    int stream_judge = mpeg_stream_judge_type( info->video_stream_type );
+    mpeg_stream_group_type stream_judge = mpeg_stream_judge_type( info->video_stream_type );
     if( (stream_judge & STREAM_IS_MPEG_VIDEO) == STREAM_IS_MPEG_VIDEO )
     {
         mpeg_video_info_t video_info;
@@ -1294,7 +1294,7 @@ static int get_audio_info( void *ih, audio_sample_info_t *audio_sample_info )
         return -1;
     /* check stream type. */
     mpeg_pes_packet_start_code_type start_code = PES_PACKET_START_CODE_AUDIO_STREAM;
-    int stream_judge = mpeg_stream_judge_type( info->audio_stream_type );
+    mpeg_stream_group_type stream_judge = mpeg_stream_judge_type( info->audio_stream_type );
     if( stream_judge == STREAM_IS_DOLBY_AUDIO )
         start_code = PES_PACKET_START_CODE_AC3_DTS_AUDIO_STREAM;
     /* get timestamp. */
@@ -1321,47 +1321,51 @@ static int get_audio_info( void *ih, audio_sample_info_t *audio_sample_info )
     return 0;
 }
 
+static mpeg_stream_group_type set_stream_info( mpegts_info_t *info, uint16_t program_id, uint16_t stream_type )
+{
+    mpeg_stream_group_type setup_stream = STREAM_IS_UNKNOWN;
+    fpos_t start_position;
+    fgetpos( info->input, &start_position );
+    /* search program id and stream typeÅD*/
+    mpeg_stream_group_type stream_judge = mpeg_stream_judge_type( stream_type );
+    if( stream_judge & STREAM_IS_VIDEO )
+    {
+        mpegts_packet_header_t h;
+        if( !mpegts_search_program_id_packet( info, &h, program_id ) )
+        {
+            info->video_program_id  = program_id;
+            info->video_stream_type = stream_type;
+            setup_stream = stream_judge;
+            dprintf( LOG_LV2, "[check] video PID:0x%04X  stream_type:0x%02X\n", info->video_program_id, info->video_stream_type );
+        }
+    }
+    else if( stream_judge & STREAM_IS_AUDIO )
+    {
+        mpegts_packet_header_t h;
+        if( !mpegts_search_program_id_packet( info, &h, program_id ) )
+        {
+            info->audio_program_id  = program_id;
+            info->audio_stream_type = stream_type;
+            setup_stream = stream_judge;
+            dprintf( LOG_LV2, "[check] audio PID:0x%04X  stream_type:0x%02X\n", info->audio_program_id, info->audio_stream_type );
+        }
+    }
+    fsetpos( info->input, &start_position );
+    return setup_stream;
+}
+
 static void set_pmt_first_info( mpegts_info_t *info )
 {
     dprintf( LOG_LV2, "[check] [sub] set_pmt_first_info()\n" );
     fpos_t start_position;
     fgetpos( info->input, &start_position );
     /* search program id and stream typeÅD*/
-    uint8_t va_exist = STREAM_IS_UNKNOWN;
-    int pid_list_index = 0;
-    while( pid_list_index < info->pid_list_num_in_pmt )
+    mpeg_stream_group_type va_exist = STREAM_IS_UNKNOWN;
+    for( int pid_list_index = 0; pid_list_index < info->pid_list_num_in_pmt; ++pid_list_index )
     {
-        int stream_judge = mpeg_stream_judge_type( info->pid_list_in_pmt[pid_list_index].stream_type );
-        if( stream_judge & STREAM_IS_VIDEO )
-        {
-            uint16_t program_id = info->pid_list_in_pmt[pid_list_index].program_id;
-            mpegts_packet_header_t h;
-            if( !mpegts_search_program_id_packet( info, &h, program_id ) )
-            {
-                info->video_program_id  = info->pid_list_in_pmt[pid_list_index].program_id;
-                info->video_stream_type = info->pid_list_in_pmt[pid_list_index].stream_type;
-                va_exist |= stream_judge;
-                dprintf( LOG_LV2, "[check] video PID:0x%04X  stream_type:0x%02X\n", info->video_program_id, info->video_stream_type );
-            }
-            fsetpos( info->input, &start_position );
-        }
-        else if( stream_judge & STREAM_IS_AUDIO )
-        {
-            uint16_t program_id = info->pid_list_in_pmt[pid_list_index].program_id;
-            mpegts_packet_header_t h;
-            program_id = info->pid_list_in_pmt[pid_list_index].program_id;
-            if( !mpegts_search_program_id_packet( info, &h, program_id ) )
-            {
-                info->audio_program_id  = info->pid_list_in_pmt[pid_list_index].program_id;
-                info->audio_stream_type = info->pid_list_in_pmt[pid_list_index].stream_type;
-                va_exist |= stream_judge;
-                dprintf( LOG_LV2, "[check] audio PID:0x%04X  stream_type:0x%02X\n", info->audio_program_id, info->audio_stream_type );
-            }
-            fsetpos( info->input, &start_position );
-        }
+        va_exist |= set_stream_info( info, info->pid_list_in_pmt[pid_list_index].program_id, info->pid_list_in_pmt[pid_list_index].stream_type );
         if( (va_exist & STREAM_IS_VIDEO) && (va_exist & STREAM_IS_AUDIO) )
             break;
-        ++pid_list_index;
     }
 }
 
@@ -1428,6 +1432,25 @@ static int set_pmt_program_id( mpegts_info_t *info, uint16_t program_id )
     return result;
 }
 
+static int set_stream_program_id( mpegts_info_t *info, uint16_t program_id )
+{
+    dprintf( LOG_LV2, "[check] set_stream_program_id()\n" );
+    fpos_t start_position;
+    fgetpos( info->input, &start_position );
+    /* search program id and stream typeÅD*/
+    int result = -1;
+    for( int pid_list_index = 0; pid_list_index < info->pid_list_num_in_pmt; ++pid_list_index )
+    {
+        if( info->pid_list_in_pmt[pid_list_index].program_id == program_id )
+        {
+            mpeg_stream_group_type stream_judge = set_stream_info( info, info->pid_list_in_pmt[pid_list_index].program_id, info->pid_list_in_pmt[pid_list_index].stream_type );
+            if( (stream_judge & STREAM_IS_VIDEO) || (stream_judge & STREAM_IS_AUDIO) )
+                result = 0;
+        }
+    }
+    return result;
+}
+
 static int set_program_id( void *ih, mpegts_select_pid_type pid_type, uint16_t program_id )
 {
     mpegts_info_t *info = (mpegts_info_t *)ih;
@@ -1440,25 +1463,18 @@ static int set_program_id( void *ih, mpegts_select_pid_type pid_type, uint16_t p
         dprintf( LOG_LV2, "[check] illegal PID is specified. using PID in PAT.\n" );
         return 1;
     }
-    int result = 0;
+    int result = -1;
     switch( pid_type )
     {
-        case PID_TYPE_PAT :
-            result = -1;
-            break;
         case PID_TYPE_PMT :
             result = set_pmt_program_id( info, program_id );
             break;
         case PID_TYPE_VIDEO :
-            info->video_program_id  = program_id;
-            //info->video_stream_type = 0;        // FIXME
-            break;
         case PID_TYPE_AUDIO :
-            info->audio_program_id  = program_id;
-            //info->audio_stream_type = 0;        // FIXME
+            result = set_stream_program_id( info, program_id );
             break;
+        case PID_TYPE_PAT :
         default :
-            result = -1;
             break;
     }
     return result;
