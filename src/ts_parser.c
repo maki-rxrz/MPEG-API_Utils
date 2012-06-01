@@ -59,10 +59,18 @@ typedef enum {
     OUTPUT_MODE_MAX
 } output_mode_type;
 
+typedef enum {
+    OUTPUT_STREAM_NONE    = 0x00,
+    OUTPUT_STREAM_VIDEO   = 0x01,
+    OUTPUT_STREAM_AUDIO   = 0x02,
+    OUTPUT_STREAM_BOTH_VA = 0x03
+} output_stream_type;
+
 typedef struct {
     char               *input;
     char               *output;
     output_mode_type    output_mode;
+    output_stream_type  output_stream;
     uint16_t            pmt_program_id;
 } param_t;
 
@@ -77,7 +85,12 @@ static void print_help( void )
         "options:\n"
         "    -o --output <string>       Specify output file name.\n"
         "       --pmt-pid <integer>     Specify Program Map Table ID.\n"
-        "       --output-mode <integer> Specify output mode. [0-2]\n"
+        "       --output-mode <integer> Specify output mode. [0-4]\n"
+        "       --output-stream <string>"
+        "                               Specify output stream type.\n"
+        "                                   - v  : video only\n"
+        "                                   - a  : audio only\n"
+        "                                   - va : video/audio\n"
         "       --debug <integer>       Specify output log level. [1-4]\n"
         "\n"
     );
@@ -99,6 +112,7 @@ static int init_parameter( param_t *p )
     if( !p )
         return -1;
     memset( p, 0, sizeof(param_t) );
+    p->output_stream = OUTPUT_STREAM_BOTH_VA;
     return 0;
 }
 
@@ -136,6 +150,16 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
                 p->output_mode = mode;
             else if( mode < 0 )
                 p->output_mode = 0;
+        }
+        else if( !strcasecmp( argv[i], "--output-stream" ) )
+        {
+            char *c = argv[++i];
+            if( !strcasecmp( c, "va" ) || !strcasecmp( c, "av" ) )
+                p->output_stream = OUTPUT_STREAM_BOTH_VA;
+            else if( !strncasecmp( c, "v", 1 ) )
+                p->output_stream = OUTPUT_STREAM_VIDEO;
+            else if( !strncasecmp( c, "a", 1 ) )
+                p->output_stream = OUTPUT_STREAM_AUDIO;
         }
         else if( !strcasecmp( argv[i], "--debug" ) )
         {
@@ -334,7 +358,7 @@ static void parse_mpeg( param_t *p )
             size_t dump_name_size = strlen( p->output ) + 11 + delay_str_len;
             char dump_name[dump_name_size];
             FILE *video = NULL, *audio = NULL;
-            if( sample_video_num )
+            if( sample_video_num && (p->output_stream & OUTPUT_STREAM_VIDEO) )
             {
                 strcpy( dump_name, p->output );
                 strcat( dump_name, get_sample_list[get_index].ext );
@@ -373,7 +397,7 @@ static void parse_mpeg( param_t *p )
                     strcat( dump_name, ".video" );
                 video = fopen( dump_name, "wb" );
             }
-            if( sample_audio_num )
+            if( sample_audio_num && (p->output_stream & OUTPUT_STREAM_AUDIO) )
             {
                 strcpy( dump_name, p->output );
                 strcat( dump_name, get_sample_list[get_index].ext );
@@ -414,38 +438,42 @@ static void parse_mpeg( param_t *p )
             if( !video && !audio )
                 goto end_parse;
             /* outptut. */
-            dprintf( LOG_LV0, "[log] Video\n" );
-            for( uint32_t i = 0; i < sample_video_num; ++i )
-            {
-                uint8_t *buffer = NULL;
-                uint32_t data_size = 0;
-                if( mpeg_api_get_sample_data( info, SAMPLE_TYPE_VIDEO, i, &buffer, &data_size, get_sample_list[get_index].get_mode ) )
-                    break;
-                if( buffer && data_size )
-                {
-                    fwrite( buffer, 1, data_size, video );
-                    free( buffer );
-                }
-                dprintf( LOG_LV0, " [%8d]  size: %10d\n", i, data_size );
-            }
-            dprintf( LOG_LV0, "[log] Audio\n" );
-            for( uint32_t i = 0; i < sample_audio_num; ++i )
-            {
-                uint8_t *buffer = NULL;
-                uint32_t data_size = 0;
-                if( mpeg_api_get_sample_data( info, SAMPLE_TYPE_AUDIO, i, &buffer, &data_size, get_sample_list[get_index].get_mode ) )
-                    break;
-                if( buffer && data_size )
-                {
-                    fwrite( buffer, 1, data_size, audio );
-                    free( buffer );
-                }
-                dprintf( LOG_LV0, " [%8d]  size: %10d\n", i, data_size );
-            }
             if( video )
+            {
+                dprintf( LOG_LV0, "[log] Video\n" );
+                for( uint32_t i = 0; i < sample_video_num; ++i )
+                {
+                    uint8_t *buffer = NULL;
+                    uint32_t data_size = 0;
+                    if( mpeg_api_get_sample_data( info, SAMPLE_TYPE_VIDEO, i, &buffer, &data_size, get_sample_list[get_index].get_mode ) )
+                        break;
+                    if( buffer && data_size )
+                    {
+                        fwrite( buffer, 1, data_size, video );
+                        free( buffer );
+                    }
+                    dprintf( LOG_LV0, " [%8d]  size: %10d\n", i, data_size );
+                }
                 fclose( video );
+            }
             if( audio )
+            {
+                dprintf( LOG_LV0, "[log] Audio\n" );
+                for( uint32_t i = 0; i < sample_audio_num; ++i )
+                {
+                    uint8_t *buffer = NULL;
+                    uint32_t data_size = 0;
+                    if( mpeg_api_get_sample_data( info, SAMPLE_TYPE_AUDIO, i, &buffer, &data_size, get_sample_list[get_index].get_mode ) )
+                        break;
+                    if( buffer && data_size )
+                    {
+                        fwrite( buffer, 1, data_size, audio );
+                        free( buffer );
+                    }
+                    dprintf( LOG_LV0, " [%8d]  size: %10d\n", i, data_size );
+                }
                 fclose( audio );
+            }
         }
     }
     else if( parse_result > 0 )
