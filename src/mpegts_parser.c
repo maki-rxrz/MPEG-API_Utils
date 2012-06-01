@@ -881,29 +881,120 @@ static uint32_t mpegts_get_sample_packets_num( mpegts_info_t *info, uint16_t pro
     return ts_packet_count;
 }
 
-static void mpegts_get_sample_payload_data( mpegts_info_t *info, uint16_t program_id, uint32_t ts_packet_count, uint8_t *buffer, uint32_t *read_size, get_sample_data_mode get_mode, mpeg_stream_type stream_type )
+typedef struct {
+    uint32_t    data_size;
+    int32_t     start_point;
+} sample_raw_data_info_t;
+
+static int mpegts_get_sample_raw_data_info( mpegts_info_t *info, uint16_t program_id, mpeg_stream_type stream_type, sample_raw_data_info_t *raw_data_info )
 {
-    dprintf( LOG_LV2, "[check] mpegts_get_sample_payload_data()\n" );
+    dprintf( LOG_LV3, "[debug] mpegts_get_sample_raw_data_info()\n" );
+    uint32_t raw_data_size = 0;
+    int32_t start_point = -1;
     /* ready. */
-    uint8_t check_buffer[ts_packet_count * TS_PACKET_SIZE];
-    int32_t buffer_read_size = 0;
     fpos_t start_position;
     fgetpos( info->input, &start_position );
+    /* search. */
     int check_start_point = 0;
-    if( get_mode == GET_SAMPLE_DATA_RAW_SEARCH_HEAD )
+    uint8_t check_buffer[TS_PACKET_SIZE + STREAM_HEADER_CHECK_MAX_SIZE];
+    int32_t buffer_read_offset = 0;
+    int32_t buffer_read_size = 0;
+    mpegts_packet_header_t h;
+    int32_t ts_packet_length;
+    while( 1 )
     {
-        check_start_point = 1;
-        get_mode = GET_SAMPLE_DATA_RAW;
+        if( mpegts_seek_packet_payload_data( info, &h, program_id, &ts_packet_length, 0, 1 ) )
+        {
+            if( start_point >= 0 )
+                /* This sample is the data at the end was shaved. */
+                raw_data_size += buffer_read_size + buffer_read_offset;
+            dprintf( LOG_LV3, "[debug] read file end.\n" );
+            goto end_get_info;
+        }
+        if( h.payload_unit_start_indicator )
+        {
+            mpeg_pes_header_info_t pes_info;
+            GET_PES_PACKET_HEADER( info->input, ts_packet_length, pes_info )
+            /* check PES packet header. */
+            if( pes_info.pts_flag )
+                check_start_point = 1;
+            /* skip PES packet header. */
+            fseeko( info->input, pes_info.header_length, SEEK_CUR );
+            ts_packet_length -= pes_info.header_length;
+        }
+        if( check_start_point )
+        {
+            int32_t buffer_size = ts_packet_length + buffer_read_offset;
+            /* buffering check data . */
+            fread( check_buffer + buffer_read_offset, 1, ts_packet_length, info->input );
+            ts_packet_length = 0;
+            int32_t search_start_point = mpeg_stream_check_start_point( stream_type, check_buffer, buffer_size );
+            if( search_start_point < 0 )
+            {
+                /* continue buffering check. */
+                buffer_read_size += buffer_size;
+                for( int j = 0; j < STREAM_HEADER_CHECK_MAX_SIZE; ++j )
+                    check_buffer[j] = check_buffer[buffer_size - STREAM_HEADER_CHECK_MAX_SIZE + j];
+                buffer_read_size -= STREAM_HEADER_CHECK_MAX_SIZE;
+                buffer_read_offset = STREAM_HEADER_CHECK_MAX_SIZE;
+            }
+            else
+            {
+                if( start_point < 0 )
+                {
+                    /* detect start point. */
+                    start_point = buffer_read_size + search_start_point;
+                    raw_data_size = buffer_size - search_start_point;
+                }
+                else
+                {
+                    /* detect end point(=next start point). */
+                    raw_data_size += buffer_read_size + search_start_point;
+                    fseeko( info->input, info->packet_size - TS_PACKET_SIZE, SEEK_CUR );
+                    break;
+                }
+                buffer_read_offset = 0;
+                buffer_read_size = 0;
+                check_start_point = 0;
+            }
+        }
+        else
+            raw_data_size += ts_packet_length;
+        /* ready next. */
+        fseeko( info->input, ts_packet_length + info->packet_size - TS_PACKET_SIZE, SEEK_CUR );
     }
-    /* get. */
+end_get_info:
+    fsetpos( info->input, &start_position );
+    /* setup. */
+    raw_data_info->data_size   = raw_data_size;
+    raw_data_info->start_point = start_point;
+    return 0;
+}
+
+static void mpegts_get_sample_raw_data( mpegts_info_t *info, uint16_t program_id, mpeg_stream_type stream_type, uint8_t **buffer, uint32_t *read_size )
+{
+    dprintf( LOG_LV2, "[check] mpegts_get_sample_raw_data()\n" );
+    /* check raw data. */
+    sample_raw_data_info_t raw_data_info;
+    if( mpegts_get_sample_raw_data_info( info, program_id, stream_type, &raw_data_info ) )
+        return;
+    dprintf( LOG_LV4, "[debug] raw_data  size:%u  start_point:%d\n", raw_data_info.data_size, raw_data_info.start_point );
+    uint32_t raw_data_size = raw_data_info.data_size;
+    int32_t start_point    = raw_data_info.start_point;
+    /* allocate buffer. */
+    *buffer = malloc( raw_data_size );
+    if( !(*buffer) )
+        return;
+    dprintf( LOG_LV3, "[debug] buffer_size:%u\n", raw_data_size );
+    /* read. */
     mpegts_packet_header_t h;
     int32_t ts_packet_length;
     *read_size = 0;
-    for( uint32_t i = 0; i < ts_packet_count; ++i )
+    while( 1 )
     {
         if( mpegts_seek_packet_payload_data( info, &h, program_id, &ts_packet_length, 0, 1 ) )
-            return;
-        if( get_mode == GET_SAMPLE_DATA_RAW && h.payload_unit_start_indicator )
+            break;
+        if( h.payload_unit_start_indicator )
         {
             mpeg_pes_header_info_t pes_info;
             GET_PES_PACKET_HEADER( info->input, ts_packet_length, pes_info )
@@ -911,66 +1002,89 @@ static void mpegts_get_sample_payload_data( mpegts_info_t *info, uint16_t progra
             fseeko( info->input, pes_info.header_length, SEEK_CUR );
             ts_packet_length -= pes_info.header_length;
         }
-        if( check_start_point )
+        /* check read start point. */
+        if( start_point )
         {
-            /* buffering check data . */
-            fread( &(check_buffer[buffer_read_size]), 1, ts_packet_length, info->input );
-            buffer_read_size += ts_packet_length;
-            ts_packet_length = 0;
-            int32_t start_point = mpeg_stream_check_start_point( stream_type, check_buffer, buffer_read_size );
-            if( start_point >= 0 )
+            if( start_point > ts_packet_length )
             {
-                /* seek start point. */
-                fsetpos( info->input, &start_position );
-                info->sync_byte_position = -1;
-                i = 0;
-                int32_t seek_size = 0;
-                while( 1 )
-                {
-                    if( mpegts_seek_packet_payload_data( info, &h, program_id, &ts_packet_length, 0, 1 ) )
-                        return;
-                    if( h.payload_unit_start_indicator )
-                    {
-                        mpeg_pes_header_info_t pes_info;
-                        GET_PES_PACKET_HEADER( info->input, ts_packet_length, pes_info )
-                        /* skip PES packet header. */
-                        fseeko( info->input, pes_info.header_length, SEEK_CUR );
-                        ts_packet_length -= pes_info.header_length;
-                    }
-                    if( seek_size + ts_packet_length > start_point )
-                        break;
-                    fseeko( info->input, ts_packet_length + info->packet_size - TS_PACKET_SIZE, SEEK_CUR );
-                    seek_size += ts_packet_length;
-                    ts_packet_length = 0;
-                    info->sync_byte_position = -1;
-                    ++i;
-                }
-                fseeko( info->input, start_point - seek_size, SEEK_CUR );
-                ts_packet_length -= start_point - seek_size;
-                check_start_point = 0;
+                fseeko( info->input, ts_packet_length, SEEK_CUR );
+                start_point -= ts_packet_length;
+                ts_packet_length = 0;
+            }
+            else
+            {
+                fseeko( info->input, start_point, SEEK_CUR );
+                ts_packet_length -= start_point;
+                start_point = 0;
             }
         }
+        /* read raw data. */
+        if( ts_packet_length > 0 )
+        {
+            if( raw_data_size > *read_size + ts_packet_length )
+            {
+                fread( *buffer + *read_size, 1, ts_packet_length, info->input );
+                *read_size += ts_packet_length;
+            }
+            else
+            {
+                fread( *buffer + *read_size, 1, raw_data_size - *read_size, info->input );
+                ts_packet_length -= raw_data_size - *read_size;
+                *read_size = raw_data_size;
+                fseeko( info->input, ts_packet_length + info->packet_size - TS_PACKET_SIZE, SEEK_CUR );
+                break;
+            }
+        }
+        /* ready next. */
+        fseeko( info->input, info->packet_size - TS_PACKET_SIZE, SEEK_CUR );
+    }
+    return;
+}
+
+static void mpegts_get_sample_pes_packet_data( mpegts_info_t *info, uint16_t program_id, uint32_t ts_packet_count, uint8_t **buffer, uint32_t *read_size )
+{
+    dprintf( LOG_LV2, "[check] mpegts_get_sample_pes_packet_data()\n" );
+    /* allocate buffer. */
+    uint32_t sample_size = ts_packet_count * TS_PACKET_SIZE;
+    *buffer = malloc( sample_size );
+    if( !(*buffer) )
+        return;
+    dprintf( LOG_LV3, "[debug] buffer_size:%u\n", sample_size );
+    /* read. */
+    mpegts_packet_header_t h;
+    int32_t ts_packet_length;
+    *read_size = 0;
+    for( uint32_t i = 0; i < ts_packet_count; ++i )
+    {
+        if( mpegts_seek_packet_payload_data( info, &h, program_id, &ts_packet_length, 0, 1 ) )
+            return;
         /* read packet data. */
         if( ts_packet_length > 0 )
         {
-            fread( buffer + *read_size, 1, ts_packet_length, info->input );
+            fread( *buffer + *read_size, 1, ts_packet_length, info->input );
             *read_size += ts_packet_length;
         }
         /* ready next. */
         fseeko( info->input, info->packet_size - TS_PACKET_SIZE, SEEK_CUR );
-        info->sync_byte_position = -1;
     }
 }
 
-static void mpegts_get_sample_ts_packet_data( mpegts_info_t *info, uint16_t program_id, uint32_t ts_packet_count, uint8_t *buffer, uint32_t *read_size )
+static void mpegts_get_sample_ts_packet_data( mpegts_info_t *info, uint16_t program_id, uint32_t ts_packet_count, uint8_t **buffer, uint32_t *read_size )
 {
     dprintf( LOG_LV2, "[check] mpegts_get_sample_ts_packet_data()\n" );
+    /* allocate buffer. */
+    uint32_t sample_size = ts_packet_count * TS_PACKET_SIZE;
+    *buffer = malloc( sample_size );
+    if( !(*buffer) )
+        return;
+    dprintf( LOG_LV3, "[debug] buffer_size:%u\n", sample_size );
+    /* read. */
     mpegts_packet_header_t h;
     *read_size = 0;
     for( uint32_t i = 0; i < ts_packet_count; ++i )
     {
         /* read packet data. */
-        fread( buffer + *read_size, 1, TS_PACKET_SIZE, info->input );
+        fread( *buffer + *read_size, 1, TS_PACKET_SIZE, info->input );
         *read_size += TS_PACKET_SIZE;
         /* seek next packet. */
         if( mpegts_search_program_id_packet( info, &h, program_id ) )
@@ -1016,18 +1130,25 @@ static int get_sample_data( void *ih, mpeg_sample_type sample_type, int64_t posi
     /* seek reading start position. */
     fseeko( info->input, position, SEEK_SET );
     info->sync_byte_position = 0;
-    /* allocate buffer. */
-    uint8_t *buffer = malloc( sample_size );
+    /* get data. */
+    uint32_t ts_packet_count = sample_size / TS_PACKET_SIZE;
+    uint8_t *buffer = NULL;
+    uint32_t read_size;
+    switch( get_mode )
+    {
+        case GET_SAMPLE_DATA_CONTAINER :
+            mpegts_get_sample_ts_packet_data( info, program_id, ts_packet_count, &buffer, &read_size );
+            break;
+        case GET_SAMPLE_DATA_PES_PACKET :
+            mpegts_get_sample_pes_packet_data( info, program_id, ts_packet_count, &buffer, &read_size );
+            break;
+        case GET_SAMPLE_DATA_RAW :
+            mpegts_get_sample_raw_data( info, program_id, stream_type, &buffer, &read_size );
+        default :
+            break;
+    }
     if( !buffer )
         return -1;
-    dprintf( LOG_LV3, "[debug] buffer_size:%d\n", sample_size );
-    uint32_t ts_packet_count = sample_size / TS_PACKET_SIZE;
-    /* get data. */
-    uint32_t read_size;
-    if( get_mode == GET_SAMPLE_DATA_CONTAINER )
-        mpegts_get_sample_ts_packet_data( info, program_id, ts_packet_count, buffer, &read_size );
-    else
-        mpegts_get_sample_payload_data( info, program_id, ts_packet_count, buffer, &read_size, get_mode, stream_type );
     dprintf( LOG_LV3, "[debug] read_size:%d\n", read_size );
     *dst_buffer    = buffer;
     *dst_read_size = read_size;

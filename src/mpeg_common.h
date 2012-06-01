@@ -43,8 +43,7 @@ typedef enum {
 typedef enum {
     GET_SAMPLE_DATA_CONTAINER,
     GET_SAMPLE_DATA_PES_PACKET,
-    GET_SAMPLE_DATA_RAW,
-    GET_SAMPLE_DATA_RAW_SEARCH_HEAD
+    GET_SAMPLE_DATA_RAW
 } get_sample_data_mode;
 
 enum {

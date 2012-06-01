@@ -149,7 +149,7 @@ extern int32_t mpeg_stream_check_start_point( mpeg_stream_type stream_type, uint
     {
         case STREAM_AUDIO_MP1 :
         case STREAM_AUDIO_MP2 :
-            for( int i = 0; i < buffer_size - 4; ++i )
+            for( int i = 0; i < buffer_size - STREAM_MPA_HEADER_CHECK_SIZE; ++i )
             {
                 if( buffer[i+0] != 0xFF || (buffer[i+1] & 0xE0) != 0xE0 )
                     continue;
@@ -178,12 +178,12 @@ extern int32_t mpeg_stream_check_start_point( mpeg_stream_type stream_type, uint
                     continue;
                 /* detect start point. */
                 start_point = i;
-                dprintf( LOG_LV3, "[debug] [MPEG-Audio] check_buffer_size:%d  start_point:%d  len:%d\n", buffer_size, start_point );
+                dprintf( LOG_LV4, "[debug] [MPEG-Audio] check_buffer_size:%d  start_point:%d  len:%d\n", buffer_size, start_point );
                 break;
             }
             break;
         case STREAM_AUDIO_AAC :
-            for( int i = 0; i < buffer_size - 6; ++i )
+            for( int i = 0; i < buffer_size - STREAM_AAC_HEADER_CHECK_SIZE; ++i )
             {
                 if( buffer[i+0] != 0xFF || (buffer[i+1] & 0xF0) != 0xF0 )
                     continue;
@@ -197,10 +197,9 @@ extern int32_t mpeg_stream_check_start_point( mpeg_stream_type stream_type, uint
                 int aac_frame_length = ((buffer[i+3] & 0x03) << 11) | (buffer[i+4] << 3) | (buffer[i+5] >> 5);
                 if( !aac_frame_length )                     /* aac frame length                             */
                     continue;
-                // FIXME        /* this is most simple code. check end point by aac frame length.           */
                 /* detect start point. */
                 start_point = i;
-                dprintf( LOG_LV3, "[debug] [ADTS-AAC] check_buffer_size:%d  start_point:%d  len:%d\n", buffer_size, start_point, aac_frame_length );
+                dprintf( LOG_LV4, "[debug] [ADTS-AAC] check_buffer_size:%d  start_point:%d  len:%d\n", buffer_size, start_point, aac_frame_length );
                 break;
             }
             break;

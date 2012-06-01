@@ -83,6 +83,11 @@ typedef struct {
     uint8_t         header_length;
 } mpeg_pes_header_info_t;
 
+#define STREAM_MPA_HEADER_CHECK_SIZE                    (4)
+#define STREAM_AAC_HEADER_CHECK_SIZE                    (6)
+
+#define STREAM_HEADER_CHECK_MAX_SIZE                    STREAM_AAC_HEADER_CHECK_SIZE
+
 #define MPEG_VIDEO_START_CODE_SIZE                      (4)
 
 #define MPEG_VIDEO_SEQUENCE_SECTION_HEADER_SIZE         (136)
