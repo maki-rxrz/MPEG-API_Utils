@@ -41,7 +41,6 @@ typedef struct {
     int64_t                 file_position;
     uint32_t                sample_size;
     int64_t                 pcr;
-    int64_t                 video_key_pts;
     int64_t                 video_pts;
     int64_t                 video_dts;
     int64_t                 audio_pts;
@@ -79,7 +78,7 @@ extern int mpeg_api_get_audio_frame( void *ih, stream_info_t *stream_info );
 
 extern int mpeg_api_parse( void *ih );
 
-extern int mpeg_api_get_stream_info( void *ih, stream_info_t *stream_info );
+extern int mpeg_api_get_stream_info( void *ih, stream_info_t *stream_info, int64_t *video_1st_pts, int64_t*video_key_pts );
 
 extern int mpeg_api_set_pmt_program_id( void *ih, uint16_t pmt_program_id );
 

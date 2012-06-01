@@ -394,7 +394,7 @@ extern int mpeg_api_parse( void *ih )
     return info->parser->parse( info->parser_info );
 }
 
-extern int mpeg_api_get_stream_info( void *ih, stream_info_t *stream_info )
+extern int mpeg_api_get_stream_info( void *ih, stream_info_t *stream_info, int64_t *video_1st_pts, int64_t*video_key_pts )
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
@@ -417,15 +417,20 @@ extern int mpeg_api_get_stream_info( void *ih, stream_info_t *stream_info )
     /* get video. */
     video_sample_info_t video_sample_info;
     check_stream_exist |= parser->get_video_info( parser_info, &video_sample_info ) ? VIDEO_NONE : 0;
-    int64_t video_key_pts = (video_sample_info.picture_coding_type == MPEG_VIDEO_I_FRAME) ? video_sample_info.pts : -1;
     if( !(check_stream_exist & VIDEO_NONE) )
-        while( video_sample_info.temporal_reference || video_key_pts < 0 )
+    {
+        *video_1st_pts = video_sample_info.pts;
+        *video_key_pts = (video_sample_info.picture_coding_type == MPEG_VIDEO_I_FRAME) ? video_sample_info.pts : -1;
+        while( video_sample_info.temporal_reference || *video_key_pts < 0 )
         {
             if( parser->get_video_info( parser_info, &video_sample_info ) )
                 break;
-            if( video_sample_info.picture_coding_type == MPEG_VIDEO_I_FRAME )
-                video_key_pts = video_sample_info.pts;
+            if( *video_1st_pts > video_sample_info.pts && *video_1st_pts < video_sample_info.pts + info->wrap_around_check_v )
+                *video_1st_pts = video_sample_info.pts;
+            if( *video_key_pts < 0 && video_sample_info.picture_coding_type == MPEG_VIDEO_I_FRAME )
+                *video_key_pts = video_sample_info.pts;
         }
+    }
     parser->set_sample_position( parser_info, start_position );
     /* get audio. */
     audio_sample_info_t audio_sample_info;
@@ -433,7 +438,6 @@ extern int mpeg_api_get_stream_info( void *ih, stream_info_t *stream_info )
     parser->set_sample_position( parser_info, start_position );
     /* setup. */
     stream_info->pcr           = parser->get_pcr( info->parser_info );
-    stream_info->video_key_pts = video_key_pts;
     stream_info->video_pts     = video_sample_info.pts;
     stream_info->audio_pts     = audio_sample_info.pts;
     return (check_stream_exist == BOTH_VA_NONE);

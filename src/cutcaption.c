@@ -96,7 +96,8 @@ typedef enum {
     MPEG_READER_DEALY_NONE               = 0,
     MPEG_READER_DEALY_VIDEO_GOP_KEYFRAME = 1,
     MPEG_READER_DEALY_VIDEO_GOP_TR_ORDER = 2,
-    MPEG_READER_DEALY_FAST_STREAM        = 3
+    MPEG_READER_DEALY_FAST_VIDEO_STREAM  = 3,
+    MPEG_READER_DEALY_FAST_STREAM        = 4
 } mpeg_reader_delay_type;
 
 typedef enum {
@@ -190,7 +191,7 @@ static const struct {
     {
         {  "m2vvfp"  , MPEG_READER_M2VVFAPI, MPEG_READER_DEALY_VIDEO_GOP_KEYFRAME },
         {  "dgdecode", MPEG_READER_DGDECODE, MPEG_READER_DEALY_VIDEO_GOP_TR_ORDER },
-        {  "libav"   , MPEG_READER_LIBAV   , MPEG_READER_DEALY_VIDEO_GOP_TR_ORDER },
+        {  "libav"   , MPEG_READER_LIBAV   , MPEG_READER_DEALY_FAST_VIDEO_STREAM  },
         {  "tmpgenc" , MPEG_READER_TMPGENC , MPEG_READER_DEALY_FAST_STREAM        }
     };
 
@@ -1234,18 +1235,20 @@ static void parse_reader_offset( param_t *p )
         if( 0 > mpeg_api_set_pmt_program_id( info, p->pmt_program_id ) )
             goto end_parse;
     stream_info_t stream_info;
-    int get_info_result = mpeg_api_get_stream_info( info, &stream_info );
+    int64_t video_1st_pts, video_key_pts;
+    int get_info_result = mpeg_api_get_stream_info( info, &stream_info, &video_1st_pts, &video_key_pts );
     if( !get_info_result )
     {
         int64_t pcr           = stream_info.pcr;
-        int64_t video_key_pts = stream_info.video_key_pts;
         int64_t video_pts     = stream_info.video_pts;
         int64_t audio_pts     = stream_info.audio_pts;
         /* check wrap around. */
+        int64_t video_1st_offset = (pcr > video_1st_pts + p->wrap_around_check_v) ? TS_TIMESTMAP_WRAP_AROUND_TIME : 0;
         int64_t video_key_offset = (pcr > video_key_pts + p->wrap_around_check_v) ? TS_TIMESTMAP_WRAP_AROUND_TIME : 0;
         int64_t video_odr_offset = (pcr > video_pts     + p->wrap_around_check_v) ? TS_TIMESTMAP_WRAP_AROUND_TIME : 0;
         int64_t audio_offset     = (pcr > audio_pts     + p->wrap_around_check_v) ? TS_TIMESTMAP_WRAP_AROUND_TIME : 0;
         /* calculate delay. */
+        int64_t video_1st_start = (video_1st_pts >= 0) ? (pcr - (video_1st_pts + video_1st_offset)) / 90 : 0;
         int64_t video_key_start = (video_key_pts >= 0) ? (pcr - (video_key_pts + video_key_offset)) / 90 : 0;
         int64_t video_odr_start = (video_pts     >= 0) ? (pcr - (video_pts     + video_odr_offset)) / 90 : 0;
         int64_t audio_start     = (audio_pts     >= 0) ? (pcr - (audio_pts     + audio_offset)    ) / 90 : 0;
@@ -1257,8 +1260,11 @@ static void parse_reader_offset( param_t *p )
             case MPEG_READER_DEALY_VIDEO_GOP_TR_ORDER :
                 p->reader_delay = video_odr_start;
                 break;
+            case MPEG_READER_DEALY_FAST_VIDEO_STREAM :
+                p->reader_delay = video_1st_start;
+                break;
             case MPEG_READER_DEALY_FAST_STREAM :
-                p->reader_delay = (video_odr_start > audio_start) ? video_odr_start : audio_start;
+                p->reader_delay = (video_1st_start > audio_start) ? video_1st_start : audio_start;
                 break;
             case MPEG_READER_DEALY_NONE :
             default :
