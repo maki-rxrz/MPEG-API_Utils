@@ -233,6 +233,69 @@ fail_create_list:
     return -1;
 }
 
+extern const char *mpeg_api_get_sample_file_extension( void *ih, mpeg_sample_type sample_type )
+{
+    mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
+    if( !info || !info->parser_info )
+        return NULL;
+    static const char *raw_ext[SAMPLE_TYPE_MAX][6] =
+        {
+            { NULL, ".m1v", ".m2v", ".avc", ".vc1", NULL   },
+            { NULL, ".mpa", ".aac", ".pcm", ".ac3", ".dts" }
+        };
+    int index = 0;
+    mpeg_stream_type stream_type = info->parser->get_sample_stream_type( info->parser_info, sample_type );
+    switch( stream_type )
+    {
+        /* Video Stream */
+        case STREAM_VIDEO_MPEG1 :
+            index = 1;
+            break;
+        case STREAM_VIDEO_MPEG2 :
+        case STREAM_VIDEO_MPEG2_A :
+        case STREAM_VIDEO_MPEG2_B :
+        case STREAM_VIDEO_MPEG2_C :
+        case STREAM_VIDEO_MPEG2_D :
+            index = 2;
+            break;
+        case STREAM_VIDEO_AVC :
+            index = 3;
+            break;
+        case STREAM_VIDEO_VC1 :
+            index = 4;
+            break;
+        /* Audio */
+        case STREAM_AUDIO_MP1 :
+        case STREAM_AUDIO_MP2 :
+            index = 1;
+            break;
+        case STREAM_AUDIO_AAC :
+            index = 2;
+            break;
+        //case STREAM_VIDEO_PRIVATE :
+        case STREAM_AUDIO_LPCM :
+            if( sample_type == SAMPLE_TYPE_AUDIO )
+                index = 3;
+            break;
+        //case STREAM_AUDIO_AC3_DTS :
+        case STREAM_AUDIO_AC3 :
+            index = 4;
+            break;
+        case STREAM_AUDIO_DTS :
+        case STREAM_AUDIO_MLP :
+        case STREAM_AUDIO_DDPLUS :
+        case STREAM_AUDIO_DTS_HD :
+        case STREAM_AUDIO_DTS_HD_XLL :
+        case STREAM_AUDIO_DDPLUS_SUB :
+        case STREAM_AUDIO_DTS_HD_SUB :
+            index = 5;
+            break;
+        default :
+            break;
+    }
+    return raw_ext[sample_type][index];
+}
+
 extern mpeg_stream_type mpeg_api_get_sample_stream_type( void *ih, mpeg_sample_type sample_type )
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
