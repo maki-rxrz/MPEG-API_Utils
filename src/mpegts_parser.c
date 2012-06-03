@@ -530,13 +530,32 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
         uint16_t elementary_PID      = ((section_data[1] & 0x1F) << 8) | section_data[2];
         /* reserved     4 bit        =  (section_data[3] & 0xF0) >> 4 */
         uint16_t ES_info_length      = ((section_data[3] & 0x0F) << 8) | section_data[4];
-        dprintf( LOG_LV2, "[check] stream_type:0x%02X, elementary_PID:0x%04X, ES_info_length:%d\n"
+        dprintf( LOG_LV2, "[check] stream_type:0x%02X, elementary_PID:0x%04X, ES_info_length:%u\n"
                  , stream_type, elementary_PID, ES_info_length );
+        read_count += TS_PACKET_PMT_SECTION_DATA_SIZE;
+        /* check descriptor. */
+        uint8_t descriptor_tags[(ES_info_length + 1) / 2];
+        uint16_t descriptor_num = 0;
+        uint16_t descriptor_read_count = 0;
+        uint8_t *descriptor_data = &(section_buffer[read_count]);
+        mpeg_descriptor_info_t descriptor_info;
+        while( descriptor_read_count < ES_info_length - 2 )
+        {
+            mpeg_stream_get_descriptor_info( stream_type, &(descriptor_data[descriptor_read_count]), &descriptor_info );
+            descriptor_tags[descriptor_num] = descriptor_info.tag;
+            uint8_t descriptor_length       = descriptor_info.length;
+            dprintf( LOG_LV2, "[check] descriptor_tag:0x%02X, descriptor_length:%u\n"
+                     , descriptor_tags[descriptor_num], descriptor_length );
+            mpeg_stream_debug_descriptor_info( &descriptor_info );     // FIXME
+            /* next descriptor. */
+            descriptor_read_count += descriptor_length + 2;
+            ++descriptor_num;
+        }
         /* setup stream type and PID. */
         info->pid_list_in_pmt[pid_list_num].stream_type = stream_type;
         info->pid_list_in_pmt[pid_list_num].program_id  = elementary_PID;
         /* seek next section. */
-        read_count += TS_PACKET_PMT_SECTION_DATA_SIZE + ES_info_length;
+        read_count += ES_info_length;
         ++pid_list_num;
     }
     uint8_t *crc_32 = &(section_buffer[read_count]);
