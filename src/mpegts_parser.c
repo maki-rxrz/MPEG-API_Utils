@@ -56,8 +56,8 @@
 #define TS_PACKET_SEARCH_RETRY_COUNT_NUM    (5)
 
 typedef struct {
-    uint8_t         stream_type;
-    uint16_t        program_id;
+    mpeg_stream_type        stream_type;
+    uint16_t                program_id;
 } mpegts_pid_in_pmt_t;
 
 typedef struct {
@@ -78,8 +78,8 @@ typedef struct {
     uint16_t                pcr_program_id;
     uint16_t                video_program_id;
     uint16_t                audio_program_id;
-    uint8_t                 video_stream_type;
-    uint8_t                 audio_stream_type;
+    mpeg_stream_type        video_stream_type;
+    mpeg_stream_type        audio_stream_type;
     int64_t                 pcr;
     int64_t                 gop_number;
 } mpegts_info_t;
@@ -524,12 +524,12 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
     int pid_list_num = 0, read_count = 0;
     while( read_count < section_length - TS_PACKET_SECTION_CRC32_SIZE )
     {
-        uint8_t *section_data = &(section_buffer[read_count]);
-        uint8_t stream_type     =   section_data[0];
-        /* reserved     3 bit   =  (section_data[1] & 0xE0) >> 5 */
-        uint16_t elementary_PID = ((section_data[1] & 0x1F) << 8) | section_data[2];
-        /* reserved     4 bit   =  (section_data[3] & 0xF0) >> 4 */
-        uint16_t ES_info_length = ((section_data[3] & 0x0F) << 8) | section_data[4];
+        uint8_t *section_data        = &(section_buffer[read_count]);
+        mpeg_stream_type stream_type =   section_data[0];
+        /* reserved     3 bit        =  (section_data[1] & 0xE0) >> 5 */
+        uint16_t elementary_PID      = ((section_data[1] & 0x1F) << 8) | section_data[2];
+        /* reserved     4 bit        =  (section_data[3] & 0xF0) >> 4 */
+        uint16_t ES_info_length      = ((section_data[3] & 0x0F) << 8) | section_data[4];
         dprintf( LOG_LV2, "[check] stream_type:0x%02X, elementary_PID:0x%04X, ES_info_length:%d\n"
                  , stream_type, elementary_PID, ES_info_length );
         /* setup stream type and PID. */
@@ -1321,12 +1321,12 @@ static int get_audio_info( void *ih, audio_sample_info_t *audio_sample_info )
     return 0;
 }
 
-static mpeg_stream_group_type set_stream_info( mpegts_info_t *info, uint16_t program_id, uint16_t stream_type )
+static mpeg_stream_group_type set_stream_info( mpegts_info_t *info, uint16_t program_id, mpeg_stream_type stream_type )
 {
     mpeg_stream_group_type setup_stream = STREAM_IS_UNKNOWN;
     fpos_t start_position;
     fgetpos( info->input, &start_position );
-    /* search program id and stream typeÅD*/
+    /* search program id and stream type. */
     mpeg_stream_group_type stream_judge = mpeg_stream_judge_type( stream_type );
     if( stream_judge & STREAM_IS_VIDEO )
     {
@@ -1359,7 +1359,7 @@ static void set_pmt_first_info( mpegts_info_t *info )
     dprintf( LOG_LV2, "[check] [sub] set_pmt_first_info()\n" );
     fpos_t start_position;
     fgetpos( info->input, &start_position );
-    /* search program id and stream typeÅD*/
+    /* search program id and stream type. */
     mpeg_stream_group_type va_exist = STREAM_IS_UNKNOWN;
     for( int pid_list_index = 0; pid_list_index < info->pid_list_num_in_pmt; ++pid_list_index )
     {
@@ -1437,7 +1437,7 @@ static int set_stream_program_id( mpegts_info_t *info, uint16_t program_id )
     dprintf( LOG_LV2, "[check] set_stream_program_id()\n" );
     fpos_t start_position;
     fgetpos( info->input, &start_position );
-    /* search program id and stream typeÅD*/
+    /* search program id and stream type. */
     int result = -1;
     for( int pid_list_index = 0; pid_list_index < info->pid_list_num_in_pmt; ++pid_list_index )
     {
@@ -1480,7 +1480,7 @@ static int set_program_id( void *ih, mpegts_select_pid_type pid_type, uint16_t p
     return result;
 }
 
-static uint16_t get_program_id( void *ih, uint8_t stream_type )
+static uint16_t get_program_id( void *ih, mpeg_stream_type stream_type )
 {
     dprintf( LOG_LV2, "[mpegts_parser] get_program_id()\n"
                       "[check] stream_type: 0x%02X\n", stream_type );

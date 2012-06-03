@@ -386,7 +386,7 @@ static int set_program_id( void *ih, mpegts_select_pid_type pid_type, uint16_t p
     return -1;
 }
 
-static uint16_t get_program_id( void *ih, uint8_t stream_type )
+static uint16_t get_program_id( void *ih, mpeg_stream_type stream_type )
 {
     return -1;
 }

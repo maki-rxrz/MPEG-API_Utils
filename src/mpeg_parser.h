@@ -77,7 +77,7 @@ typedef struct {
     void                (*release)( void *ih );
     int                 (*parse)( void *ih );
     int                 (*set_program_id)( void *ih, mpegts_select_pid_type pid_type, uint16_t program_id );
-    uint16_t            (*get_program_id)( void *ih, uint8_t stream_type );
+    uint16_t            (*get_program_id)( void *ih, mpeg_stream_type stream_type );
     int                 (*get_video_info)( void *ih, video_sample_info_t *video_info );
     int                 (*get_audio_info)( void *ih, audio_sample_info_t *audio_info );
     int64_t             (*get_pcr)( void *ih );
