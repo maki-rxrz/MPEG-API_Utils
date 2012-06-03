@@ -56,6 +56,7 @@
 #define TS_PACKET_SEARCH_RETRY_COUNT_NUM    (5)
 
 typedef struct {
+    mpeg_stream_group_type  stream_judge;
     mpeg_stream_type        stream_type;
     uint16_t                program_id;
 } mpegts_pid_in_pmt_t;
@@ -80,6 +81,8 @@ typedef struct {
     uint16_t                audio_program_id;
     mpeg_stream_type        video_stream_type;
     mpeg_stream_type        audio_stream_type;
+    mpeg_stream_group_type  video_stream_judge;
+    mpeg_stream_group_type  audio_stream_judge;
     int64_t                 pcr;
     int64_t                 gop_number;
 } mpegts_info_t;
@@ -552,8 +555,9 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
             ++descriptor_num;
         }
         /* setup stream type and PID. */
-        info->pid_list_in_pmt[pid_list_num].stream_type = stream_type;
-        info->pid_list_in_pmt[pid_list_num].program_id  = elementary_PID;
+        info->pid_list_in_pmt[pid_list_num].stream_judge = mpeg_stream_judge_type( stream_type, descriptor_tags, descriptor_num );
+        info->pid_list_in_pmt[pid_list_num].stream_type  = stream_type;
+        info->pid_list_in_pmt[pid_list_num].program_id   = elementary_PID;
         /* seek next section. */
         read_count += ES_info_length;
         ++pid_list_num;
@@ -907,7 +911,7 @@ typedef struct {
     int32_t     start_point;
 } sample_raw_data_info_t;
 
-static int mpegts_get_sample_raw_data_info( mpegts_info_t *info, uint16_t program_id, mpeg_stream_type stream_type, sample_raw_data_info_t *raw_data_info )
+static int mpegts_get_sample_raw_data_info( mpegts_info_t *info, uint16_t program_id, mpeg_stream_type stream_type, mpeg_stream_group_type stream_judge, sample_raw_data_info_t *raw_data_info )
 {
     dprintf( LOG_LV3, "[debug] mpegts_get_sample_raw_data_info()\n" );
     uint32_t raw_data_size = 0;
@@ -949,8 +953,8 @@ static int mpegts_get_sample_raw_data_info( mpegts_info_t *info, uint16_t progra
             /* buffering check data . */
             fread( check_buffer + buffer_read_offset, 1, ts_packet_length, info->input );
             ts_packet_length = 0;
-            int32_t search_start_point = mpeg_stream_check_start_point( stream_type, check_buffer, buffer_size );
-            if( search_start_point < 0 )
+            int32_t header_offset = mpeg_stream_check_header_offset( stream_type, stream_judge, !(start_point < 0), check_buffer, buffer_size );
+            if( header_offset < 0 )
             {
                 /* continue buffering check. */
                 buffer_read_size += buffer_size;
@@ -964,13 +968,13 @@ static int mpegts_get_sample_raw_data_info( mpegts_info_t *info, uint16_t progra
                 if( start_point < 0 )
                 {
                     /* detect start point. */
-                    start_point = buffer_read_size + search_start_point;
-                    raw_data_size = buffer_size - search_start_point;
+                    start_point = buffer_read_size + header_offset;
+                    raw_data_size = buffer_size - header_offset;
                 }
                 else
                 {
                     /* detect end point(=next start point). */
-                    raw_data_size += buffer_read_size + search_start_point;
+                    raw_data_size += buffer_read_size + header_offset;
                     fseeko( info->input, info->packet_size - TS_PACKET_SIZE, SEEK_CUR );
                     break;
                 }
@@ -992,12 +996,12 @@ end_get_info:
     return 0;
 }
 
-static void mpegts_get_sample_raw_data( mpegts_info_t *info, uint16_t program_id, mpeg_stream_type stream_type, uint8_t **buffer, uint32_t *read_size )
+static void mpegts_get_sample_raw_data( mpegts_info_t *info, uint16_t program_id, mpeg_stream_type stream_type, mpeg_stream_group_type stream_judge, uint8_t **buffer, uint32_t *read_size )
 {
     dprintf( LOG_LV2, "[check] mpegts_get_sample_raw_data()\n" );
     /* check raw data. */
     sample_raw_data_info_t raw_data_info;
-    if( mpegts_get_sample_raw_data_info( info, program_id, stream_type, &raw_data_info ) )
+    if( mpegts_get_sample_raw_data_info( info, program_id, stream_type, stream_judge, &raw_data_info ) )
         return;
     dprintf( LOG_LV4, "[debug] raw_data  size:%u  start_point:%d\n", raw_data_info.data_size, raw_data_info.start_point );
     uint32_t raw_data_size = raw_data_info.data_size;
@@ -1136,15 +1140,18 @@ static int get_sample_data( void *ih, mpeg_sample_type sample_type, int64_t posi
     /* check program id. */
     uint16_t program_id = TS_PID_ERR;
     mpeg_stream_type stream_type = STREAM_INVAILED;
+    mpeg_stream_group_type stream_judge = STREAM_IS_UNKNOWN;
     if( sample_type == SAMPLE_TYPE_VIDEO )
     {
-        program_id  = info->video_program_id;
-        stream_type = info->video_stream_type;
+        stream_judge = info->video_stream_judge;
+        stream_type  = info->video_stream_type;
+        program_id   = info->video_program_id;
     }
     else if( sample_type == SAMPLE_TYPE_AUDIO )
     {
-        program_id  = info->audio_program_id;
-        stream_type = info->audio_stream_type;
+        stream_judge = info->audio_stream_judge;
+        stream_type  = info->audio_stream_type;
+        program_id   = info->audio_program_id;
     }
     if( program_id & MPEGTS_ILLEGAL_PROGRAM_ID_MASK )
         return -1;
@@ -1164,7 +1171,7 @@ static int get_sample_data( void *ih, mpeg_sample_type sample_type, int64_t posi
             mpegts_get_sample_pes_packet_data( info, program_id, ts_packet_count, &buffer, &read_size );
             break;
         case GET_SAMPLE_DATA_RAW :
-            mpegts_get_sample_raw_data( info, program_id, stream_type, &buffer, &read_size );
+            mpegts_get_sample_raw_data( info, program_id, stream_type, stream_judge, &buffer, &read_size );
         default :
             break;
     }
@@ -1235,9 +1242,11 @@ static int get_video_info( void *ih, video_sample_info_t *video_sample_info )
     uint16_t program_id = info->video_program_id;
     if( program_id & MPEGTS_ILLEGAL_PROGRAM_ID_MASK )
         return -1;
+    /* check PES start code. */
+    mpeg_pes_packet_start_code_type start_code = mpeg_pes_get_stream_start_code( info->video_stream_judge );
     /* get timestamp. */
     int64_t pts = -1, dts = -1;
-    if( mpegts_get_stream_timestamp( info, program_id, PES_PACKET_START_CODE_VIDEO_STREAM, &pts, &dts ) )
+    if( mpegts_get_stream_timestamp( info, program_id, start_code, &pts, &dts ) )
         return -1;
     /* parse payload data. */
     int64_t gop_number = -1;
@@ -1249,7 +1258,7 @@ static int get_video_info( void *ih, video_sample_info_t *video_sample_info )
     uint8_t progressive_frame = 0;
     uint8_t repeat_first_field = 0;
     uint8_t top_field_first = 0;
-    mpeg_stream_group_type stream_judge = mpeg_stream_judge_type( info->video_stream_type );
+    mpeg_stream_group_type stream_judge = info->video_stream_judge;
     if( (stream_judge & STREAM_IS_MPEG_VIDEO) == STREAM_IS_MPEG_VIDEO )
     {
         mpeg_video_info_t video_info;
@@ -1311,11 +1320,8 @@ static int get_audio_info( void *ih, audio_sample_info_t *audio_sample_info )
     uint16_t program_id = info->audio_program_id;
     if( program_id & MPEGTS_ILLEGAL_PROGRAM_ID_MASK )
         return -1;
-    /* check stream type. */
-    mpeg_pes_packet_start_code_type start_code = PES_PACKET_START_CODE_AUDIO_STREAM;
-    mpeg_stream_group_type stream_judge = mpeg_stream_judge_type( info->audio_stream_type );
-    if( stream_judge == STREAM_IS_DOLBY_AUDIO )
-        start_code = PES_PACKET_START_CODE_AC3_DTS_AUDIO_STREAM;
+    /* check PES start code. */
+    mpeg_pes_packet_start_code_type start_code = mpeg_pes_get_stream_start_code( info->audio_stream_judge );
     /* get timestamp. */
     int64_t pts = -1, dts = -1;
     if( mpegts_get_stream_timestamp( info, program_id, start_code, &pts, &dts ) )
@@ -1340,20 +1346,20 @@ static int get_audio_info( void *ih, audio_sample_info_t *audio_sample_info )
     return 0;
 }
 
-static mpeg_stream_group_type set_stream_info( mpegts_info_t *info, uint16_t program_id, mpeg_stream_type stream_type )
+static mpeg_stream_group_type set_stream_info( mpegts_info_t *info, uint16_t program_id, mpeg_stream_type stream_type, mpeg_stream_group_type stream_judge )
 {
     mpeg_stream_group_type setup_stream = STREAM_IS_UNKNOWN;
     fpos_t start_position;
     fgetpos( info->input, &start_position );
     /* search program id and stream type. */
-    mpeg_stream_group_type stream_judge = mpeg_stream_judge_type( stream_type );
     if( stream_judge & STREAM_IS_VIDEO )
     {
         mpegts_packet_header_t h;
         if( !mpegts_search_program_id_packet( info, &h, program_id ) )
         {
-            info->video_program_id  = program_id;
-            info->video_stream_type = stream_type;
+            info->video_program_id   = program_id;
+            info->video_stream_type  = stream_type;
+            info->video_stream_judge = stream_judge;
             setup_stream = stream_judge;
             dprintf( LOG_LV2, "[check] video PID:0x%04X  stream_type:0x%02X\n", info->video_program_id, info->video_stream_type );
         }
@@ -1363,8 +1369,9 @@ static mpeg_stream_group_type set_stream_info( mpegts_info_t *info, uint16_t pro
         mpegts_packet_header_t h;
         if( !mpegts_search_program_id_packet( info, &h, program_id ) )
         {
-            info->audio_program_id  = program_id;
-            info->audio_stream_type = stream_type;
+            info->audio_program_id   = program_id;
+            info->audio_stream_type  = stream_type;
+            info->audio_stream_judge = stream_judge;
             setup_stream = stream_judge;
             dprintf( LOG_LV2, "[check] audio PID:0x%04X  stream_type:0x%02X\n", info->audio_program_id, info->audio_stream_type );
         }
@@ -1382,7 +1389,7 @@ static void set_pmt_first_info( mpegts_info_t *info )
     mpeg_stream_group_type va_exist = STREAM_IS_UNKNOWN;
     for( int pid_list_index = 0; pid_list_index < info->pid_list_num_in_pmt; ++pid_list_index )
     {
-        va_exist |= set_stream_info( info, info->pid_list_in_pmt[pid_list_index].program_id, info->pid_list_in_pmt[pid_list_index].stream_type );
+        va_exist |= set_stream_info( info, info->pid_list_in_pmt[pid_list_index].program_id, info->pid_list_in_pmt[pid_list_index].stream_type, info->pid_list_in_pmt[pid_list_index].stream_judge );
         if( (va_exist & STREAM_IS_VIDEO) && (va_exist & STREAM_IS_AUDIO) )
             break;
     }
@@ -1462,7 +1469,7 @@ static int set_stream_program_id( mpegts_info_t *info, uint16_t program_id )
     {
         if( info->pid_list_in_pmt[pid_list_index].program_id == program_id )
         {
-            mpeg_stream_group_type stream_judge = set_stream_info( info, info->pid_list_in_pmt[pid_list_index].program_id, info->pid_list_in_pmt[pid_list_index].stream_type );
+            mpeg_stream_group_type stream_judge = set_stream_info( info, info->pid_list_in_pmt[pid_list_index].program_id, info->pid_list_in_pmt[pid_list_index].stream_type, info->pid_list_in_pmt[pid_list_index].stream_judge );
             if( (stream_judge & STREAM_IS_VIDEO) || (stream_judge & STREAM_IS_AUDIO) )
                 result = 0;
         }
@@ -1552,6 +1559,8 @@ static void *initialize( const char *mpegts )
     info->audio_program_id        = TS_PID_ERR;
     info->video_stream_type       = STREAM_INVAILED;
     info->audio_stream_type       = STREAM_INVAILED;
+    info->video_stream_judge      = STREAM_IS_UNKNOWN;
+    info->audio_stream_judge      = STREAM_IS_UNKNOWN;
     info->pcr                     = -1;
     info->gop_number              = -1;
     /* first check. */
