@@ -1270,7 +1270,8 @@ static void parse_reader_offset( param_t *p )
             default :
                 break;
         }
-        dprintf( LOG_LV2, "[check] [read_delay] video_odr: %"PRId64", video_key: %"PRId64", audio: %"PRId64"\n", video_odr_start, video_key_start, audio_start );
+        dprintf( LOG_LV2, "[check] [read_delay] video_1st: %"PRId64", video_odr: %"PRId64", video_key: %"PRId64"\n"
+                          "                     audio: %"PRId64"\n", video_1st_start, video_odr_start, video_key_start, audio_start );
         dprintf( LOG_LV1, "[reader] delay: %"PRId64"\n", p->reader_delay );
     }
     else if( get_info_result > 0 )
