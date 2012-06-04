@@ -148,11 +148,8 @@ typedef struct {
 typedef struct {
     uint8_t         table_id;
     uint8_t         section_syntax_indicator;
-    /* '0'              1 bit       */
-    /* reserved '11'    2 bit       */
     uint16_t        section_length;
     uint16_t        id_number;
-    /* reserved '11'    2bit        */
     uint8_t         version_number;
     uint8_t         current_next_indicator;
     uint8_t         section_number;
@@ -163,11 +160,8 @@ typedef struct {
 typedef struct {
     uint8_t         table_id;
     uint8_t         section_syntax_indicator;
-    /* '0'              1 bit       */
-    /* reserved '11'    2 bit       */
     uint16_t        section_length;
     uint16_t        transport_stream_id;
-    /* reserved '11'    2bit        */
     uint8_t         version_number;
     uint8_t         current_next_indicator;
     uint8_t         section_number;
@@ -177,18 +171,13 @@ typedef struct {
 typedef struct {
     uint8_t         table_id;
     uint8_t         section_syntax_indicator;
-    /* '0'              1 bit       */
-    /* reserved '11'    2 bit       */
     uint16_t        section_length;
     uint16_t        program_number;
-    /* reserved '11'    2bit        */
     uint8_t         version_number;
     uint8_t         current_next_indicator;
     uint8_t         section_number;
     uint8_t         last_section_number;
-    /* reserved '111'   3 bit       */
     uint16_t        pcr_program_id;
-    /* reserved '1111'  4 bit       */
     uint16_t        program_info_length;
 } mpegts_pmt_section_info_t;
 

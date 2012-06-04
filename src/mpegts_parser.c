@@ -1383,8 +1383,6 @@ static mpeg_stream_group_type set_stream_info( mpegts_info_t *info, uint16_t pro
 static void set_pmt_first_info( mpegts_info_t *info )
 {
     dprintf( LOG_LV2, "[check] [sub] set_pmt_first_info()\n" );
-    fpos_t start_position;
-    fgetpos( info->input, &start_position );
     /* search program id and stream type. */
     mpeg_stream_group_type va_exist = STREAM_IS_UNKNOWN;
     for( int pid_list_index = 0; pid_list_index < info->pid_list_num_in_pmt; ++pid_list_index )
@@ -1461,8 +1459,6 @@ static int set_pmt_program_id( mpegts_info_t *info, uint16_t program_id )
 static int set_stream_program_id( mpegts_info_t *info, uint16_t program_id )
 {
     dprintf( LOG_LV2, "[check] set_stream_program_id()\n" );
-    fpos_t start_position;
-    fgetpos( info->input, &start_position );
     /* search program id and stream type. */
     int result = -1;
     for( int pid_list_index = 0; pid_list_index < info->pid_list_num_in_pmt; ++pid_list_index )
@@ -1524,18 +1520,17 @@ static int parse( void *ih )
         return -1;
     if( info->status == PARSER_STATUS_PARSED )
         release_pid_list( info );
+    int result = -1;
     fpos_t start_position;
     fgetpos( info->input, &start_position );
     if( !info->pid_list_in_pat && mpegts_parse_pat( info ) )
-        goto fail_parse;
-    int result = parse_pmt_info( info );
-    fsetpos( info->input, &start_position );
+        goto end_parse;
+    result = parse_pmt_info( info );
     if( !result )
         info->status = PARSER_STATUS_PARSED;
-    return result;
-fail_parse:
+end_parse:
     fsetpos( info->input, &start_position );
-    return -1;
+    return result;
 }
 
 static void *initialize( const char *mpegts )
@@ -1584,8 +1579,7 @@ static void release( void *ih )
         return;
     /*  release. */
     release_pid_list( info );
-    if( info->input )
-        fclose( info->input );
+    fclose( info->input );
     free( info );
 }
 
