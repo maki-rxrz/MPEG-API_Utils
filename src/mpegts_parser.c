@@ -1049,6 +1049,8 @@ static void mpegts_get_sample_raw_data( mpegts_file_context_t *file, uint16_t pr
     dprintf( LOG_LV4, "[debug] raw_data  size:%u  start_point:%d\n", raw_data_info.data_size, raw_data_info.start_point );
     uint32_t raw_data_size = raw_data_info.data_size;
     int32_t start_point    = raw_data_info.start_point;
+    if( !raw_data_size )
+        return;
     /* allocate buffer. */
     *buffer = malloc( raw_data_size );
     if( !(*buffer) )
@@ -1205,7 +1207,7 @@ static int get_sample_data( void *ih, mpeg_sample_type sample_type, int64_t posi
     /* get data. */
     uint32_t ts_packet_count = sample_size / TS_PACKET_SIZE;
     uint8_t *buffer = NULL;
-    uint32_t read_size;
+    uint32_t read_size = 0;
     switch( get_mode )
     {
         case GET_SAMPLE_DATA_CONTAINER :
