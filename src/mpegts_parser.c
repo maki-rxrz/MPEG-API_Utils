@@ -694,14 +694,14 @@ static int mpegts_get_pcr( mpegts_info_t *info )
 #undef NEED_OPCR_VALUE
             }
         }
+        /* ready next. */
+        mpegts_fseek( &(info->file_read), 0, MPEGTS_SEEK_NEXT );
     }
     while( info->pcr < 0 );
     dprintf( LOG_LV2, "[check] PCR:%"PRId64" [%"PRId64"ms]\n", info->pcr, info->pcr / 90 );
     dprintf( LOG_LV2, "[check] file position:%"PRId64"\n", read_pos );
     /* ready next. */
-    mpegts_fseek( &(info->file_read), 0, MPEGTS_SEEK_NEXT );
-    info->file_read.sync_byte_position = -1;
-    info->file_read.read_position      = read_pos;
+    info->file_read.read_position = read_pos;
     return 0;
 }
 
@@ -736,14 +736,22 @@ static int mpegts_get_stream_timestamp( mpegts_file_context_t *file, uint16_t pr
         if( ret < 0 )
             return -1;
         if( ret > 0 )
+        {
+            /* ready next. */
+            mpegts_fseek( file, 0, MPEGTS_SEEK_NEXT );
             continue;
+        }
         /* check file position. */
         read_pos = file->read_position;
         /* check PES Packet Start Code. */
         uint8_t pes_packet_head_data[PES_PACKET_START_CODE_SIZE];
         mpegts_fread( pes_packet_head_data, PES_PACKET_START_CODE_SIZE, file );
         if( mpeg_pes_check_start_code( pes_packet_head_data, start_code ) )
+        {
+            /* ready next. */
+            mpegts_fseek( file, 0, MPEGTS_SEEK_NEXT );
             continue;
+        }
         /* check PES packet length, flags. */
         int read_size = PES_PACKET_HEADER_CHECK_SIZE + PES_PACKET_PTS_DTS_DATA_SIZE;
         uint8_t pes_header_check_buffer[read_size];
@@ -753,21 +761,27 @@ static int mpegts_get_stream_timestamp( mpegts_file_context_t *file, uint16_t pr
         dprintf( LOG_LV3, "[check] PES packet_len:%d, pts_flag:%d, dts_flag:%d, header_len:%d\n"
                  , pes_info.packet_length, pes_info.pts_flag, pes_info.dts_flag, pes_info.header_length );
         if( !pes_info.pts_flag )
+        {
+            /* ready next. */
+            mpegts_fseek( file, 0, MPEGTS_SEEK_NEXT );
             continue;
+        }
         /* get PTS and DTS value. */
         uint8_t *pes_packet_pts_dts_data = &(pes_header_check_buffer[PES_PACKET_HEADER_CHECK_SIZE]);
         pts = pes_info.pts_flag ? mpeg_pes_get_timestamp( &(pes_packet_pts_dts_data[0]) ) : -1;
         dts = pes_info.dts_flag ? mpeg_pes_get_timestamp( &(pes_packet_pts_dts_data[5]) ) : pts;
         dprintf( LOG_LV2, "[check] PTS:%"PRId64" DTS:%"PRId64"\n", pts, dts );
-        /* setup. */
-        *pts_set_p = pts;
-        *dts_set_p = dts;
         /* ready next. */
-        mpegts_fseek( file, read_pos, MPEGTS_SEEK_RESET );      /* reset start position. */
-        file->read_position      = read_pos;
-        file->sync_byte_position = 0;
+        mpegts_fseek( file, 0, MPEGTS_SEEK_NEXT );
     }
     while( pts < 0 );
+    /* setup. */
+    *pts_set_p = pts;
+    *dts_set_p = dts;
+    /* ready next. */
+    mpegts_fseek( file, read_pos, MPEGTS_SEEK_RESET );      /* reset start position of detect packet. */
+    file->read_position      = read_pos;
+    file->sync_byte_position = 0;
     return 0;
 }
 
@@ -801,7 +815,10 @@ static int mpegts_get_mpeg_video_picture_info( mpegts_file_context_t *file, uint
             return -1;
         /* check start indicator. */
         if( no_exist_start_indicator && !h.payload_unit_start_indicator )
+        {
+            mpegts_fseek( file, 0, MPEGTS_SEEK_NEXT );
             continue;
+        }
         if( h.payload_unit_start_indicator )
         {
             /* check PES packet length, flags. */
@@ -848,6 +865,7 @@ static int mpegts_get_mpeg_video_picture_info( mpegts_file_context_t *file, uint
                         buf_p += read;
                         read_size -= read;
                     }
+                    mpegts_fseek( file, 0, MPEGTS_SEEK_NEXT );
                     if( mpegts_seek_packet_payload_data( file, &h, program_id, 0, 1 ) )
                         return -1;
                 }
@@ -862,6 +880,7 @@ static int mpegts_get_mpeg_video_picture_info( mpegts_file_context_t *file, uint
                     while( file->ts_packet_length < seek_size )
                     {
                         seek_size -= file->ts_packet_length;
+                        mpegts_fseek( file, 0, MPEGTS_SEEK_NEXT );
                         if( mpegts_seek_packet_payload_data( file, &h, program_id, 0, 1 ) )
                             return -1;
                     }
