@@ -95,7 +95,6 @@ extern int mpeg_api_create_sample_list( void *ih )
     mpeg_parser_t *parser = info->parser;
     void *parser_info = info->parser_info;
     memset( &(info->sample_list), 0, sizeof(sample_list_t) );
-    int64_t start_position = parser->get_sample_position( parser_info );
     /* allocate lists. */
     int64_t gop_list_size   = DEFAULT_GOP_SAMPLE_NUM;
     int64_t video_list_size = DEFAULT_VIDEO_SAMPLE_NUM;
@@ -175,7 +174,6 @@ extern int mpeg_api_create_sample_list( void *ih )
         free( gop_list );
         free( video_list );
     }
-    parser->set_sample_position( parser_info, start_position );
     /* create audio sample list. */
     comapre_ts = 0;
     wrap_around_count = 0;
@@ -216,7 +214,6 @@ extern int mpeg_api_create_sample_list( void *ih )
     }
     else
         free( audio_list );
-    parser->set_sample_position( parser_info, start_position );
     /* last check. */
     if( !info->sample_list.video && !info->sample_list.audio )
         return -1;
@@ -229,7 +226,6 @@ fail_create_list:
     if( audio_list )
         free( audio_list );
     memset( &(info->sample_list), 0, sizeof(sample_list_t) );
-    parser->set_sample_position( parser_info, start_position );
     return -1;
 }
 
@@ -462,11 +458,11 @@ extern int mpeg_api_get_stream_info( void *ih, stream_info_t *stream_info, int64
         return -1;
     mpeg_parser_t *parser = info->parser;
     void *parser_info = info->parser_info;
-    int64_t start_position = parser->get_sample_position( parser_info );
+    //int64_t start_position = parser->get_sample_position( parser_info );
     /* parse. */
     if( parser->parse( parser_info ) )
         return -1;
-    parser->set_sample_position( parser_info, start_position );
+    //parser->set_sample_position( parser_info, start_position );
     /* check video and audio PTS. */
     enum {
         BOTH_VA_NONE  = 0x11,
@@ -492,11 +488,9 @@ extern int mpeg_api_get_stream_info( void *ih, stream_info_t *stream_info, int64
                 *video_key_pts = video_sample_info.pts;
         }
     }
-    parser->set_sample_position( parser_info, start_position );
     /* get audio. */
     audio_sample_info_t audio_sample_info;
     check_stream_exist |= parser->get_audio_info( parser_info, &audio_sample_info ) ? AUDIO_NONE : 0;
-    parser->set_sample_position( parser_info, start_position );
     /* setup. */
     stream_info->pcr           = parser->get_pcr( info->parser_info );
     stream_info->video_pts     = video_sample_info.pts;
