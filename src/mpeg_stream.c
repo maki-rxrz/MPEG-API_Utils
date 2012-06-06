@@ -612,11 +612,12 @@ extern mpeg_stream_group_type mpeg_stream_judge_type( mpeg_stream_type stream_ty
             stream_judge = STREAM_IS_MPEG1_VIDEO;
             break;
         case STREAM_VIDEO_MPEG2 :
+            stream_judge = STREAM_IS_MPEG2_VIDEO;
+            break;
         case STREAM_VIDEO_MPEG2_A :
         case STREAM_VIDEO_MPEG2_B :
         case STREAM_VIDEO_MPEG2_C :
         case STREAM_VIDEO_MPEG2_D :
-            stream_judge = STREAM_IS_MPEG2_VIDEO;
             break;
         case STREAM_VIDEO_MP4 :
         case STREAM_VIDEO_AVC :
