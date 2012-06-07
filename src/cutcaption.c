@@ -1108,13 +1108,14 @@ static void cut_srt( param_t *p, FILE *input, FILE *output )
     fseeko( input, UTF8_BOM_SIZE, SEEK_SET );
     /* parse data. */
     int cut_count = 0;
+    int subtitle_number = 0;
     while( fgets( line, p->line_max, input ) )
     {
         /* pre process. */
-        int subtitle_number;
         if( sscanf( line, "%d\n", &subtitle_number ) != 1 )
         {
-            fprintf( output, line );
+            if( subtitle_number )
+                fprintf( output, line );
             continue;
         }
         char line_head[p->line_max];
@@ -1138,6 +1139,7 @@ static void cut_srt( param_t *p, FILE *input, FILE *output )
                 while( fgets( line, p->line_max, input ) )
                     if( *line == '\n' )
                         break;
+                subtitle_number = 0;
                 continue;
             }
             /* write head. */
