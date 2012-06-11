@@ -106,7 +106,7 @@ extern int mpeg_api_create_sample_list( void *ih )
         goto fail_create_list;
     /* create video lists. */
     uint32_t wrap_around_count = 0;
-    int64_t comapre_ts = 0;
+    int64_t compare_ts = 0;
     int64_t i;
     int64_t gop_number = -1;
     for( i = 0; ; ++i )
@@ -145,16 +145,16 @@ extern int mpeg_api_create_sample_list( void *ih )
             gop_list[gop_number].progressive_sequence = video_sample_info.progressive_sequence;
             gop_list[gop_number].closed_gop           = video_sample_info.closed_gop;
             /* correct check. */
-            if( comapre_ts > video_sample_info.pts + info->wrap_around_check_v )
+            if( compare_ts > video_sample_info.pts + info->wrap_around_check_v )
                 ++ wrap_around_count;
-            comapre_ts = video_sample_info.pts;
+            compare_ts = video_sample_info.pts;
         }
         /* setup. */
         video_list[i].file_position       = video_sample_info.file_position;
         video_list[i].sample_size         = video_sample_info.sample_size;
         video_list[i].gop_number          = video_sample_info.gop_number;
-        video_list[i].timestamp.pts       = video_sample_info.pts + (wrap_around_count + (comapre_ts > video_sample_info.pts + info->wrap_around_check_v) ? 1 : 0 ) * MPEG_TIMESTAMP_MAX_VALUE;
-        video_list[i].timestamp.dts       = video_sample_info.dts + (wrap_around_count + (comapre_ts > video_sample_info.dts + info->wrap_around_check_v) ? 1 : 0 ) * MPEG_TIMESTAMP_MAX_VALUE;
+        video_list[i].timestamp.pts       = video_sample_info.pts + (wrap_around_count + (compare_ts > video_sample_info.pts + info->wrap_around_check_v) ? 1 : 0 ) * MPEG_TIMESTAMP_MAX_VALUE;
+        video_list[i].timestamp.dts       = video_sample_info.dts + (wrap_around_count + (compare_ts > video_sample_info.dts + info->wrap_around_check_v) ? 1 : 0 ) * MPEG_TIMESTAMP_MAX_VALUE;
         video_list[i].picture_coding_type = video_sample_info.picture_coding_type;
         video_list[i].temporal_reference  = video_sample_info.temporal_reference;
         video_list[i].progressive_frame   = video_sample_info.progressive_frame;
@@ -175,7 +175,7 @@ extern int mpeg_api_create_sample_list( void *ih )
         free( video_list );
     }
     /* create audio sample list. */
-    comapre_ts = 0;
+    compare_ts = 0;
     wrap_around_count = 0;
     for( i = 0; ; ++i )
     {
@@ -193,9 +193,9 @@ extern int mpeg_api_create_sample_list( void *ih )
         if( result )
             break;
         /* correct check. */
-        if( comapre_ts > audio_sample_info.pts + info->wrap_around_check_v )
+        if( compare_ts > audio_sample_info.pts + info->wrap_around_check_v )
             ++ wrap_around_count;
-        comapre_ts = audio_sample_info.pts;
+        compare_ts = audio_sample_info.pts;
         /* setup. */
         audio_list[i].file_position       = audio_sample_info.file_position;
         audio_list[i].sample_size         = audio_sample_info.sample_size;
