@@ -72,7 +72,10 @@ typedef struct {
     output_mode_type    output_mode;
     output_stream_type  output_stream;
     uint16_t            pmt_program_id;
+    int64_t             wrap_around_check_v;
 } param_t;
+
+#define TIMESTAMP_WRAP_AROUND_CHECK_VALUE       (0x0FFFFFFFFLL)
 
 static void print_help( void )
 {
@@ -112,7 +115,8 @@ static int init_parameter( param_t *p )
     if( !p )
         return -1;
     memset( p, 0, sizeof(param_t) );
-    p->output_stream = OUTPUT_STREAM_BOTH_VA;
+    p->output_stream       = OUTPUT_STREAM_BOTH_VA;
+    p->wrap_around_check_v = TIMESTAMP_WRAP_AROUND_CHECK_VALUE;
     return 0;
 }
 
@@ -341,6 +345,8 @@ static void parse_mpeg( param_t *p )
                     if( !(stream_info.temporal_reference) )
                     {
                         audio_delay = stream_info.audio_pts - stream_info.video_pts;
+                        if( llabs(audio_delay) > p->wrap_around_check_v )
+                            audio_delay += MPEG_TIMESTAMP_MAX_VALUE * ((audio_delay) > 0 ? -1 : 1);
                         break;
                     }
                 }
