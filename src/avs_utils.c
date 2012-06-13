@@ -2,8 +2,6 @@
  * avs_utils.c
  *****************************************************************************
  *
- * Copyright (C) 2012 maki
- *
  * Authors: Masaki Tanaka <maki.rxrz@gmail.com>
  *
  * NYSL Version 0.9982 (en) (Unofficial)
@@ -24,7 +22,7 @@
  *   "AS IS". No warranty of any kind is expressed or implied.
  *   You use AT YOUR OWN RISK.
  *
- * C. Copyrighted to maki.
+ * C. Moral rights of author belong to maki. Copyright abandons.
  *
  * D. Above three clauses are applied both to source and binary
  *   form of this software.

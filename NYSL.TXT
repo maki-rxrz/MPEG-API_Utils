@@ -37,7 +37,7 @@ B. The author is not responsible for any kind of damages or loss
   "AS IS". No warranty of any kind is expressed or implied.
   You use AT YOUR OWN RISK.
 
-C. Copyrighted to maki.
+C. Moral rights of author belong to maki. Copyright abandons.
 
 D. Above three clauses are applied both to source and binary
   form of this software.
