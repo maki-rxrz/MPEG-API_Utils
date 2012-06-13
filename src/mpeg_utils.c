@@ -85,7 +85,7 @@ typedef struct {
 #define DEFAULT_VIDEO_SAMPLE_NUM            (50000)
 #define DEFAULT_AUDIO_SAMPLE_NUM            (80000)
 
-#define TS_TIMESTAMP_WRAP_AROUND_CHECK_VALUE        (0x0FFFFFFFFLL)
+#define TIMESTAMP_WRAP_AROUND_CHECK_VALUE       (0x0FFFFFFFFLL)
 
 extern int mpeg_api_create_sample_list( void *ih )
 {
@@ -531,7 +531,7 @@ extern void *mpeg_api_initialize_info( const char *mpeg )
     memset( info, 0, sizeof(mpeg_api_info_t) );
     info->parser              = parser;
     info->parser_info         = parser_info;
-    info->wrap_around_check_v = TS_TIMESTAMP_WRAP_AROUND_CHECK_VALUE;
+    info->wrap_around_check_v = TIMESTAMP_WRAP_AROUND_CHECK_VALUE;
     return info;
 fail_initialize:
     if( parser_info )

@@ -62,8 +62,7 @@
 #define DEFAULT_FPS_DEN                 (1001)
 #define DEFAULT_LINE_MAX                (512)
 
-#define TS_TIMESTMAP_WRAP_AROUND_TIME               MPEG_TIMESTAMP_MAX_VALUE
-#define TS_TIMESTAMP_WRAP_AROUND_CHECK_VALUE        (450000)       /* 5sec x 90kHz */
+#define TIMESTAMP_WRAP_AROUND_CHECK_VALUE       (450000)        /* 5sec x 90kHz */
 
 typedef enum {
     OUTPUT_NONE = 0x00,
@@ -276,7 +275,7 @@ static int init_parameter( param_t *p )
     p->frame_rate.num      = DEFAULT_FPS_NUM;
     p->frame_rate.den      = DEFAULT_FPS_DEN;
     p->line_max            = DEFAULT_LINE_MAX;
-    p->wrap_around_check_v = TS_TIMESTAMP_WRAP_AROUND_CHECK_VALUE;
+    p->wrap_around_check_v = TIMESTAMP_WRAP_AROUND_CHECK_VALUE;
     return 0;
 }
 
@@ -1245,10 +1244,10 @@ static void parse_reader_offset( param_t *p )
         int64_t video_pts     = stream_info.video_pts;
         int64_t audio_pts     = stream_info.audio_pts;
         /* check wrap around. */
-        int64_t video_1st_offset = (pcr > video_1st_pts + p->wrap_around_check_v) ? TS_TIMESTMAP_WRAP_AROUND_TIME : 0;
-        int64_t video_key_offset = (pcr > video_key_pts + p->wrap_around_check_v) ? TS_TIMESTMAP_WRAP_AROUND_TIME : 0;
-        int64_t video_odr_offset = (pcr > video_pts     + p->wrap_around_check_v) ? TS_TIMESTMAP_WRAP_AROUND_TIME : 0;
-        int64_t audio_offset     = (pcr > audio_pts     + p->wrap_around_check_v) ? TS_TIMESTMAP_WRAP_AROUND_TIME : 0;
+        int64_t video_1st_offset = (pcr > video_1st_pts + p->wrap_around_check_v) ? MPEG_TIMESTAMP_MAX_VALUE : 0;
+        int64_t video_key_offset = (pcr > video_key_pts + p->wrap_around_check_v) ? MPEG_TIMESTAMP_MAX_VALUE : 0;
+        int64_t video_odr_offset = (pcr > video_pts     + p->wrap_around_check_v) ? MPEG_TIMESTAMP_MAX_VALUE : 0;
+        int64_t audio_offset     = (pcr > audio_pts     + p->wrap_around_check_v) ? MPEG_TIMESTAMP_MAX_VALUE : 0;
         /* calculate delay. */
         int64_t video_1st_start = (video_1st_pts >= 0) ? (pcr - (video_1st_pts + video_1st_offset)) / 90 : 0;
         int64_t video_key_start = (video_key_pts >= 0) ? (pcr - (video_key_pts + video_key_offset)) / 90 : 0;
