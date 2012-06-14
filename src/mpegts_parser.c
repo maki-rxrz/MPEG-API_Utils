@@ -89,8 +89,8 @@ typedef struct {
     uint16_t                    pcr_program_id;
     mpegts_stream_context_t    *video_stream;
     mpegts_stream_context_t    *audio_stream;
-    int32_t                     video_stream_num;
-    int32_t                     audio_stream_num;
+    uint32_t                    video_stream_num;
+    uint32_t                    audio_stream_num;
     int64_t                     pcr;
 } mpegts_info_t;
 
@@ -1157,22 +1157,21 @@ static void mpegts_get_sample_ts_packet_data( mpegts_file_context_t *file, uint1
     }
 }
 
-static mpeg_stream_type get_sample_stream_type( void *ih, mpeg_sample_type sample_type )
+static mpeg_stream_type get_sample_stream_type( void *ih, mpeg_sample_type sample_type, uint8_t stream_number )
 {
     mpegts_info_t *info = (mpegts_info_t *)ih;
     if( !info )
         return STREAM_INVAILED;
     /* check stream type. */
     mpeg_stream_type stream_type = STREAM_INVAILED;
-    int32_t stream_no = 0;      // FIXME
-    if( sample_type == SAMPLE_TYPE_VIDEO && info->video_stream_num )
-        stream_type = info->video_stream[stream_no].stream_type;
-    else if( sample_type == SAMPLE_TYPE_AUDIO && info->audio_stream_num )
-        stream_type = info->audio_stream[stream_no].stream_type;
+    if( sample_type == SAMPLE_TYPE_VIDEO && stream_number < info->video_stream_num )
+        stream_type = info->video_stream[stream_number].stream_type;
+    else if( sample_type == SAMPLE_TYPE_AUDIO && stream_number < info->audio_stream_num )
+        stream_type = info->audio_stream[stream_number].stream_type;
     return stream_type;
 }
 
-static int get_sample_data( void *ih, mpeg_sample_type sample_type, int64_t position, uint32_t sample_size, uint8_t **dst_buffer, uint32_t *dst_read_size, get_sample_data_mode get_mode )
+static int get_sample_data( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, int64_t position, uint32_t sample_size, uint8_t **dst_buffer, uint32_t *dst_read_size, get_sample_data_mode get_mode )
 {
     mpegts_info_t *info = (mpegts_info_t *)ih;
     if( !info || position < 0 )
@@ -1182,20 +1181,19 @@ static int get_sample_data( void *ih, mpeg_sample_type sample_type, int64_t posi
     uint16_t program_id = TS_PID_ERR;
     mpeg_stream_type stream_type = STREAM_INVAILED;
     mpeg_stream_group_type stream_judge = STREAM_IS_UNKNOWN;
-    int32_t stream_no = 0;      // FIXME
-    if( sample_type == SAMPLE_TYPE_VIDEO && info->video_stream_num )
+    if( sample_type == SAMPLE_TYPE_VIDEO && stream_number < info->video_stream_num )
     {
-        file_read    = &(info->video_stream[stream_no].file_read);
-        stream_judge =   info->video_stream[stream_no].stream_judge;
-        stream_type  =   info->video_stream[stream_no].stream_type;
-        program_id   =   info->video_stream[stream_no].program_id;
+        file_read    = &(info->video_stream[stream_number].file_read);
+        stream_judge =   info->video_stream[stream_number].stream_judge;
+        stream_type  =   info->video_stream[stream_number].stream_type;
+        program_id   =   info->video_stream[stream_number].program_id;
     }
-    else if( sample_type == SAMPLE_TYPE_AUDIO && info->audio_stream_num )
+    else if( sample_type == SAMPLE_TYPE_AUDIO && stream_number < info->audio_stream_num )
     {
-        file_read    = &(info->audio_stream[stream_no].file_read);
-        stream_judge =   info->audio_stream[stream_no].stream_judge;
-        stream_type  =   info->audio_stream[stream_no].stream_type;
-        program_id   =   info->audio_stream[stream_no].program_id;
+        file_read    = &(info->audio_stream[stream_number].file_read);
+        stream_judge =   info->audio_stream[stream_number].stream_judge;
+        stream_type  =   info->audio_stream[stream_number].stream_type;
+        program_id   =   info->audio_stream[stream_number].program_id;
     }
     else
         return -1;
@@ -1255,28 +1253,40 @@ static int set_sample_position( void *ih, int64_t position )
 #endif
 }
 
-static int seek_next_sample_position( void *ih, mpeg_sample_type sample_type )
+static int seek_next_sample_position( void *ih, mpeg_sample_type sample_type, uint8_t stream_number )
 {
     mpegts_info_t *info = (mpegts_info_t *)ih;
     if( !info )
         return -1;
     int64_t seek_position = -1;
     mpegts_file_context_t *file_read = NULL;
-    int32_t stream_no = 0;      // FIXME
-    if( sample_type == SAMPLE_TYPE_VIDEO && info->video_stream_num )
+    if( sample_type == SAMPLE_TYPE_VIDEO && stream_number < info->video_stream_num )
     {
-        file_read     = &(info->video_stream[stream_no].file_read);
-        seek_position =   info->video_stream[stream_no].file_read.read_position;
+        file_read     = &(info->video_stream[stream_number].file_read);
+        seek_position =   info->video_stream[stream_number].file_read.read_position;
     }
-    else if( sample_type == SAMPLE_TYPE_AUDIO && info->audio_stream_num )
+    else if( sample_type == SAMPLE_TYPE_AUDIO && stream_number < info->audio_stream_num )
     {
-        file_read     = &(info->audio_stream[stream_no].file_read);
-        seek_position =   info->audio_stream[stream_no].file_read.read_position;
+        file_read     = &(info->audio_stream[stream_number].file_read);
+        seek_position =   info->audio_stream[stream_number].file_read.read_position;
     }
     if( seek_position < 0 )
         return -1;
     mpegts_fseek( file_read, seek_position, MPEGTS_SEEK_RESET );
     return 0;
+}
+
+static uint32_t get_stream_num( void *ih, mpeg_sample_type sample_type )
+{
+    mpegts_info_t *info = (mpegts_info_t *)ih;
+    if( !info )
+        return 0;
+    uint32_t stream_num = 0;
+    if( sample_type == SAMPLE_TYPE_VIDEO )
+        stream_num = info->video_stream_num;
+    else if( sample_type == SAMPLE_TYPE_AUDIO )
+        stream_num = info->audio_stream_num;
+    return stream_num;
 }
 
 static int64_t get_pcr( void *ih )
@@ -1295,18 +1305,17 @@ static int64_t get_pcr( void *ih )
     return info->pcr;
 }
 
-static int get_video_info( void *ih, video_sample_info_t *video_sample_info )
+static int get_video_info( void *ih, uint8_t stream_number, video_sample_info_t *video_sample_info )
 {
     dprintf( LOG_LV2, "[mpegts_parser] get_video_info()\n" );
     mpegts_info_t *info = (mpegts_info_t *)ih;
-    if( !info || !info->video_stream_num )
+    if( !info || stream_number >= info->video_stream_num )
         return -1;
-    int32_t stream_no = 0;      // FIXME
-    mpegts_file_context_t *file_read    = &(info->video_stream[stream_no].file_read);
-    uint16_t program_id                 =   info->video_stream[stream_no].program_id;
-    mpeg_stream_type stream_type        =   info->video_stream[stream_no].stream_type;
-    mpeg_stream_group_type stream_judge =   info->video_stream[stream_no].stream_judge;
-    int64_t *video_stream_gop_number    = &(info->video_stream[stream_no].gop_number);
+    mpegts_file_context_t *file_read    = &(info->video_stream[stream_number].file_read);
+    uint16_t program_id                 =   info->video_stream[stream_number].program_id;
+    mpeg_stream_type stream_type        =   info->video_stream[stream_number].stream_type;
+    mpeg_stream_group_type stream_judge =   info->video_stream[stream_number].stream_judge;
+    int64_t *video_stream_gop_number    = &(info->video_stream[stream_number].gop_number);
     /* check PES start code. */
     mpeg_pes_packet_start_code_type start_code = mpeg_pes_get_stream_start_code( stream_judge );
     /* get timestamp. */
@@ -1375,17 +1384,16 @@ static int get_video_info( void *ih, video_sample_info_t *video_sample_info )
     return 0;
 }
 
-static int get_audio_info( void *ih, audio_sample_info_t *audio_sample_info )
+static int get_audio_info( void *ih, uint8_t stream_number, audio_sample_info_t *audio_sample_info )
 {
     dprintf( LOG_LV2, "[mpegts_parser] get_audio_info()\n" );
     mpegts_info_t *info = (mpegts_info_t *)ih;
-    if( !info || !info->audio_stream_num )
+    if( !info || stream_number >= info->audio_stream_num )
         return -1;
-    int32_t stream_no = 0;      // FIXME
-    mpegts_file_context_t *file_read    = &(info->audio_stream[stream_no].file_read);
-    uint16_t program_id                 =   info->audio_stream[stream_no].program_id;
-    mpeg_stream_type stream_type        =   info->audio_stream[stream_no].stream_type;
-    mpeg_stream_group_type stream_judge =   info->audio_stream[stream_no].stream_judge;
+    mpegts_file_context_t *file_read    = &(info->audio_stream[stream_number].file_read);
+    uint16_t program_id                 =   info->audio_stream[stream_number].program_id;
+    mpeg_stream_type stream_type        =   info->audio_stream[stream_number].stream_type;
+    mpeg_stream_group_type stream_judge =   info->audio_stream[stream_number].stream_judge;
     /* check PES start code. */
     mpeg_pes_packet_start_code_type start_code = mpeg_pes_get_stream_start_code( stream_judge );
     /* get timestamp. */
@@ -1418,7 +1426,7 @@ static int set_pmt_stream_info( mpegts_info_t *info )
     int64_t start_position = ftello( info->file_read.input );
     mpegts_packet_header_t h;
     /* check stream num. */
-    int32_t video_stream_num = 0, audio_stream_num = 0;
+    uint32_t video_stream_num = 0, audio_stream_num = 0;
     for( int pid_list_index = 0; pid_list_index < info->pid_list_num_in_pmt; ++pid_list_index )
     {
         mpeg_stream_group_type stream_judge = info->pid_list_in_pmt[pid_list_index].stream_judge;
@@ -1449,7 +1457,7 @@ static int set_pmt_stream_info( mpegts_info_t *info )
         static const char* stream_name[2] = { "video", "audio" };
         int index;
         mpegts_stream_context_t *stream = NULL;
-        int32_t *stream_num;
+        uint32_t *stream_num;
         if( stream_judge & STREAM_IS_VIDEO )
         {
             stream     = &(video_context[video_stream_num]);
@@ -1736,6 +1744,7 @@ mpeg_parser_t mpegts_parser = {
     get_video_info,
     get_audio_info,
     get_pcr,
+    get_stream_num,
     get_sample_position,
     set_sample_position,
     seek_next_sample_position,

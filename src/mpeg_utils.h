@@ -60,21 +60,23 @@ extern "C" {
 
 extern int mpeg_api_create_sample_list( void *ih );
 
-extern const char *mpeg_api_get_sample_file_extension( void *ih, mpeg_sample_type sample_type );
+extern uint8_t mpeg_api_get_stream_num( void *ih, mpeg_sample_type sample_type );
 
-extern mpeg_stream_type mpeg_api_get_sample_stream_type( void *ih, mpeg_sample_type sample_type );
+extern const char *mpeg_api_get_sample_file_extension( void *ih, mpeg_sample_type sample_type, uint8_t stream_number );
 
-extern uint32_t mpeg_api_get_sample_num( void *ih, mpeg_sample_type sample_type );
+extern mpeg_stream_type mpeg_api_get_sample_stream_type( void *ih, mpeg_sample_type sample_type, uint8_t stream_number );
 
-extern int mpeg_api_get_sample_info( void *ih, mpeg_sample_type sample_type, uint32_t sample_number, stream_info_t *stream_info );
+extern uint32_t mpeg_api_get_sample_num( void *ih, mpeg_sample_type sample_type, uint8_t stream_number );
 
-extern int mpeg_api_get_sample_data( void *ih, mpeg_sample_type sample_type, uint32_t sample_number, uint8_t **dst_buffer, uint32_t *dst_read_size, get_sample_data_mode get_mode );
+extern int mpeg_api_get_sample_info( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, uint32_t sample_number, stream_info_t *stream_info );
+
+extern int mpeg_api_get_sample_data( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, uint32_t sample_number, uint8_t **dst_buffer, uint32_t *dst_read_size, get_sample_data_mode get_mode );
 
 extern int64_t mpeg_api_get_pcr( void *ih );
 
-extern int mpeg_api_get_video_frame( void *ih, stream_info_t *stream_info );
+extern int mpeg_api_get_video_frame( void *ih, uint8_t stream_number, stream_info_t *stream_info );
 
-extern int mpeg_api_get_audio_frame( void *ih, stream_info_t *stream_info );
+extern int mpeg_api_get_audio_frame( void *ih, uint8_t stream_number, stream_info_t *stream_info );
 
 extern int mpeg_api_parse( void *ih );
 

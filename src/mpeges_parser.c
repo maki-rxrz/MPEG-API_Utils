@@ -256,10 +256,10 @@ int64_t mpeges_seek_next_start_position( mpeges_info_t *info )
     return ftello( info->input );
 }
 
-static mpeg_stream_type get_sample_stream_type( void *ih, mpeg_sample_type sample_type )
+static mpeg_stream_type get_sample_stream_type( void *ih, mpeg_sample_type sample_type, uint8_t stream_number )
 {
     mpeges_info_t *info = (mpeges_info_t *)ih;
-    if( !info )
+    if( !info || stream_number )
         return STREAM_INVAILED;
     /* check stream type. */
     mpeg_stream_type stream_type = STREAM_INVAILED;
@@ -268,10 +268,10 @@ static mpeg_stream_type get_sample_stream_type( void *ih, mpeg_sample_type sampl
     return stream_type;
 }
 
-static int get_sample_data( void *ih, mpeg_sample_type sample_type, int64_t position, uint32_t sample_size, uint8_t **dst_buffer, uint32_t *dst_read_size, get_sample_data_mode get_mode )
+static int get_sample_data( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, int64_t position, uint32_t sample_size, uint8_t **dst_buffer, uint32_t *dst_read_size, get_sample_data_mode get_mode )
 {
     mpeges_info_t *info = (mpeges_info_t *)ih;
-    if( !info || position < 0 )
+    if( !info || stream_number || position < 0 )
         return -1;
     if( sample_type != SAMPLE_TYPE_VIDEO )
         return -1;
@@ -307,10 +307,10 @@ static int set_sample_position( void *ih, int64_t position )
     return 0;
 }
 
-static int seek_next_sample_position( void *ih, mpeg_sample_type sample_type )
+static int seek_next_sample_position( void *ih, mpeg_sample_type sample_type, uint8_t stream_number )
 {
     mpeges_info_t *info = (mpeges_info_t *)ih;
-    if( !info )
+    if( !info || stream_number )
         return -1;
     if( sample_type != SAMPLE_TYPE_VIDEO )
         return -1;
@@ -321,16 +321,24 @@ static int seek_next_sample_position( void *ih, mpeg_sample_type sample_type )
     return 0;
 }
 
+static uint32_t get_stream_num( void *ih, mpeg_sample_type sample_type )
+{
+    mpeges_info_t *info = (mpeges_info_t *)ih;
+    if( !info )
+        return 0;
+    return (sample_type == SAMPLE_TYPE_VIDEO);
+}
+
 static int64_t get_pcr( void *ih )
 {
     return -1;
 }
 
-static int get_video_info( void *ih, video_sample_info_t *video_sample_info )
+static int get_video_info( void *ih, uint8_t stream_number, video_sample_info_t *video_sample_info )
 {
     dprintf( LOG_LV2, "[mpeges_parser] get_video_info()\n" );
     mpeges_info_t *info = (mpeges_info_t *)ih;
-    if( !info )
+    if( !info || stream_number )
         return -1;
     /* parse data. */
     mpeg_video_info_t video_info;
@@ -374,7 +382,7 @@ static int get_video_info( void *ih, video_sample_info_t *video_sample_info )
     return 0;
 }
 
-static int get_audio_info( void *ih, audio_sample_info_t *audio_sample_info )
+static int get_audio_info( void *ih, uint8_t stream_number, audio_sample_info_t *audio_sample_info )
 {
     return -1;
 }
@@ -452,6 +460,7 @@ mpeg_parser_t mpeges_parser = {
     get_video_info,
     get_audio_info,
     get_pcr,
+    get_stream_num,
     get_sample_position,
     set_sample_position,
     seek_next_sample_position,

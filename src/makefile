@@ -1,13 +1,13 @@
 BIN_DIR  = ../bin
 API_SRCS = mpeg_utils.c mpeges_parser.c mpegts_parser.c mpeg_stream.c mpeg_video.c
-SRCS     = ts_parser.c cutcaption.c d2v_parser.c avs_utils.c $(API_SRCS)
+SRCS     = ts_parser.c thread_utils.c cutcaption.c d2v_parser.c avs_utils.c $(API_SRCS)
 
 TARGET1 = $(BIN_DIR)/cutcaption.exe
 SRCS1   = cutcaption.c d2v_parser.c avs_utils.c $(API_SRCS)
 OBJS1   = $(SRCS1:%.c=%.o)
 
 TARGET2 = $(BIN_DIR)/ts_parser.exe
-SRCS2   = ts_parser.c $(API_SRCS)
+SRCS2   = ts_parser.c thread_utils.c $(API_SRCS)
 OBJS2   = $(SRCS2:%.c=%.o)
 
 CC      = $(CROSS)gcc
@@ -15,7 +15,8 @@ LD      = $(CROSS)gcc
 STRIP   = $(CROSS)strip
 
 CFLAGS  = -Wall -std=gnu99
-LDFLAGS = 
+LDFLAGS =
+LIBS    = -lpthreadGC2
 
 .PHONY: all clean
 
@@ -26,7 +27,7 @@ $(TARGET1): $(OBJS1)
 	$(STRIP) $@
 
 $(TARGET2): $(OBJS2)
-	$(LD) $(LDFLAGS) -o $@ $^
+	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 	$(STRIP) $@
 
 %.o: %.c .depend
