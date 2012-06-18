@@ -89,8 +89,8 @@ typedef struct {
     uint16_t                    pcr_program_id;
     mpegts_stream_context_t    *video_stream;
     mpegts_stream_context_t    *audio_stream;
-    uint32_t                    video_stream_num;
-    uint32_t                    audio_stream_num;
+    uint8_t                     video_stream_num;
+    uint8_t                     audio_stream_num;
     int64_t                     pcr;
 } mpegts_info_t;
 
