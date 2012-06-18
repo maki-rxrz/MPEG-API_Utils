@@ -357,7 +357,7 @@ static int get_video_info( void *ih, uint8_t stream_number, video_sample_info_t 
     /* search next start position. */
     int64_t read_last_position = mpeges_seek_next_start_position( info );
     /* get timestamp. */
-    int64_t pts = -1, dts = -1;
+    int64_t pts = MPEG_TIMESTAMP_INVALID_VALUE, dts = MPEG_TIMESTAMP_INVALID_VALUE;
     mpeges_get_stream_timestamp( info, &video_info, &pts, &dts );
     /* setup. */
     video_sample_info->file_position        = info->read_position;

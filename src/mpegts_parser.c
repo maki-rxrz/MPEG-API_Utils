@@ -726,7 +726,7 @@ static int mpegts_get_stream_timestamp( mpegts_file_context_t *file, uint16_t pr
     mpegts_packet_header_t h;
     int64_t read_pos = -1;
     /* search packet data. */
-    int64_t pts = -1, dts = -1;
+    int64_t pts = MPEG_TIMESTAMP_INVALID_VALUE, dts = MPEG_TIMESTAMP_INVALID_VALUE;
     do
     {
         /* seek payload data. */
@@ -766,13 +766,13 @@ static int mpegts_get_stream_timestamp( mpegts_file_context_t *file, uint16_t pr
         }
         /* get PTS and DTS value. */
         uint8_t *pes_packet_pts_dts_data = &(pes_header_check_buffer[PES_PACKET_HEADER_CHECK_SIZE]);
-        pts = pes_info.pts_flag ? mpeg_pes_get_timestamp( &(pes_packet_pts_dts_data[0]) ) : -1;
+        pts = pes_info.pts_flag ? mpeg_pes_get_timestamp( &(pes_packet_pts_dts_data[0]) ) : MPEG_TIMESTAMP_INVALID_VALUE;
         dts = pes_info.dts_flag ? mpeg_pes_get_timestamp( &(pes_packet_pts_dts_data[5]) ) : pts;
         dprintf( LOG_LV2, "[check] PTS:%"PRId64" DTS:%"PRId64"\n", pts, dts );
         /* ready next. */
         mpegts_fseek( file, 0, MPEGTS_SEEK_NEXT );
     }
-    while( pts < 0 );
+    while( pts == MPEG_TIMESTAMP_INVALID_VALUE );
     /* setup. */
     *pts_set_p = pts;
     *dts_set_p = dts;
@@ -1319,7 +1319,7 @@ static int get_video_info( void *ih, uint8_t stream_number, video_sample_info_t 
     /* check PES start code. */
     mpeg_pes_packet_start_code_type start_code = mpeg_pes_get_stream_start_code( stream_judge );
     /* get timestamp. */
-    int64_t pts = -1, dts = -1;
+    int64_t pts = MPEG_TIMESTAMP_INVALID_VALUE, dts = MPEG_TIMESTAMP_INVALID_VALUE;
     if( mpegts_get_stream_timestamp( file_read, program_id, start_code, &pts, &dts ) )
         return -1;
     int64_t start_position = file_read->read_position;
@@ -1397,7 +1397,7 @@ static int get_audio_info( void *ih, uint8_t stream_number, audio_sample_info_t 
     /* check PES start code. */
     mpeg_pes_packet_start_code_type start_code = mpeg_pes_get_stream_start_code( stream_judge );
     /* get timestamp. */
-    int64_t pts = -1, dts = -1;
+    int64_t pts = MPEG_TIMESTAMP_INVALID_VALUE, dts = MPEG_TIMESTAMP_INVALID_VALUE;
     if( mpegts_get_stream_timestamp( file_read, program_id, start_code, &pts, &dts ) )
         return -1;
     int64_t start_position = file_read->read_position;
