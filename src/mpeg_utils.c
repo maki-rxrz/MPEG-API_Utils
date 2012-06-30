@@ -156,7 +156,6 @@ extern int mpeg_api_create_sample_list( void *ih )
             if( gop_number < video_sample_info.gop_number )
             {
                 gop_number = video_sample_info.gop_number;
-
                 if( gop_number >= gop_list_size )
                 {
                     gop_list_size += DEFAULT_GOP_SAMPLE_NUM;
