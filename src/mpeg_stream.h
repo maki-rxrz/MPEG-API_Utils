@@ -298,7 +298,7 @@ typedef struct {
 #undef DESCRIPTOR_INFO
 
 #define STREAM_MPA_HEADER_CHECK_SIZE                    (4)
-#define STREAM_AAC_HEADER_CHECK_SIZE                    (6)
+#define STREAM_AAC_HEADER_CHECK_SIZE                    (7)
 #define STREAM_LPCM_HEADER_CHECK_SIZE                   (4)
 
 #define STREAM_HEADER_CHECK_MAX_SIZE                    STREAM_AAC_HEADER_CHECK_SIZE
@@ -321,7 +321,9 @@ extern void mpeg_stream_debug_descriptor_info( mpeg_descriptor_info_t *descripto
 
 extern mpeg_stream_group_type mpeg_stream_judge_type( mpeg_stream_type stream_type, uint8_t *descriptor_tags, uint16_t descriptor_num );
 
-extern int32_t mpeg_stream_check_header_offset( mpeg_stream_type stream_type, mpeg_stream_group_type stream_judge, int search_point, uint8_t *buffer, uint32_t buffer_size );
+extern int32_t mpeg_stream_check_header( mpeg_stream_type stream_type, mpeg_stream_group_type stream_judge, int search_point, uint8_t *buffer, uint32_t buffer_size );
+
+extern uint32_t mpeg_stream_get_header_check_size( mpeg_stream_group_type stream_judge );
 
 #ifdef __cplusplus
 }

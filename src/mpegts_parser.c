@@ -951,8 +951,8 @@ static uint32_t mpegts_get_sample_packets_num( mpegts_file_context_t *file, uint
 }
 
 typedef struct {
-    uint32_t    data_size;
-    int32_t     start_point;
+    uint32_t                data_size;
+    int32_t                 read_offset;
 } sample_raw_data_info_t;
 
 static int mpegts_get_sample_raw_data_info( mpegts_file_context_t *file, uint16_t program_id, mpeg_stream_type stream_type, mpeg_stream_group_type stream_judge, sample_raw_data_info_t *raw_data_info )
@@ -964,7 +964,9 @@ static int mpegts_get_sample_raw_data_info( mpegts_file_context_t *file, uint16_
     int64_t start_position = ftello( file->input );
     /* search. */
     int check_start_point = 0;
-    uint8_t check_buffer[TS_PACKET_SIZE + STREAM_HEADER_CHECK_MAX_SIZE];
+    int32_t stream_header_check_size = mpeg_stream_get_header_check_size( stream_judge );
+    uint8_t check_buffer[TS_PACKET_SIZE + stream_header_check_size];
+    uint8_t *buffer_p = check_buffer;
     int32_t buffer_read_offset = 0;
     int32_t buffer_read_size = 0;
     mpegts_packet_header_t h;
@@ -975,6 +977,8 @@ static int mpegts_get_sample_raw_data_info( mpegts_file_context_t *file, uint16_
             if( start_point >= 0 )
                 /* This sample is the data at the end was shaved. */
                 raw_data_size += buffer_read_size + buffer_read_offset;
+            else
+                start_point = 0;
             dprintf( LOG_LV3, "[debug] read file end.\n" );
             goto end_get_info;
         }
@@ -990,21 +994,26 @@ static int mpegts_get_sample_raw_data_info( mpegts_file_context_t *file, uint16_
         }
         if( check_start_point )
         {
-            int32_t buffer_size = file->ts_packet_length + buffer_read_offset;
             /* buffering check data . */
-            mpegts_fread( check_buffer + buffer_read_offset, file->ts_packet_length, file );
-            int32_t header_offset = mpeg_stream_check_header_offset( stream_type, stream_judge, !(start_point < 0), check_buffer, buffer_size );
+            int32_t buffer_size = file->ts_packet_length + buffer_read_offset;
+            if( file->ts_packet_length )
+            {
+                mpegts_fread( check_buffer + buffer_read_offset, file->ts_packet_length, file );
+                buffer_p = check_buffer;
+            }
+            int32_t header_offset = mpeg_stream_check_header( stream_type, stream_judge, !(start_point < 0), buffer_p, buffer_size );
             if( header_offset < 0 )
             {
                 /* continue buffering check. */
                 buffer_read_size += buffer_size;
-                for( int j = 0; j < STREAM_HEADER_CHECK_MAX_SIZE; ++j )
-                    check_buffer[j] = check_buffer[buffer_size - STREAM_HEADER_CHECK_MAX_SIZE + j];
-                buffer_read_size -= STREAM_HEADER_CHECK_MAX_SIZE;
-                buffer_read_offset = STREAM_HEADER_CHECK_MAX_SIZE;
+                for( int j = 0; j < stream_header_check_size; ++j )
+                    check_buffer[j] = buffer_p[buffer_size - stream_header_check_size + j];
+                buffer_read_size -= stream_header_check_size;
+                buffer_read_offset = stream_header_check_size;
             }
             else
             {
+                buffer_read_offset = 0;
                 if( start_point < 0 )
                 {
                     /* detect start point. */
@@ -1013,12 +1022,11 @@ static int mpegts_get_sample_raw_data_info( mpegts_file_context_t *file, uint16_
                 }
                 else
                 {
-                    /* detect end point(=next start point). */
                     raw_data_size += buffer_read_size + header_offset;
+                    /* detect end point(=next start point). */
                     mpegts_fseek( file, file->packet_size - TS_PACKET_SIZE, MPEGTS_SEEK_CUR );
                     break;
                 }
-                buffer_read_offset = 0;
                 buffer_read_size = 0;
                 check_start_point = 0;
             }
@@ -1032,20 +1040,13 @@ end_get_info:
     mpegts_fseek( file, start_position, MPEGTS_SEEK_RESET );
     /* setup. */
     raw_data_info->data_size   = raw_data_size;
-    raw_data_info->start_point = start_point;
+    raw_data_info->read_offset = start_point;
     return 0;
 }
 
-static void mpegts_get_sample_raw_data( mpegts_file_context_t *file, uint16_t program_id, mpeg_stream_type stream_type, mpeg_stream_group_type stream_judge, uint8_t **buffer, uint32_t *read_size )
+static void mpegts_get_sample_raw_data( mpegts_file_context_t *file, uint16_t program_id, mpeg_stream_type stream_type, mpeg_stream_group_type stream_judge, uint32_t raw_data_size, int32_t read_offset, uint8_t **buffer, uint32_t *read_size )
 {
     dprintf( LOG_LV2, "[check] mpegts_get_sample_raw_data()\n" );
-    /* check raw data. */
-    sample_raw_data_info_t raw_data_info;
-    if( mpegts_get_sample_raw_data_info( file, program_id, stream_type, stream_judge, &raw_data_info ) )
-        return;
-    dprintf( LOG_LV4, "[debug] raw_data  size:%u  start_point:%d\n", raw_data_info.data_size, raw_data_info.start_point );
-    uint32_t raw_data_size = raw_data_info.data_size;
-    int32_t start_point    = raw_data_info.start_point;
     if( !raw_data_size )
         return;
     /* allocate buffer. */
@@ -1068,17 +1069,17 @@ static void mpegts_get_sample_raw_data( mpegts_file_context_t *file, uint16_t pr
             mpegts_fseek( file, pes_info.header_length, MPEGTS_SEEK_CUR );
         }
         /* check read start point. */
-        if( start_point )
+        if( read_offset )
         {
-            if( start_point > file->ts_packet_length )
+            if( read_offset > file->ts_packet_length )
             {
-                start_point -= file->ts_packet_length;
+                read_offset -= file->ts_packet_length;
                 mpegts_fseek( file, file->ts_packet_length, MPEGTS_SEEK_CUR );
             }
             else
             {
-                mpegts_fseek( file, start_point, MPEGTS_SEEK_CUR );
-                start_point = 0;
+                mpegts_fseek( file, read_offset, MPEGTS_SEEK_CUR );
+                read_offset = 0;
             }
         }
         /* read raw data. */
@@ -1170,7 +1171,7 @@ static mpeg_stream_type get_sample_stream_type( void *ih, mpeg_sample_type sampl
     return stream_type;
 }
 
-static int get_sample_data( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, int64_t position, uint32_t sample_size, uint8_t **dst_buffer, uint32_t *dst_read_size, get_sample_data_mode get_mode )
+static int get_sample_data( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, int64_t position, uint32_t sample_size, int32_t read_offset, uint8_t **dst_buffer, uint32_t *dst_read_size, get_sample_data_mode get_mode )
 {
     mpegts_info_t *info = (mpegts_info_t *)ih;
     if( !info || position < 0 )
@@ -1212,7 +1213,7 @@ static int get_sample_data( void *ih, mpeg_sample_type sample_type, uint8_t stre
             mpegts_get_sample_pes_packet_data( file_read, program_id, ts_packet_count, &buffer, &read_size );
             break;
         case GET_SAMPLE_DATA_RAW :
-            mpegts_get_sample_raw_data( file_read, program_id, stream_type, stream_judge, &buffer, &read_size );
+            mpegts_get_sample_raw_data( file_read, program_id, stream_type, stream_judge, sample_size, read_offset,  &buffer, &read_size );
         default :
             break;
     }
@@ -1322,6 +1323,11 @@ static int get_video_info( void *ih, uint8_t stream_number, video_sample_info_t 
     if( mpegts_get_stream_timestamp( file_read, program_id, start_code, &pts, &dts ) )
         return -1;
     int64_t start_position = file_read->read_position;
+    /* check raw data. */
+    sample_raw_data_info_t raw_data_info = { 0 };
+    if( mpegts_get_sample_raw_data_info( file_read, program_id, stream_type, stream_judge, &raw_data_info ) )
+        return -1;
+    dprintf( LOG_LV4, "[debug] raw_data  size:%u  read_offset:%d\n", raw_data_info.data_size, raw_data_info.read_offset );
     /* parse payload data. */
     int64_t gop_number = -1;
     uint8_t progressive_sequence = 0;
@@ -1362,6 +1368,8 @@ static int get_video_info( void *ih, uint8_t stream_number, video_sample_info_t 
     /* setup. */
     video_sample_info->file_position        = start_position;
     video_sample_info->sample_size          = TS_PACKET_SIZE * ts_packet_count;
+    video_sample_info->raw_data_size        = raw_data_info.data_size;
+    video_sample_info->raw_data_read_offset = raw_data_info.read_offset;
     video_sample_info->pts                  = pts;
     video_sample_info->dts                  = dts;
     video_sample_info->gop_number           = gop_number;
@@ -1400,6 +1408,11 @@ static int get_audio_info( void *ih, uint8_t stream_number, audio_sample_info_t 
     if( mpegts_get_stream_timestamp( file_read, program_id, start_code, &pts, &dts ) )
         return -1;
     int64_t start_position = file_read->read_position;
+    /* check raw data. */
+    sample_raw_data_info_t raw_data_info = { 0 };
+    if( mpegts_get_sample_raw_data_info( file_read, program_id, stream_type, stream_judge, &raw_data_info ) )
+        return -1;
+    dprintf( LOG_LV4, "[debug] raw_data  size:%u  read_offset:%d\n", raw_data_info.data_size, raw_data_info.read_offset );
     /* check packets num. */
     //mpegts_fseek( file_read, start_position, MPEGTS_SEEK_RESET );
     //file_read->sync_byte_position = 0;
@@ -1407,10 +1420,16 @@ static int get_audio_info( void *ih, uint8_t stream_number, audio_sample_info_t 
     if( !ts_packet_count )
         return -1;
     /* setup. */
-    audio_sample_info->file_position = start_position;
-    audio_sample_info->sample_size   = TS_PACKET_SIZE * ts_packet_count;
-    audio_sample_info->pts           = pts;
-    audio_sample_info->dts           = dts;
+    audio_sample_info->file_position        = start_position;
+    audio_sample_info->sample_size          = TS_PACKET_SIZE * ts_packet_count;
+    audio_sample_info->raw_data_size        = raw_data_info.data_size;
+    audio_sample_info->raw_data_read_offset = raw_data_info.read_offset;
+    audio_sample_info->pts                  = pts;
+    audio_sample_info->dts                  = dts;
+    audio_sample_info->sampling_frequency   = 0;        // FIXME
+    audio_sample_info->bitrate              = 0;        // FIXME
+    audio_sample_info->channel              = 0;        // FIXME
+    audio_sample_info->layer                = 0;        // FIXME
     dprintf( LOG_LV2, "[check] Audio PTS:%"PRId64" [%"PRId64"ms]\n", pts, pts / 90 );
     dprintf( LOG_LV2, "[check] file position:%"PRId64"\n", start_position );
     /* ready next. */

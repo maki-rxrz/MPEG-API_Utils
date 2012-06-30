@@ -52,6 +52,9 @@ typedef struct {
 typedef struct {
     int64_t                 file_position;
     uint32_t                sample_size;
+    uint32_t                raw_data_size;
+    int32_t                 raw_data_read_offset;
+    /* video. */
     int64_t                 gop_number;
     timestamp_t             timestamp;
     uint8_t                 picture_coding_type;
@@ -60,6 +63,11 @@ typedef struct {
     uint8_t                 progressive_frame;
     uint8_t                 repeat_first_field;
     uint8_t                 top_field_first;
+    /* audio. */
+    uint32_t                sampling_frequency;
+    uint16_t                bitrate;
+    uint8_t                 channel;
+    uint8_t                 layer;
 } sample_list_data_t;
 
 typedef struct {
@@ -172,17 +180,23 @@ extern int mpeg_api_create_sample_list( void *ih )
                 compare_ts = video_sample_info.pts;
             }
             /* setup. */
-            video_list[i].file_position       = video_sample_info.file_position;
-            video_list[i].sample_size         = video_sample_info.sample_size;
-            video_list[i].gop_number          = video_sample_info.gop_number;
-            video_list[i].timestamp.pts       = video_sample_info.pts + (wrap_around_count + (compare_ts > video_sample_info.pts + info->wrap_around_check_v) ? 1 : 0 ) * MPEG_TIMESTAMP_MAX_VALUE;
-            video_list[i].timestamp.dts       = video_sample_info.dts + (wrap_around_count + (compare_ts > video_sample_info.dts + info->wrap_around_check_v) ? 1 : 0 ) * MPEG_TIMESTAMP_MAX_VALUE;
-            video_list[i].picture_coding_type = video_sample_info.picture_coding_type;
-            video_list[i].temporal_reference  = video_sample_info.temporal_reference;
-            video_list[i].progressive_frame   = video_sample_info.progressive_frame;
-            video_list[i].picture_structure   = video_sample_info.picture_structure;
-            video_list[i].repeat_first_field  = video_sample_info.repeat_first_field;
-            video_list[i].top_field_first     = video_sample_info.top_field_first;
+            video_list[i].file_position        = video_sample_info.file_position;
+            video_list[i].sample_size          = video_sample_info.sample_size;
+            video_list[i].raw_data_size        = video_sample_info.raw_data_size;
+            video_list[i].raw_data_read_offset = video_sample_info.raw_data_read_offset;
+            video_list[i].gop_number           = video_sample_info.gop_number;
+            video_list[i].timestamp.pts        = video_sample_info.pts + (wrap_around_count + (compare_ts > video_sample_info.pts + info->wrap_around_check_v) ? 1 : 0 ) * MPEG_TIMESTAMP_MAX_VALUE;
+            video_list[i].timestamp.dts        = video_sample_info.dts + (wrap_around_count + (compare_ts > video_sample_info.dts + info->wrap_around_check_v) ? 1 : 0 ) * MPEG_TIMESTAMP_MAX_VALUE;
+            video_list[i].picture_coding_type  = video_sample_info.picture_coding_type;
+            video_list[i].temporal_reference   = video_sample_info.temporal_reference;
+            video_list[i].progressive_frame    = video_sample_info.progressive_frame;
+            video_list[i].picture_structure    = video_sample_info.picture_structure;
+            video_list[i].repeat_first_field   = video_sample_info.repeat_first_field;
+            video_list[i].top_field_first      = video_sample_info.top_field_first;
+            video_list[i].sampling_frequency   = 0;
+            video_list[i].bitrate              = 0;
+            video_list[i].channel              = 0;
+            video_list[i].layer                = 0;
         }
         if( i > 0 )
         {
@@ -230,15 +244,21 @@ extern int mpeg_api_create_sample_list( void *ih )
                 ++ wrap_around_count;
             compare_ts = audio_sample_info.pts;
             /* setup. */
-            audio_list[i].file_position       = audio_sample_info.file_position;
-            audio_list[i].sample_size         = audio_sample_info.sample_size;
-            audio_list[i].gop_number          = 0;
-            audio_list[i].timestamp.pts       = audio_sample_info.pts + wrap_around_count * MPEG_TIMESTAMP_MAX_VALUE;
-            audio_list[i].timestamp.dts       = audio_sample_info.dts + wrap_around_count * MPEG_TIMESTAMP_MAX_VALUE;
-            audio_list[i].picture_coding_type = 0;
-            audio_list[i].temporal_reference  = 0;
-            audio_list[i].picture_structure   = 0;
-            audio_list[i].progressive_frame   = 0;
+            audio_list[i].file_position        = audio_sample_info.file_position;
+            audio_list[i].sample_size          = audio_sample_info.sample_size;
+            audio_list[i].raw_data_size        = audio_sample_info.raw_data_size;
+            audio_list[i].raw_data_read_offset = audio_sample_info.raw_data_read_offset;
+            audio_list[i].gop_number           = 0;
+            audio_list[i].timestamp.pts        = audio_sample_info.pts + wrap_around_count * MPEG_TIMESTAMP_MAX_VALUE;
+            audio_list[i].timestamp.dts        = audio_sample_info.dts + wrap_around_count * MPEG_TIMESTAMP_MAX_VALUE;
+            audio_list[i].picture_coding_type  = 0;
+            audio_list[i].temporal_reference   = 0;
+            audio_list[i].picture_structure    = 0;
+            audio_list[i].progressive_frame    = 0;
+            audio_list[i].sampling_frequency   = audio_sample_info.sampling_frequency;
+            audio_list[i].bitrate              = audio_sample_info.bitrate;
+            audio_list[i].channel              = audio_sample_info.channel;
+            audio_list[i].layer                = audio_sample_info.layer;
         }
         if( i > 0 )
         {
@@ -390,6 +410,7 @@ extern int mpeg_api_get_sample_info( void *ih, mpeg_sample_type sample_type, uin
         gop_list_data_t *gop = &(info->sample_list.video_stream[stream_number].video_gop[list[sample_number].gop_number]);
         stream_info->file_position        = list[sample_number].file_position;
         stream_info->sample_size          = list[sample_number].sample_size;
+        stream_info->raw_data_size        = list[sample_number].raw_data_size;
         stream_info->video_pts            = list[sample_number].timestamp.pts;
         stream_info->video_dts            = list[sample_number].timestamp.dts;
         stream_info->gop_number           = list[sample_number].gop_number;
@@ -408,10 +429,15 @@ extern int mpeg_api_get_sample_info( void *ih, mpeg_sample_type sample_type, uin
         int64_t list_num         = info->sample_list.audio_stream[stream_number].audio_num;
         if( !list || sample_number >= list_num )
             return -1;
-        stream_info->file_position = list[sample_number].file_position;
-        stream_info->sample_size   = list[sample_number].sample_size;
-        stream_info->audio_pts     = list[sample_number].timestamp.pts;
-        stream_info->audio_dts     = list[sample_number].timestamp.dts;
+        stream_info->file_position      = list[sample_number].file_position;
+        stream_info->sample_size        = list[sample_number].sample_size;
+        stream_info->raw_data_size      = list[sample_number].raw_data_size;
+        stream_info->audio_pts          = list[sample_number].timestamp.pts;
+        stream_info->audio_dts          = list[sample_number].timestamp.dts;
+        stream_info->sampling_frequency = list[sample_number].sampling_frequency;
+        stream_info->bitrate            = list[sample_number].bitrate;
+        stream_info->channel            = list[sample_number].channel;
+        stream_info->layer              = list[sample_number].layer;
     }
     else
         return -1;
@@ -444,9 +470,17 @@ extern int mpeg_api_get_sample_data( void *ih, mpeg_sample_type sample_type, uin
     else
         return -1;
     /* get sample data. */
-    int64_t file_position = list[sample_number].file_position;
-    uint32_t sample_size  = list[sample_number].sample_size;
-    return parser->get_sample_data( parser_info, sample_type, stream_number, file_position, sample_size, dst_buffer, dst_read_size, get_mode );
+    int64_t file_position  = list[sample_number].file_position;
+    uint32_t sample_size   = list[sample_number].sample_size;
+    int32_t read_offset    = 0;
+    if( get_mode == GET_SAMPLE_DATA_RAW )
+    {
+        sample_size        = list[sample_number].raw_data_size;
+        read_offset        = list[sample_number].raw_data_read_offset;
+    }
+    if( !sample_size )
+        return -1;
+    return parser->get_sample_data( parser_info, sample_type, stream_number, file_position, sample_size, read_offset, dst_buffer, dst_read_size, get_mode );
 }
 
 extern int64_t mpeg_api_get_pcr( void *ih )
@@ -472,6 +506,7 @@ extern int mpeg_api_get_video_frame( void *ih, uint8_t stream_number, stream_inf
         return -1;
     stream_info->file_position        = video_sample_info.file_position;
     stream_info->sample_size          = video_sample_info.sample_size;
+    stream_info->raw_data_size        = video_sample_info.raw_data_size;
     stream_info->video_pts            = video_sample_info.pts;
     stream_info->video_dts            = video_sample_info.dts;
     stream_info->gop_number           = video_sample_info.gop_number;
@@ -499,10 +534,15 @@ extern int mpeg_api_get_audio_frame( void *ih, uint8_t stream_number, stream_inf
     int result = parser->get_audio_info( parser_info, stream_number, &audio_sample_info );
     if( result )
         return -1;
-    stream_info->file_position = audio_sample_info.file_position;
-    stream_info->sample_size   = audio_sample_info.sample_size;
-    stream_info->audio_pts     = audio_sample_info.pts;
-    stream_info->audio_dts     = audio_sample_info.dts;
+    stream_info->file_position      = audio_sample_info.file_position;
+    stream_info->sample_size        = audio_sample_info.sample_size;
+    stream_info->raw_data_size      = audio_sample_info.raw_data_size;
+    stream_info->audio_pts          = audio_sample_info.pts;
+    stream_info->audio_dts          = audio_sample_info.dts;
+    stream_info->sampling_frequency = audio_sample_info.sampling_frequency;
+    stream_info->bitrate            = audio_sample_info.bitrate;
+    stream_info->channel            = audio_sample_info.channel;
+    stream_info->layer              = audio_sample_info.layer;
     return 0;
 }
 
@@ -556,9 +596,13 @@ extern int mpeg_api_get_stream_info( void *ih, stream_info_t *stream_info, int64
     audio_sample_info_t audio_sample_info;
     check_stream_exist |= parser->get_audio_info( parser_info, stream_no, &audio_sample_info ) ? AUDIO_NONE : 0;
     /* setup. */
-    stream_info->pcr           = parser->get_pcr( info->parser_info );
-    stream_info->video_pts     = video_sample_info.pts;
-    stream_info->audio_pts     = audio_sample_info.pts;
+    stream_info->pcr                = parser->get_pcr( info->parser_info );
+    stream_info->video_pts          = video_sample_info.pts;
+    stream_info->audio_pts          = audio_sample_info.pts;
+    stream_info->sampling_frequency = audio_sample_info.sampling_frequency;
+    stream_info->bitrate            = audio_sample_info.bitrate;
+    stream_info->channel            = audio_sample_info.channel;
+    stream_info->layer              = audio_sample_info.layer;
     return (check_stream_exist == BOTH_VA_NONE);
 }
 

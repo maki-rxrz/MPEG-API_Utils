@@ -675,44 +675,80 @@ static int mpa_header_check( uint8_t *header )
     int bitrate_index = header[2] >> 4;
     if( bitrate_index == 0x0F )                 /* bitrate index : '1111' bad                       */
         return -1;
-    if( (header[2] & 0x0C) == 0x0C )            /* Sampling rate frequency index : '11' reserved    */
+    int sampling_frequency_index = (header[2] & 0x0C) >> 2;
+    if( sampling_frequency_index == 0x03 )      /* Sampling rate frequency index : '11' reserved    */
         return -1;
-    /* check bitrate_index & channel_mode matrix. */
-    static const uint8_t ng_matrix[2][4] =
+    uint8_t channel_mode = (header[3] & 0x60) >> 5;
+    /* check bitrate & channel_mode matrix. */
+    enum {
+        MPEG25 = 0x01,
+        MPEG2  = 0x02,
+        MPEG1  = 0x03,
+    };
+    enum {
+        LAYER3 = 0x01,
+        LAYER2 = 0x02,
+        LAYER1 = 0x03,
+    };
+    enum {
+        STEREO         = 0x00,
+        JOINT_STEREO   = 0x01,
+        DUAL_CHANNEL   = 0x02,
+        SINGLE_CHANNEL = 0x03
+    };
+    static const uint8_t version_layer_matrix[3][3] =
         {
-            {  1,  2,  3,  5 },                 /* stereo :  32 /  48 /  56 /  80 */
-            { 11, 12, 13, 14 }                  /* mono   : 224 / 256 / 320 / 384 */
+            {  4, 4, 3 },
+            {  4, 4, 3 },
+            {  2, 1, 0 }
         };
-    int channel_mode = (header[3] & 0x60) >> 5;
-    int index = (channel_mode == 3) ? 1 : 0;    /* '11' single channel  */
-    if( bitrate_index == ng_matrix[index][0] || bitrate_index == ng_matrix[index][1]
-     || bitrate_index == ng_matrix[index][2] || bitrate_index == ng_matrix[index][3] )
+    static const uint16_t bitrate_matrix[5][15] =
+        {
+            {   0,   32,  64,  96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448 },
+            {   0,   32,  48,  56,  64,  80,  96, 112, 128, 160, 192, 224, 256, 320, 384 },
+            {   0,   32,  40,  48,  56,  64,  80,  96, 112, 128, 160, 192, 224, 256, 320 },
+            {   0,   32,  48,  56,  64,  80,  96, 112, 128, 144, 160, 176, 192, 224, 256 },
+            {   0,    8,  16,  24,  32,  40,  48,  56,  64,  80,  96, 112, 128, 144, 160 }
+        };
+    int vl_index = version_layer_matrix[version_id - 1][layer - 1];
+    uint16_t bitrate = bitrate_matrix[vl_index][bitrate_index];
+    static const uint16_t ng_matrix[2][4] =
+        {
+            {  32,  48,  56,  80 },             /* stereo / joint stereo / dual channel */
+            { 224, 256, 320, 384 }              /* single channel                       */
+        };
+    int index = (channel_mode == SINGLE_CHANNEL);
+    if( bitrate == ng_matrix[index][0] || bitrate == ng_matrix[index][1]
+     || bitrate == ng_matrix[index][2] || bitrate == ng_matrix[index][3] )
         return -1;
     /* detect header. */
     dprintf( LOG_LV4, "[debug] [MPEG-Audio] detect header. \n" );
     return 0;
 }
 
+#include <math.h>
 static int aac_header_check( uint8_t *header )
 {
     if( header[0] != 0xFF || (header[1] & 0xF0) != 0xF0 )
         return -1;
-    if( header[1] & 0x06 )                      /* layer : allways 0                            */
+    if( header[1] & 0x06 )                      /* layer : allways 0                                        */
         return -1;
-    /* protection absent = header[1] & 0x01;            */
-    if( (header[2] & 0xC0) == 0xC0 )            /* profile : '11' reserved                      */
+    if( (header[2] & 0xC0) == 0xC0 )            /* profile : '11' reserved                                  */
         return -1;
-    if( ((header[2] & 0x3C) >> 2) > 12 )        /* MPEG-4 sampling frequency index : 0-12       */
+    int sampling_frequency_index = (header[2] & 0x3C) >> 2;
+    if( sampling_frequency_index > 11 )         /* sampling_frequency_index : 0xc-0xf reserved              */
         return -1;
-    int aac_frame_length = ((header[3] & 0x03) << 11) | (header[4] << 3) | (header[5] >> 5);
+    uint32_t aac_frame_length = ((header[3] & 0x03) << 11) | (header[4] << 3) | (header[5] >> 5);
     if( !aac_frame_length )                     /* aac frame length                             */
         return -1;
+    /* protection absent          =   header[1] & 0x01;             */
+    /* uint8_t channel_configuration = ((header[2] & 0x01) << 2) | (header[3] >> 6); */
     /* detect header. */
     dprintf( LOG_LV4, "[debug] [ADTS-AAC] detect header. aac_frame_len:%d\n", aac_frame_length );
     return 0;
 }
 
-extern int32_t mpeg_stream_check_header_offset( mpeg_stream_type stream_type, mpeg_stream_group_type stream_judge, int search_point, uint8_t *buffer, uint32_t buffer_size )
+extern int32_t mpeg_stream_check_header( mpeg_stream_type stream_type, mpeg_stream_group_type stream_judge, int search_point, uint8_t *buffer, uint32_t buffer_size )
 {
     int32_t header_offset = -1;
     switch( stream_judge )
@@ -730,7 +766,8 @@ extern int32_t mpeg_stream_check_header_offset( mpeg_stream_type stream_type, mp
                         { aac_header_check, STREAM_AAC_HEADER_CHECK_SIZE }
                     };
                 int index = (stream_judge == STREAM_IS_AAC_AUDIO);
-                for( int i = 0; i < buffer_size - header_check[index].size; ++i )
+                int idx_max = buffer_size - header_check[index].size;
+                for( int i = 0; i <= idx_max; ++i )
                 {
                     if( header_check[index].func( &(buffer[i]) ) )
                         continue;
@@ -766,4 +803,27 @@ extern int32_t mpeg_stream_check_header_offset( mpeg_stream_type stream_type, mp
             break;
     }
     return header_offset;
+}
+
+extern uint32_t mpeg_stream_get_header_check_size( mpeg_stream_group_type stream_judge )
+{
+    uint32_t check_size = STREAM_HEADER_CHECK_MAX_SIZE;
+    switch( stream_judge )
+    {
+        case STREAM_IS_MPEG1_AUDIO :
+        case STREAM_IS_MPEG2_AUDIO :
+            check_size = STREAM_MPA_HEADER_CHECK_SIZE;
+            break;
+        case STREAM_IS_AAC_AUDIO :
+            check_size = STREAM_AAC_HEADER_CHECK_SIZE;
+            break;
+        case STREAM_IS_PCM_AUDIO :
+            check_size = STREAM_LPCM_HEADER_CHECK_SIZE;
+            break;
+        case STREAM_IS_DOLBY_AUDIO :
+            break;
+        default :
+            break;
+    }
+    return check_size;
 }

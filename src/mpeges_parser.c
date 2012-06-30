@@ -267,7 +267,7 @@ static mpeg_stream_type get_sample_stream_type( void *ih, mpeg_sample_type sampl
     return stream_type;
 }
 
-static int get_sample_data( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, int64_t position, uint32_t sample_size, uint8_t **dst_buffer, uint32_t *dst_read_size, get_sample_data_mode get_mode )
+static int get_sample_data( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, int64_t position, uint32_t sample_size, int32_t read_offset, uint8_t **dst_buffer, uint32_t *dst_read_size, get_sample_data_mode get_mode )
 {
     mpeges_info_t *info = (mpeges_info_t *)ih;
     if( !info || stream_number || position < 0 )

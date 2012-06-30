@@ -38,11 +38,11 @@
 typedef struct {
     int64_t                 file_position;
     uint32_t                sample_size;
+    uint32_t                raw_data_size;
     int64_t                 pcr;
+    /* video. */
     int64_t                 video_pts;
     int64_t                 video_dts;
-    int64_t                 audio_pts;
-    int64_t                 audio_dts;
     int64_t                 gop_number;
     uint8_t                 progressive_sequence;
     uint8_t                 closed_gop;
@@ -52,6 +52,13 @@ typedef struct {
     uint8_t                 progressive_frame;
     uint8_t                 repeat_first_field;
     uint8_t                 top_field_first;
+    /* audio. */
+    int64_t                 audio_pts;
+    int64_t                 audio_dts;
+    uint32_t                sampling_frequency;
+    uint16_t                bitrate;
+    uint8_t                 channel;
+    uint8_t                 layer;
 } stream_info_t;
 
 #ifdef __cplusplus
