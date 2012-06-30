@@ -45,12 +45,18 @@ extern void dprintf( log_level level, const char *format, ... );
 #define _LARGEFILE_SOURCE
 #define _FILE_OFFSET_BITS 64
 
+#include <stdio.h>
+
+#ifndef fseeko
+
 #if defined(__MINGW32__) && defined(__i386__)
 #define fseeko fseeko64
 #define ftello ftello64
 #elif _MSC_VER
 #define fseeko _fseeki64
 #define ftello _ftelli64
+#endif
+
 #endif
 
 #endif /* __COMMON_H__ */
