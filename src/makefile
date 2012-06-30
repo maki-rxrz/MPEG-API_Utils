@@ -16,7 +16,7 @@ STRIP   = $(CROSS)strip
 
 CFLAGS  = -Wall -std=gnu99
 LDFLAGS =
-LIBS    = -lpthreadGC2
+LIBS    = -lpthread
 
 .PHONY: all clean
 
