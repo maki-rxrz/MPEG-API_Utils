@@ -798,6 +798,80 @@ static int mpegts_get_stream_timestamp( mpegts_file_context_t *file, uint16_t pr
         data[i - 1] = data[i];                  \
 }
 
+static inline int read_1byte( mpegts_file_context_t *file, mpegts_packet_header_t *h, uint16_t program_id, uint8_t *buffer )
+{
+    if( !file->ts_packet_length )
+    {
+        mpegts_fseek( file, 0, MPEGTS_SEEK_NEXT );
+        if( mpegts_seek_packet_payload_data( file, h, program_id, 1, 1 ) )
+            return -1;
+    }
+    mpegts_fread( buffer, 1, file );
+    return 0;
+}
+
+static int mpegts_read_mpeg_video_picutre_info( mpegts_file_context_t *file, uint16_t program_id, mpeg_video_info_t *video_info, int64_t *gop_number, uint8_t *mpeg_video_head_data )
+{
+    mpegts_packet_header_t h;
+    int64_t reset_position = ftello( file->input );
+    int32_t rest_ts_packet_length = file->ts_packet_length;
+    /* check identifier. */
+    uint8_t identifier;
+    if( read_1byte( file, &h, program_id, &identifier ) )
+        return -1;
+    mpegts_fseek( file, reset_position, MPEGTS_SEEK_SET );
+    file->ts_packet_length = rest_ts_packet_length;
+    /* check Start Code. */
+    mpeg_video_start_code_info_t start_code_info;
+    if( mpeg_video_judge_start_code( mpeg_video_head_data, identifier, &start_code_info ) )
+        return -2;
+    uint32_t read_size = start_code_info.read_size;
+    /* get header/extension information. */
+    uint8_t buf[read_size];
+    uint8_t *buf_p = buf;
+    while( file->ts_packet_length < read_size )
+    {
+        if( file->ts_packet_length )
+        {
+            int32_t read = file->ts_packet_length;
+            mpegts_fread( buf_p, read, file );
+            buf_p += read;
+            read_size -= read;
+        }
+        mpegts_fseek( file, 0, MPEGTS_SEEK_NEXT );
+        if( mpegts_seek_packet_payload_data( file, &h, program_id, 0, 1 ) )
+            return -1;
+    }
+    mpegts_fread( buf_p, read_size, file );
+    int32_t check_size = mpeg_video_get_header_info( buf, start_code_info.start_code, video_info );
+    if( check_size < start_code_info.read_size )
+    {
+        /* reset position. */
+        mpegts_fseek( file, reset_position, MPEGTS_SEEK_SET );
+        file->ts_packet_length = rest_ts_packet_length;
+        int64_t seek_size = check_size;
+        while( file->ts_packet_length < seek_size )
+        {
+            seek_size -= file->ts_packet_length;
+            mpegts_fseek( file, 0, MPEGTS_SEEK_NEXT );
+            if( mpegts_seek_packet_payload_data( file, &h, program_id, 0, 1 ) )
+                return -1;
+        }
+        mpegts_fseek( file, seek_size, MPEGTS_SEEK_CUR );
+    }
+    /* debug. */
+    mpeg_video_debug_header_info( video_info, start_code_info.searching_status );
+    /* check the status detection. */
+    if( start_code_info.searching_status == DETECT_GSC )
+        ++(*gop_number);
+    else if( start_code_info.searching_status == DETECT_PSC )
+        return 2;
+    else if( start_code_info.searching_status == DETECT_SSC
+          || start_code_info.searching_status == DETECT_SEC )
+        return 1;
+    return 0;
+}
+
 static int mpegts_get_mpeg_video_picture_info( mpegts_file_context_t *file, uint16_t program_id, mpeg_video_info_t *video_info, int64_t *gop_number )
 {
     dprintf( LOG_LV2, "[check] mpegts_get_mpeg_video_picture_info()\n" );
@@ -805,6 +879,7 @@ static int mpegts_get_mpeg_video_picture_info( mpegts_file_context_t *file, uint
     /* parse payload data. */
     mpegts_packet_header_t h;
     uint8_t mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE];
+    memset( mpeg_video_head_data, MPEG_VIDEO_START_CODE_ALL_CLEAR_VALUE, MPEG_VIDEO_START_CODE_SIZE );
     int no_exist_start_indicator = 1;
     do
     {
@@ -824,77 +899,30 @@ static int mpegts_get_mpeg_video_picture_info( mpegts_file_context_t *file, uint
             dprintf( LOG_LV3, "[debug] PES packet_len:%d, pts_flag:%d, dts_flag:%d, header_len:%d\n"
                      , pes_info.packet_length, pes_info.pts_flag, pes_info.dts_flag, pes_info.header_length );
             mpegts_fseek( file, pes_info.header_length, MPEGTS_SEEK_CUR );
-        }
-        /* check Stream Start Code. */
-        if( no_exist_start_indicator )
-        {
-            mpegts_fread( mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE - 1, file );
             no_exist_start_indicator = 0;
         }
-        /* search. */
+        /* search Start Code. */
         while( file->ts_packet_length )
         {
             mpegts_fread( &(mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE - 1]), 1, file );
             /* check Start Code. */
             if( !mpeg_video_check_start_code_common_head( mpeg_video_head_data ) )
             {
-                uint8_t identifier;
-                mpegts_fread( &identifier, 1, file );
-                mpegts_fseek( file, -1, MPEGTS_SEEK_CUR );
-                mpeg_video_start_code_info_t start_code_info;
-                if( mpeg_video_judge_start_code( mpeg_video_head_data, identifier, &start_code_info ) )
+                /* get header information. */
+                int read_reslut = mpegts_read_mpeg_video_picutre_info( file, program_id, video_info, gop_number, mpeg_video_head_data );
+                if( read_reslut == -2 )
                 {
                     BYTE_DATA_SHIFT( mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE )
                     continue;
                 }
-                uint32_t read_size = start_code_info.read_size;
-                int64_t reset_position = ftello( file->input );
-                int32_t rest_ts_packet_length = file->ts_packet_length;
-                /* get header/extension information. */
-                uint8_t buf[read_size];
-                uint8_t *buf_p = buf;
-                while( file->ts_packet_length < read_size )
-                {
-                    if( file->ts_packet_length )
-                    {
-                        int32_t read = file->ts_packet_length;
-                        mpegts_fread( buf_p, read, file );
-                        buf_p += read;
-                        read_size -= read;
-                    }
-                    mpegts_fseek( file, 0, MPEGTS_SEEK_NEXT );
-                    if( mpegts_seek_packet_payload_data( file, &h, program_id, 0, 1 ) )
-                        return -1;
-                }
-                mpegts_fread( buf_p, read_size, file );
-                int32_t check_size = mpeg_video_get_header_info( buf, start_code_info.start_code, video_info );
-                if( check_size < start_code_info.read_size )
-                {
-                    /* reset position. */
-                    mpegts_fseek( file, reset_position, MPEGTS_SEEK_SET );
-                    file->ts_packet_length = rest_ts_packet_length;
-                    int64_t seek_size = check_size;
-                    while( file->ts_packet_length < seek_size )
-                    {
-                        seek_size -= file->ts_packet_length;
-                        mpegts_fseek( file, 0, MPEGTS_SEEK_NEXT );
-                        if( mpegts_seek_packet_payload_data( file, &h, program_id, 0, 1 ) )
-                            return -1;
-                    }
-                    mpegts_fseek( file, seek_size, MPEGTS_SEEK_CUR );
-                }
-                /* debug. */
-                mpeg_video_debug_header_info( video_info, start_code_info.searching_status );
-                /* check the status detection. */
-                if( start_code_info.searching_status == DETECT_GSC )
-                    ++(*gop_number);
-                else if( start_code_info.searching_status == DETECT_PSC )
+                else if( read_reslut == 2 )
                     result = 0;
-                else if( start_code_info.searching_status == DETECT_SSC
-                      || start_code_info.searching_status == DETECT_SEC )
+                else if( read_reslut < 0 )
+                    return -1;
+                else if( read_reslut )
                     goto end_get_video_picture_info;
                 /* cleanup buffer. */
-                memset( mpeg_video_head_data, 0xFF, MPEG_VIDEO_START_CODE_SIZE );
+                memset( mpeg_video_head_data, MPEG_VIDEO_START_CODE_ALL_CLEAR_VALUE, MPEG_VIDEO_START_CODE_SIZE );
             }
             BYTE_DATA_SHIFT( mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE )
         }

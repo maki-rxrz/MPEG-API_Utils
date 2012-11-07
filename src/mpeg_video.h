@@ -36,6 +36,7 @@
 #include "mpeg_common.h"
 
 #define MPEG_VIDEO_START_CODE_SIZE                      (4)
+#define MPEG_VIDEO_START_CODE_ALL_CLEAR_VALUE           (0xFF)
 
 #define MPEG_VIDEO_SEQUENCE_SECTION_HEADER_SIZE         (136)
 #define MPEG_VIDEO_GOP_SECTION_HEADER_SIZE              (4)
