@@ -470,7 +470,7 @@ static void parse_mpeg( param_t *p )
                             continue;
                         audio_delay = stream_info.audio_pts - video_first_pts;
                         if( llabs(audio_delay) > p->wrap_around_check_v )
-                            audio_delay += MPEG_TIMESTAMP_MAX_VALUE * ((audio_delay) > 0 ? -1 : 1);
+                            audio_delay += MPEG_TIMESTAMP_WRAPAROUND_VALUE * ((audio_delay) > 0 ? -1 : 1);
                     }
                     /* open output file. */
                     char delay_string[256];

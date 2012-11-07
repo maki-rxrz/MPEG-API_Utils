@@ -1241,10 +1241,10 @@ static void parse_reader_offset( param_t *p )
         int64_t video_pts     = stream_info.video_pts;
         int64_t audio_pts     = stream_info.audio_pts;
         /* check wrap around. */
-        int64_t video_1st_offset = (pcr > video_1st_pts + p->wrap_around_check_v) ? MPEG_TIMESTAMP_MAX_VALUE : 0;
-        int64_t video_key_offset = (pcr > video_key_pts + p->wrap_around_check_v) ? MPEG_TIMESTAMP_MAX_VALUE : 0;
-        int64_t video_odr_offset = (pcr > video_pts     + p->wrap_around_check_v) ? MPEG_TIMESTAMP_MAX_VALUE : 0;
-        int64_t audio_offset     = (pcr > audio_pts     + p->wrap_around_check_v) ? MPEG_TIMESTAMP_MAX_VALUE : 0;
+        int64_t video_1st_offset = (pcr > video_1st_pts + p->wrap_around_check_v) ? MPEG_TIMESTAMP_WRAPAROUND_VALUE : 0;
+        int64_t video_key_offset = (pcr > video_key_pts + p->wrap_around_check_v) ? MPEG_TIMESTAMP_WRAPAROUND_VALUE : 0;
+        int64_t video_odr_offset = (pcr > video_pts     + p->wrap_around_check_v) ? MPEG_TIMESTAMP_WRAPAROUND_VALUE : 0;
+        int64_t audio_offset     = (pcr > audio_pts     + p->wrap_around_check_v) ? MPEG_TIMESTAMP_WRAPAROUND_VALUE : 0;
         /* calculate delay. */
         int64_t video_1st_start = (video_1st_pts >= 0) ? (pcr - (video_1st_pts + video_1st_offset)) / 90 : 0;
         int64_t video_key_start = (video_key_pts >= 0) ? (pcr - (video_key_pts + video_key_offset)) / 90 : 0;
