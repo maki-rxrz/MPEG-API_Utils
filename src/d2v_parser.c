@@ -189,7 +189,7 @@ static void *parse(const char *input)
 
     /* D2V Format - Setting Section */
     while (1) {
-        SKIP_NEXT_LINE(buf, d2v, fail_parse);
+        SKIP_NEXT_LINE(buf, d2v, fail_parse)
 
         if (sscanf(buf, "Stream_Type=%d", &scan_num) == 1) {
             info->setting.stream_type = scan_num;

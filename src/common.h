@@ -59,4 +59,12 @@ extern void dprintf( log_level level, const char *format, ... );
 
 #endif
 
+#if defined(_WIN32)
+
+#define strdup    _strdup
+#define wcsstrdup _wcstrdup
+#define mbsdup    _mbsdup
+
+#endif
+
 #endif /* __COMMON_H__ */

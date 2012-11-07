@@ -319,13 +319,13 @@ static int mpegts_search_program_id_packet( mpegts_file_context_t *file, mpegts_
 }
 
 #define SKIP_ADAPTATION_FIELD( f, h, s )            \
-{                                                   \
+do {                                                \
     if( (h).adaptation_field_control > 1 )          \
     {                                               \
         mpegts_fread( &s, 1, f );                   \
         mpegts_fseek( f, s, MPEGTS_SEEK_CUR );      \
     }                                               \
-}
+} while( 0 )
 
 static int mpegts_get_table_section_header( mpegts_file_context_t *file, mpegts_packet_header_t *h, uint16_t search_program_id, uint8_t *section_header, uint16_t section_header_length )
 {
@@ -340,7 +340,7 @@ static int mpegts_get_table_section_header( mpegts_file_context_t *file, mpegts_
     while( !h->payload_unit_start_indicator );
     /* check adaptation field. */
     uint8_t adaptation_field_size = 0;
-    SKIP_ADAPTATION_FIELD( file, *h, adaptation_field_size )
+    SKIP_ADAPTATION_FIELD( file, *h, adaptation_field_size );
     dprintf( LOG_LV4, "[check] adpf_size:%d\n", adaptation_field_size );
     /* check pointer field. */
     uint8_t pointer_field;
@@ -363,7 +363,7 @@ static int mpegts_seek_packet_payload_data( mpegts_file_context_t *file, mpegts_
         return 1;
     /* check adaptation field. */
     uint8_t adaptation_field_size = 0;
-    SKIP_ADAPTATION_FIELD( file, *h, adaptation_field_size )
+    SKIP_ADAPTATION_FIELD( file, *h, adaptation_field_size );
     dprintf( LOG_LV4, "[check] adpf_size:%d\n", adaptation_field_size );
     return 0;
 }
@@ -784,20 +784,20 @@ static int mpegts_get_stream_timestamp( mpegts_file_context_t *file, uint16_t pr
 }
 
 #define GET_PES_PACKET_HEADER( file, pes )                                              \
-{                                                                                       \
+do {                                                                                    \
     uint8_t pes_header_check_buffer[PES_PACKET_HEADER_CHECK_SIZE];                      \
     /* skip PES Packet Start Code. */                                                   \
     mpegts_fseek( file, PES_PACKET_START_CODE_SIZE, MPEGTS_SEEK_CUR );                  \
     /* get PES packet length, flags. */                                                 \
     mpegts_fread( pes_header_check_buffer, PES_PACKET_HEADER_CHECK_SIZE, file );        \
     mpeg_pes_get_header_info( pes_header_check_buffer, &pes );                          \
-}
+} while( 0 )
 
 #define BYTE_DATA_SHIFT( data, size )           \
-{                                               \
+do {                                            \
     for( int i = 1; i < size; ++i )             \
         data[i - 1] = data[i];                  \
-}
+} while( 0 )
 
 static inline int read_1byte( mpegts_file_context_t *file, mpegts_packet_header_t *h, uint16_t program_id, uint8_t *buffer )
 {
@@ -896,7 +896,7 @@ static int mpegts_get_mpeg_video_picture_info( mpegts_file_context_t *file, uint
         {
             /* check PES packet length, flags. */
             mpeg_pes_header_info_t pes_info;
-            GET_PES_PACKET_HEADER( file, pes_info )
+            GET_PES_PACKET_HEADER( file, pes_info );
             dprintf( LOG_LV3, "[debug] PES packet_len:%d, pts_flag:%d, dts_flag:%d, header_len:%d\n"
                      , pes_info.packet_length, pes_info.pts_flag, pes_info.dts_flag, pes_info.header_length );
             mpegts_fseek( file, pes_info.header_length, MPEGTS_SEEK_CUR );
@@ -913,7 +913,7 @@ static int mpegts_get_mpeg_video_picture_info( mpegts_file_context_t *file, uint
                 int read_reslut = mpegts_read_mpeg_video_picutre_info( file, program_id, video_info, gop_number, mpeg_video_head_data );
                 if( read_reslut == -2 )
                 {
-                    BYTE_DATA_SHIFT( mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE )
+                    BYTE_DATA_SHIFT( mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE );
                     continue;
                 }
                 else if( read_reslut == 2 )
@@ -925,7 +925,7 @@ static int mpegts_get_mpeg_video_picture_info( mpegts_file_context_t *file, uint
                 /* cleanup buffer. */
                 memset( mpeg_video_head_data, MPEG_VIDEO_START_CODE_ALL_CLEAR_VALUE, MPEG_VIDEO_START_CODE_SIZE );
             }
-            BYTE_DATA_SHIFT( mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE )
+            BYTE_DATA_SHIFT( mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE );
         }
         dprintf( LOG_LV4, "[debug] continue next packet. buf:0x%02X 0x%02X 0x%02X 0x--\n"
                         , mpeg_video_head_data[0], mpeg_video_head_data[1], mpeg_video_head_data[2] );
@@ -959,7 +959,7 @@ static uint32_t mpegts_get_sample_packets_num( mpegts_file_context_t *file, uint
         if( h.payload_unit_start_indicator )
         {
             mpeg_pes_header_info_t pes_info;
-            GET_PES_PACKET_HEADER( file, pes_info )
+            GET_PES_PACKET_HEADER( file, pes_info );
             /* check PES packet header. */
             if( pes_info.pts_flag )
             {
@@ -1014,7 +1014,7 @@ static int mpegts_get_sample_raw_data_info( mpegts_file_context_t *file, uint16_
         if( h.payload_unit_start_indicator )
         {
             mpeg_pes_header_info_t pes_info;
-            GET_PES_PACKET_HEADER( file, pes_info )
+            GET_PES_PACKET_HEADER( file, pes_info );
             /* check PES packet header. */
             if( pes_info.pts_flag )
                 check_start_point = 1;
@@ -1093,7 +1093,7 @@ static void mpegts_get_sample_raw_data( mpegts_file_context_t *file, uint16_t pr
         if( h.payload_unit_start_indicator )
         {
             mpeg_pes_header_info_t pes_info;
-            GET_PES_PACKET_HEADER( file, pes_info )
+            GET_PES_PACKET_HEADER( file, pes_info );
             /* skip PES packet header. */
             mpegts_fseek( file, pes_info.header_length, MPEGTS_SEEK_CUR );
         }

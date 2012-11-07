@@ -72,10 +72,10 @@ end_first_check:
 }
 
 #define BYTE_DATA_SHIFT( data, size )           \
-{                                               \
+do {                                            \
     for( int i = 1; i < size; ++i )             \
         data[i - 1] = data[i];                  \
-}
+} while( 0 )
 
 static int mpeges_parse_stream_type( mpeges_info_t *info )
 {
@@ -101,7 +101,7 @@ static int mpeges_parse_stream_type( mpeges_info_t *info )
             mpeg_video_start_code_info_t start_code_info;
             if( mpeg_video_judge_start_code( mpeg_video_head_data, identifier, &start_code_info ) )
             {
-                BYTE_DATA_SHIFT( mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE )
+                BYTE_DATA_SHIFT( mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE );
                 continue;
             }
             uint32_t read_size = start_code_info.read_size;
@@ -131,7 +131,7 @@ static int mpeges_parse_stream_type( mpeges_info_t *info )
             /* cleanup buffer. */
             memset( mpeg_video_head_data, 0xFF, MPEG_VIDEO_START_CODE_SIZE );
         }
-        BYTE_DATA_SHIFT( mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE )
+        BYTE_DATA_SHIFT( mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE );
     }
 end_parse_stream_type:
     fsetpos( info->input, &start_position );
@@ -182,7 +182,7 @@ static int mpeges_get_mpeg_video_picture_info( mpeges_info_t *info, mpeg_video_i
             mpeg_video_start_code_info_t start_code_info;
             if( mpeg_video_judge_start_code( mpeg_video_head_data, identifier, &start_code_info ) )
             {
-                BYTE_DATA_SHIFT( mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE )
+                BYTE_DATA_SHIFT( mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE );
                 continue;
             }
             uint32_t read_size = start_code_info.read_size;
@@ -223,7 +223,7 @@ static int mpeges_get_mpeg_video_picture_info( mpeges_info_t *info, mpeg_video_i
             /* cleanup buffer. */
             memset( mpeg_video_head_data, 0xFF, MPEG_VIDEO_START_CODE_SIZE );
         }
-        BYTE_DATA_SHIFT( mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE )
+        BYTE_DATA_SHIFT( mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE );
     }
 end_get_video_picture_info:
     info->read_position = (result) ? -1 : read_position;

@@ -520,11 +520,11 @@ static int correct_parameter( param_t *p )
 }
 
 #define PUSH_LIST_DATA( p, a, b )                       \
-{                                                       \
+do {                                                    \
     p->list_data[p->list_data_count].start = (a);       \
     p->list_data[p->list_data_count].end   = (b);       \
     ++ p->list_data_count;                              \
-}
+} while( 0 )
 
 static int load_avs_txt( param_t *p, FILE *list, const char *search_word )
 {
@@ -591,7 +591,7 @@ static int load_avs_txt( param_t *p, FILE *list, const char *search_word )
             avs_trim_info_t info;
             info.string = param_string;
             if( !avs_string_convert_calculate_string_to_result_number( &info ) )
-                PUSH_LIST_DATA( p, info.start, info.end )
+                PUSH_LIST_DATA( p, info.start, info.end );
             /* seek next data. */
             line_p = strstr( line_p, search_word );
         }
@@ -620,7 +620,7 @@ static int load_vcf_txt( param_t *p, FILE *list, const char *search_word )
     {
         int32_t start, end;
         if( sscanf( line, search_format, &start, &end ) == 2 )
-            PUSH_LIST_DATA( p, start, start + end - 1 )
+            PUSH_LIST_DATA( p, start, start + end - 1 );
     }
     return p->list_data_count ? 0 : -1;
 }
@@ -651,16 +651,16 @@ static int load_del_txt( param_t *p, FILE *list, const char *search_word )
             continue;
         else if( sscanf( line, "%d - %d\n", &num1, &num2 ) == 2 )
         {
-            PUSH_LIST_DATA( p, start, num1 - 1 )
+            PUSH_LIST_DATA( p, start, num1 - 1 );
             start = num2 + 1;
         }
         else if( sscanf( line, "%d\n", &num1 ) == 1 )
         {
-            PUSH_LIST_DATA( p, start, num1 - 1 )
+            PUSH_LIST_DATA( p, start, num1 - 1 );
             start = num1 + 1;
         }
     }
-    PUSH_LIST_DATA( p, start, end )
+    PUSH_LIST_DATA( p, start, end );
     return 0;
 }
 
@@ -681,7 +681,7 @@ static int load_keyframe_txt( param_t *p, FILE *list, const char *search_word )
             if( num1 <= 0 )
                 break;
             if( i )
-                PUSH_LIST_DATA( p, start, num1 )
+                PUSH_LIST_DATA( p, start, num1 );
             start = num1;
             i ^= 1;
         }
@@ -730,7 +730,7 @@ static int load_keyframe_txt( param_t *p, FILE *list, const char *search_word )
         if( num1 <= 0 )
             break;
         if( i )
-            PUSH_LIST_DATA( p, start, num1 - 1 )
+            PUSH_LIST_DATA( p, start, num1 - 1 );
         start = num1 + 1;
         i ^= 1;
     }
@@ -790,7 +790,7 @@ static int loat_cut_list( param_t *p )
         if( p->delay_time && (p->list_data = malloc( sizeof(cut_list_data_t) )) )
         {
             p->reader = MPEG_READER_NONE;
-            PUSH_LIST_DATA( p, 0, INT32_MAX - 1 )
+            PUSH_LIST_DATA( p, 0, INT32_MAX - 1 );
             dprintf( LOG_LV1, "[log] apply delay. delay:%d\n", p->delay_time );
             dprintf( LOG_LV2, "[list] [%d]  s:%6d  e:%6d\n", 0, p->list_data[0].start, p->list_data[0].end );
             return 0;

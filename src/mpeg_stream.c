@@ -87,9 +87,9 @@ extern int mpeg_pes_check_start_code( uint8_t *start_code, mpeg_pes_packet_start
 
 extern void mpeg_pes_get_header_info( uint8_t *buf, mpeg_pes_header_info_t *pes_info )
 {
-    pes_info->packet_length             = ((buf[0] << 8) | buf[1]);
-    /* reserved '10'    2bit            = (buf[2] & 0xC0) >> 6; */
-    pes_info->scrambe_control           = (buf[2] & 0x30) >> 4;
+    pes_info->packet_length             =  ((buf[0] << 8) | buf[1]);
+    /* reserved '10'    2bit            =   (buf[2] & 0xC0) >> 6;   */
+    pes_info->scrambe_control           =   (buf[2] & 0x30) >> 4;
     pes_info->priority                  = !!(buf[2] & 0x08);
     pes_info->data_alignment            = !!(buf[2] & 0x04);
     pes_info->copyright                 = !!(buf[2] & 0x02);
@@ -102,7 +102,7 @@ extern void mpeg_pes_get_header_info( uint8_t *buf, mpeg_pes_header_info_t *pes_
     pes_info->additional_copy_info_flag = !!(buf[3] & 0x04);
     pes_info->crc_flag                  = !!(buf[3] & 0x02);
     pes_info->extention_flag            = !!(buf[3] & 0x01);
-    pes_info->header_length             = buf[4];
+    pes_info->header_length             =    buf[4];
 }
 
 extern mpeg_pes_packet_start_code_type mpeg_pes_get_stream_start_code( mpeg_stream_group_type stream_judge )

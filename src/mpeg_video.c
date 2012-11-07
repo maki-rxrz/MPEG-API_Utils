@@ -351,7 +351,7 @@ static int32_t read_quant_matrix_extension( uint8_t *data, mpeg_video_quant_matr
 }
 
 #define bit_shift( p, n, m )        \
-{                                   \
+do {                                \
     if( m == 0x01 )                 \
     {                               \
         m = 0x80;                   \
@@ -359,17 +359,17 @@ static int32_t read_quant_matrix_extension( uint8_t *data, mpeg_video_quant_matr
     }                               \
     else                            \
         m >>= 1;                    \
-}
+} while( 0 )
 #define getbits( p, n, m, v )       \
-{                                   \
+do {                                \
     int getbits_count = n;          \
     while( getbits_count )          \
     {                               \
         v = (v << 1) | !!(*p & m);  \
-        bit_shift( p, n, m )        \
+        bit_shift( p, n, m );       \
         --getbits_count;            \
     }                               \
-}
+} while( 0 )
 static int32_t read_picture_display_extension( uint8_t *data, mpeg_video_picture_display_extension_t *picture_display_ext )
 {
     uint8_t number_of_frame_centre_offsets = picture_display_ext->number_of_frame_centre_offsets;
@@ -383,10 +383,10 @@ static int32_t read_picture_display_extension( uint8_t *data, mpeg_video_picture
     uint8_t bit_start = 0x08;
     for( int i = 0; i < number_of_frame_centre_offsets; ++i )
     {
-        getbits( p, 14, bit_start, picture_display_ext->frame_centre_offsets[i].horizontal_offset )
-        bit_shift( p, 1, bit_start )        /* marker_bit '1' */
+        getbits( p, 14, bit_start, picture_display_ext->frame_centre_offsets[i].horizontal_offset );
+        bit_shift( p, 1, bit_start );       /* marker_bit '1' */
         getbits( p, 14, bit_start, picture_display_ext->frame_centre_offsets[i].vertical_offset );
-        bit_shift( p, 1, bit_start )        /* marker_bit '1' */
+        bit_shift( p, 1, bit_start );       /* marker_bit '1' */
     }
     return (number_of_frame_centre_offsets == 3) ? 14 :   /* 4bits + 34bits * 3 */
            (number_of_frame_centre_offsets == 2) ?  9 :   /* 4bits + 34bits * 2 */
