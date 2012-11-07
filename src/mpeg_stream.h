@@ -329,6 +329,4 @@ extern uint32_t mpeg_stream_get_header_check_size( mpeg_stream_group_type stream
 }
 #endif
 
-#include "mpeg_video.h"
-
 #endif /* __MPEG_STREAM_H__ */

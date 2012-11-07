@@ -38,6 +38,7 @@
 
 #include "mpeg_common.h"
 #include "mpeg_stream.h"
+#include "mpeg_video.h"
 #include "mpeg_parser.h"
 
 typedef struct {

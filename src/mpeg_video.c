@@ -37,7 +37,7 @@
 #include <inttypes.h>
 
 #include "mpeg_common.h"
-#include "mpeg_stream.h"
+#include "mpeg_video.h"
 
 static const uint8_t video_start_code_common_head[MPEG_VIDEO_START_CODE_SIZE - 1] = { 0x00, 0x00, 0x01 };
 
