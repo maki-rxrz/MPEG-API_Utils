@@ -237,7 +237,7 @@ static void *demux( void *args )
         else if( buffer && data_size )
         {
             fwrite( buffer, 1, data_size, file );
-            free( buffer );
+            mpeg_api_free_sample_buffer( info, &buffer );
         }
         dprintf( LOG_LV0, " %s Stream[%3u] [%8u]  size: %10u\n", stream_name, stream_no, i, data_size );
     }
@@ -586,7 +586,7 @@ static void parse_mpeg( param_t *p )
                             if( buffer && data_size )
                             {
                                 fwrite( buffer, 1, data_size, video[i] );
-                                free( buffer );
+                                mpeg_api_free_sample_buffer( info, &buffer );
                             }
                             dprintf( LOG_LV0, " [%8u]  size: %10u\n", j, data_size );
                         }
@@ -608,7 +608,7 @@ static void parse_mpeg( param_t *p )
                             if( buffer && data_size )
                             {
                                 fwrite( buffer, 1, data_size, audio[i] );
-                                free( buffer );
+                                mpeg_api_free_sample_buffer( info, &buffer );
                             }
                             dprintf( LOG_LV0, " [%8u]  size: %10u\n", j, data_size );
                         }

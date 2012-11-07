@@ -483,6 +483,15 @@ extern int mpeg_api_get_sample_data( void *ih, mpeg_sample_type sample_type, uin
     return parser->get_sample_data( parser_info, sample_type, stream_number, file_position, sample_size, read_offset, dst_buffer, dst_read_size, get_mode );
 }
 
+extern int mpeg_api_free_sample_buffer( void *ih, uint8_t **buffer )
+{
+    mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
+    if( !info || !info->parser_info || !buffer )
+        return -1;
+    info->parser->free_sample_buffer( buffer );
+    return 0;
+}
+
 extern int64_t mpeg_api_get_pcr( void *ih )
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;

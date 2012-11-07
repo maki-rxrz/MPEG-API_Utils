@@ -79,6 +79,8 @@ extern int mpeg_api_get_sample_info( void *ih, mpeg_sample_type sample_type, uin
 
 extern int mpeg_api_get_sample_data( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, uint32_t sample_number, uint8_t **dst_buffer, uint32_t *dst_read_size, get_sample_data_mode get_mode );
 
+extern int mpeg_api_free_sample_buffer( void *ih, uint8_t **buffer );
+
 extern int64_t mpeg_api_get_pcr( void *ih );
 
 extern int mpeg_api_get_video_frame( void *ih, uint8_t stream_number, stream_info_t *stream_info );
