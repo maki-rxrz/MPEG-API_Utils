@@ -119,6 +119,7 @@ extern mpeg_pes_packet_start_code_type mpeg_pes_get_stream_start_code( mpeg_stre
             start_code = PES_PACKET_START_CODE_PRIVATE_STREAM_1;
             break;
         case STREAM_IS_DOLBY_AUDIO :
+        case STREAM_IS_DTS_AUDIO :
             start_code = PES_PACKET_START_CODE_AC3_DTS_AUDIO_STREAM;
             break;
         default :
@@ -644,14 +645,15 @@ extern mpeg_stream_group_type mpeg_stream_judge_type( mpeg_stream_type stream_ty
             break;
         //case STREAM_AUDIO_AC3_DTS :
         case STREAM_AUDIO_AC3 :
-        case STREAM_AUDIO_DTS :
-        case STREAM_AUDIO_MLP :
         case STREAM_AUDIO_DDPLUS :
+        case STREAM_AUDIO_DDPLUS_SUB :
+            stream_judge = STREAM_IS_DOLBY_AUDIO;
+            break;
+        case STREAM_AUDIO_DTS :
         case STREAM_AUDIO_DTS_HD :
         case STREAM_AUDIO_DTS_HD_XLL :
-        case STREAM_AUDIO_DDPLUS_SUB :
         case STREAM_AUDIO_DTS_HD_SUB :
-            stream_judge = STREAM_IS_DOLBY_AUDIO;       // FIXME
+            stream_judge = STREAM_IS_DTS_AUDIO;
             break;
         default :
             break;
@@ -659,9 +661,9 @@ extern mpeg_stream_group_type mpeg_stream_judge_type( mpeg_stream_type stream_ty
     return stream_judge;
 }
 
-typedef int (*header_check_func)( uint8_t *header );
+typedef int (*header_check_func)( uint8_t *header, mpeg_stream_raw_info_t *stream_raw_info );
 
-static int mpa_header_check( uint8_t *header )
+static int mpa_header_check( uint8_t *header, mpeg_stream_raw_info_t *stream_raw_info )
 {
     if( header[0] != 0xFF || (header[1] & 0xE0) != 0xE0 )
         return -1;
@@ -680,6 +682,7 @@ static int mpa_header_check( uint8_t *header )
         return -1;
     uint8_t channel_mode = (header[3] & 0x60) >> 5;
     /* check bitrate & channel_mode matrix. */
+#if 0
     enum {
         MPEG25 = 0x01,
         MPEG2  = 0x02,
@@ -690,6 +693,7 @@ static int mpa_header_check( uint8_t *header )
         LAYER2 = 0x02,
         LAYER1 = 0x03,
     };
+#endif
     enum {
         STEREO         = 0x00,
         JOINT_STEREO   = 0x01,
@@ -722,12 +726,28 @@ static int mpa_header_check( uint8_t *header )
      || bitrate == ng_matrix[index][2] || bitrate == ng_matrix[index][3] )
         return -1;
     /* detect header. */
-    dprintf( LOG_LV4, "[debug] [MPEG-Audio] detect header. \n" );
+    dprintf( LOG_LV4, "[debug] [MPEG-Audio] detect header.\n" );
+    /* setup. */
+    if( stream_raw_info )
+    {
+        static const uint32_t sampling_frequency_base[3] = { 44100, 48000, 32000 };
+        static const uint16_t speaker_mapping[4] =
+            {
+                MPEG_AUDIO_SPEAKER_F_2CHANNELS ,
+                MPEG_AUDIO_SPEAKER_F_2CHANNELS | MPEG_AUDIO_SPEAKER_JOINT_STEREO,
+                MPEG_AUDIO_SPEAKER_F_2CHANNELS | MPEG_AUDIO_SPEAKER_DUAL_MONO   ,
+                MPEG_AUDIO_SPEAKER_FRONT_CENTER
+            };
+        static const uint8_t mpa_layer[4] = { 0, 3, 2, 1 };
+        stream_raw_info->sampling_frequency = sampling_frequency_base[sampling_frequency_index] / ((version_id == 0) ? 4 : (version_id == 2) ? 2 : 1 );
+        stream_raw_info->bitrate            = bitrate * 1000;
+        stream_raw_info->channel            = speaker_mapping[channel_mode];
+        stream_raw_info->layer              = mpa_layer[layer];
+    }
     return 0;
 }
 
-#include <math.h>
-static int aac_header_check( uint8_t *header )
+static int aac_header_check( uint8_t *header, mpeg_stream_raw_info_t *stream_raw_info )
 {
     if( header[0] != 0xFF || (header[1] & 0xF0) != 0xF0 )
         return -1;
@@ -738,19 +758,306 @@ static int aac_header_check( uint8_t *header )
     int sampling_frequency_index = (header[2] & 0x3C) >> 2;
     if( sampling_frequency_index > 11 )         /* sampling_frequency_index : 0xc-0xf reserved              */
         return -1;
-    uint32_t aac_frame_length = ((header[3] & 0x03) << 11) | (header[4] << 3) | (header[5] >> 5);
-    if( !aac_frame_length )                     /* aac frame length                             */
+    uint32_t frame_length = ((header[3] & 0x03) << 11) | (header[4] << 3) | (header[5] >> 5);
+    if( !frame_length )                         /* aac frame length                             */
         return -1;
     /* protection absent          =   header[1] & 0x01;             */
-    /* uint8_t channel_configuration = ((header[2] & 0x01) << 2) | (header[3] >> 6); */
+    uint8_t channel_configuration = ((header[2] & 0x01) << 2) | (header[3] >> 6);
     /* detect header. */
-    dprintf( LOG_LV4, "[debug] [ADTS-AAC] detect header. aac_frame_len:%d\n", aac_frame_length );
+    dprintf( LOG_LV4, "[debug] [ADTS-AAC] detect header. frame_len:%d\n", frame_length );
+    /* setup. */
+    if( stream_raw_info )
+    {
+        static const uint32_t sampling_frequency_base[3] = { 96000, 88200, 64000 };
+        static const uint16_t speaker_mapping[8] =
+            {
+                MPEG_AUDIO_SPEAKER_F_2CHANNELS | MPEG_AUDIO_SPEAKER_DUAL_MONO,
+                MPEG_AUDIO_SPEAKER_FRONT_CENTER,
+                MPEG_AUDIO_SPEAKER_F_2CHANNELS ,
+                MPEG_AUDIO_SPEAKER_F_3CHANNELS ,
+                MPEG_AUDIO_SPEAKER_F_3CHANNELS | MPEG_AUDIO_SPEAKER_REAR_SRROUND,
+                MPEG_AUDIO_SPEAKER_F_3CHANNELS | MPEG_AUDIO_SPEAKER_R_2CHANNELS ,
+                MPEG_AUDIO_SPEAKER_F_3CHANNELS | MPEG_AUDIO_SPEAKER_R_2CHANNELS | MPEG_AUDIO_SPEAKER_LFE_CHANNEL ,
+                MPEG_AUDIO_SPEAKER_F_3CHANNELS | MPEG_AUDIO_SPEAKER_R_2CHANNELS | MPEG_AUDIO_SPEAKER_O_2CHANNELS | MPEG_AUDIO_SPEAKER_LFE_CHANNEL
+            };
+        stream_raw_info->frame_length       = frame_length;
+        stream_raw_info->sampling_frequency = sampling_frequency_base[sampling_frequency_index % 3] / (1 << (int)(sampling_frequency_index / 3));
+        stream_raw_info->bitrate            = 0;        // FIXME
+        stream_raw_info->channel            = speaker_mapping[channel_configuration];
+    }
     return 0;
 }
 
-extern int32_t mpeg_stream_check_header( mpeg_stream_type stream_type, mpeg_stream_group_type stream_judge, int search_point, uint8_t *buffer, uint32_t buffer_size )
+static int lpcm_header_check( uint8_t *header, mpeg_stream_raw_info_t *stream_raw_info )
+{
+    /* MPEG-2 Program Stream   : 2byte  (no support)    */          // FIXME
+    /* MPEG-2 Transport Stream : 4byte                  */          // FIXME
+    uint32_t frame_length      =   (header[0] << 8) | header[1];
+    uint8_t channel_assignment =   (header[2] & 0xF0) >> 4;
+    uint8_t sampling_frequency =    header[2] & 0x0F;
+    uint8_t bits_per_sample    =   (header[3] & 0xC0) >> 6;
+    /* start_flag              = !!(header[3] & 0x20);              */
+    /* reserved     5bit                                            */
+    /* check. */
+    if( !frame_length )
+        return -1;
+    if( channel_assignment == 0 || channel_assignment == 2 || channel_assignment > 11 )
+        return -1;
+    if( sampling_frequency == 0 || sampling_frequency == 2 || sampling_frequency == 3 || sampling_frequency > 5 )
+        return -1;
+    if( bits_per_sample == 0 || bits_per_sample > 3 )
+        return -1;
+    /* detect header. */
+    dprintf( LOG_LV4, "[debug] [LPCM] detect header.\n" );
+    /* setup. */
+    if( stream_raw_info )
+    {
+        static const uint16_t speaker_mapping[12] =
+            {
+                0,
+                MPEG_AUDIO_SPEAKER_FRONT_CENTER,
+                0,
+                MPEG_AUDIO_SPEAKER_F_2CHANNELS ,
+                MPEG_AUDIO_SPEAKER_F_3CHANNELS ,
+                MPEG_AUDIO_SPEAKER_F_2CHANNELS | MPEG_AUDIO_SPEAKER_REAR_SRROUND,
+                MPEG_AUDIO_SPEAKER_F_3CHANNELS | MPEG_AUDIO_SPEAKER_REAR_SRROUND,
+                MPEG_AUDIO_SPEAKER_F_2CHANNELS | MPEG_AUDIO_SPEAKER_R_2CHANNELS ,
+                MPEG_AUDIO_SPEAKER_F_3CHANNELS | MPEG_AUDIO_SPEAKER_R_2CHANNELS ,
+                MPEG_AUDIO_SPEAKER_F_3CHANNELS | MPEG_AUDIO_SPEAKER_R_2CHANNELS | MPEG_AUDIO_SPEAKER_LFE_CHANNEL ,
+                MPEG_AUDIO_SPEAKER_F_3CHANNELS | MPEG_AUDIO_SPEAKER_R_2CHANNELS | MPEG_AUDIO_SPEAKER_O_2CHANNELS ,
+                MPEG_AUDIO_SPEAKER_F_3CHANNELS | MPEG_AUDIO_SPEAKER_R_2CHANNELS | MPEG_AUDIO_SPEAKER_O_2CHANNELS | MPEG_AUDIO_SPEAKER_LFE_CHANNEL
+            };
+        stream_raw_info->frame_length       = frame_length;
+        stream_raw_info->sampling_frequency = (sampling_frequency == 1) ?  48000
+                                            : (sampling_frequency == 4) ?  96000
+                                            : (sampling_frequency == 5) ? 192000
+                                            :                                  0;
+        stream_raw_info->channel            = speaker_mapping[channel_assignment];
+        stream_raw_info->bit_depth          = 12 + 4 * bits_per_sample;
+    }
+    return 0;
+}
+
+static const uint16_t ac3_speaker_mapping[8] =
+    {
+        MPEG_AUDIO_SPEAKER_F_2CHANNELS | MPEG_AUDIO_SPEAKER_DUAL_MONO   ,
+        MPEG_AUDIO_SPEAKER_FRONT_CENTER,
+        MPEG_AUDIO_SPEAKER_F_2CHANNELS ,
+        MPEG_AUDIO_SPEAKER_F_3CHANNELS ,
+        MPEG_AUDIO_SPEAKER_F_2CHANNELS | MPEG_AUDIO_SPEAKER_REAR_SRROUND,
+        MPEG_AUDIO_SPEAKER_F_3CHANNELS | MPEG_AUDIO_SPEAKER_REAR_SRROUND,
+        MPEG_AUDIO_SPEAKER_F_2CHANNELS | MPEG_AUDIO_SPEAKER_O_2CHANNELS ,
+        MPEG_AUDIO_SPEAKER_F_3CHANNELS | MPEG_AUDIO_SPEAKER_O_2CHANNELS
+    };
+
+static int ac3_header_check( uint8_t *header, mpeg_stream_raw_info_t *stream_raw_info )
+{
+    /* check Synchronization Information. */
+    if( header[0] != 0x0B || header[1] != 0x77 )
+        return -1;
+    /* crc1  16bit           = (header[2] << 8) | header[3];        */
+    uint8_t sample_rate_code =  header[4] >> 6;
+    if( sample_rate_code == 0x03 )
+        return -1;
+    uint8_t frame_size_code  =  header[4] & 0x3F;
+    if( frame_size_code > 37 )
+        return -1;
+    /* check Bit Stream Information. */
+    /* bit_stream_identification = header[5] >> 3;                  */
+    /* bit_stream_mode           = header[5] & 0x07;                */
+    uint8_t audio_coding_mode    = header[6] >> 5;
+    uint16_t bsi_data = ((header[6] & 0x1F) << 8) | header[7];
+    uint8_t lfe_bit_offset = 2 * ( ((audio_coding_mode & 0x01) && audio_coding_mode != 0x01)
+                                  + (audio_coding_mode & 0x04)
+                                  + (audio_coding_mode == 0x02) );
+    uint8_t lfe_channel_on = !!(bsi_data & (0x0100 >> lfe_bit_offset));
+    /* detect header. */
+    dprintf( LOG_LV4, "[debug] [AC-3] detect header.\n" );
+    /* setup. */
+    if( stream_raw_info )
+    {
+        static const uint16_t ac3_sample_rate[3] = { 48000, 44100, 32000 };
+        static const uint16_t ac3_bitrate[19] =
+            {
+                 32,  40,  48,  56,  64,  80,  96, 112, 128,
+                160, 192, 224, 256, 320, 384, 448, 512, 576, 640
+            };
+        stream_raw_info->frame_length       = ac3_bitrate[frame_size_code / 2] * 192000 / ac3_sample_rate[sample_rate_code]
+                                            + (sample_rate_code == 0x01 && (frame_size_code & 0x01));
+        stream_raw_info->sampling_frequency = ac3_sample_rate[sample_rate_code];
+        stream_raw_info->bitrate            = ac3_bitrate[frame_size_code / 2] * 1000;
+        stream_raw_info->channel            = ac3_speaker_mapping[audio_coding_mode] | ((lfe_channel_on) ? MPEG_AUDIO_SPEAKER_LFE_CHANNEL : 0);
+    }
+    return 0;
+}
+
+static int eac3_header_check( uint8_t *header, mpeg_stream_raw_info_t *stream_raw_info )
+{
+    /* check Synchronization Information. */
+    if( header[0] != 0x0B || header[1] != 0x77 )
+        return -1;
+    /* check Bit Stream Information. */
+    uint8_t stream_type             =    header[2] >> 6;
+    /* substream_identification     =   (header[2] & 0x38) >> 6;    */
+    uint8_t frame_size              =  ((header[2] & 0x07) << 8) | header[3];
+    uint8_t sample_rate_code        =    header[4] >> 6;
+    uint8_t sample_rate_code2       =    0;
+    uint8_t number_of_audio_blocks  =   (header[4] & 0x30) >> 4;
+    if( sample_rate_code == 0x03 )
+    {
+        sample_rate_code2           =    number_of_audio_blocks;
+        number_of_audio_blocks      =    0x03;
+    }
+    uint8_t audio_coding_mode       =   (header[4] & 0x0E) >> 1;
+    uint8_t lfe_channel_on          =    header[4] & 0x01;
+    /* bit_stream_identification    =    header[5] >> 3;            */
+    /* dialogue_normalization       =  ((header[5] & 0x07) << 2) | (header[6] >> 6);    */
+    int header_idx = 6;
+    /* compression_gain_word_exists = !!(header[6] & 0x20)          */
+    if( header[6] & 0x20 )
+    {
+        /* compression_gain_word    =  ((header[6] & 0x1F) << 3) | (header[7] >> 5);    */
+        ++header_idx;
+    }
+    uint8_t custom_channel_map_exists = 0;
+    uint16_t custom_channel_map       = 0;
+    if( stream_type == 1 )
+    {
+        if( audio_coding_mode == 0 )
+        {
+            /* dialogue_normalization2       =  ((header[header_idx+0] & 0x01) << 4) | (header[header_idx+1] >> 4); */
+            /* compression_gain_word2_exists = !!(header[header_idx+1] & 0x08)              */
+            if( header[header_idx+1] & 0x08 )
+            {
+                /* compression_gain_word2    =  ((header[header_idx+1] & 0x07) << 5) | (header[header_idx+2] >> 3);    */
+                ++header_idx;
+            }
+            custom_channel_map_exists        = !!(header[header_idx+1] & 0x04);
+            if( custom_channel_map_exists )
+                custom_channel_map           =  ((header[header_idx+1] & 0x03) << 14) | (header[header_idx+2] << 6) | (header[header_idx+2] >> 2);
+        }
+        else
+        {
+            custom_channel_map_exists        =    header[header_idx+0] & 0x01;
+            if( custom_channel_map_exists )
+                custom_channel_map           =   (header[header_idx+1] << 8) | header[header_idx+2];
+        }
+    }
+    /* detect header. */
+    dprintf( LOG_LV4, "[debug] [EAC-3] detect header.\n" );
+    /* setup. */
+    if( stream_raw_info )
+    {
+        static const uint16_t eac3_sample_rate[7] = { 48000, 44100, 32000, 24000, 22050, 16000, 0 };
+        stream_raw_info->frame_length       = frame_size + 1;
+        stream_raw_info->sampling_frequency = eac3_sample_rate[sample_rate_code + sample_rate_code2];
+        stream_raw_info->bitrate            = 0;        // FIXME
+        stream_raw_info->channel            = ac3_speaker_mapping[audio_coding_mode] | ((lfe_channel_on) ? MPEG_AUDIO_SPEAKER_LFE_CHANNEL : 0);
+        if( custom_channel_map_exists )
+            stream_raw_info->channel       |= ((custom_channel_map & 0x8000) ? MPEG_AUDIO_SPEAKER_FRONT_LEFT   : 0)
+                                            | ((custom_channel_map & 0x4000) ? MPEG_AUDIO_SPEAKER_FRONT_CENTER : 0)
+                                            | ((custom_channel_map & 0x2000) ? MPEG_AUDIO_SPEAKER_FRONT_RIGHT  : 0)
+                                            | ((custom_channel_map & 0x1000) ? MPEG_AUDIO_SPEAKER_REAR_LEFT    : 0)
+                                            | ((custom_channel_map & 0x0800) ? MPEG_AUDIO_SPEAKER_REAR_RIGHT   : 0)
+                                            | ((custom_channel_map & 0x0001) ? MPEG_AUDIO_SPEAKER_LFE_CHANNEL  : 0);
+    }
+    return 0;
+}
+
+static int dts_header_check( uint8_t *header, mpeg_stream_raw_info_t *stream_raw_info )
+{
+    if( header[0] != 0x7F || header[1] != 0xFE || header[2] != 0x80 || header[3] != 0x01 )
+        return -1;
+    /* frame_type                           = !!(header[4] & 0x80);         */
+    /* deficit_sample_count                 =   (header[4] & 0x7C) >> 2;    */
+    uint8_t crc_present_flag                = !!(header[4] & 0x02);
+    /* number_of_pcm_sample_blocks          =  ((header[4] & 0x01) <<  6) | (header[5] >> 2);   */
+    uint16_t primary_frame_byte_size        =  ((header[5] & 0x03) << 12) | (header[6] << 4) | (header[7] >> 4);
+    if( primary_frame_byte_size < 95 )
+        return -1;
+    uint8_t audio_channel_arangement        =  ((header[7] & 0x0F) <<  2) | (header[8] >> 6);
+    uint8_t core_audio_sampling_frequency   =   (header[8] & 0x3C) >> 2;
+    if( (core_audio_sampling_frequency % 5) == 0 || (core_audio_sampling_frequency % 5) == 4 )
+        return -1;
+    uint8_t transmission_bit_rate           =  ((header[8] & 0x03) <<  3) | (header[9] >> 5);
+    if( transmission_bit_rate == 29 )       /* 0b11101      open            */
+        /* correct table index. */
+        transmission_bit_rate = 25;
+    else if( transmission_bit_rate > 24 )   /* other codes  invalid         */
+        return -1;
+    /* fixed_bit  always '0'                = !!(header[9] & 0x10);         */
+    if( header[9] & 0x10 )
+        return -1;
+    /* embedded_dynamic_range_flag          = !!(header[9] & 0x08);         */
+    /* embedded_time_stamp_flag             = !!(header[9] & 0x04);         */
+    /* auxiliary_data_flag                  = !!(header[9] & 0x02);         */
+    /* hdcd                                 =    header[9] & 0x01;          */
+    /* extension_audio_descriptor_flag      =    header[10] >> 5;           */
+    /* extended_coding_flag                 = !!(header[10] & 0x10);        */
+    /* audio_sync_word_insertion_flag       = !!(header[10] & 0x08);        */
+    uint8_t low_frequency_effects_flag      =   (header[10] & 0x06) >> 1;
+    /* predictor_history_flag_switch        =    header[10] & 0x01;         */
+    int header_idx = 11;
+    if( crc_present_flag )
+    {
+        /* Header CRC Check Bytes           =   (header[header_idx+0] << 8) | header[header_idx+1]; */
+        header_idx += 2;
+    }
+    /* multirate_interpolator_switch        = !!(header[header_idx] & 0x80);        */
+    /* encoder_software_revision            =   (header[header_idx] & 0x78) >> 3;   */
+    /* copy_history                         =   (header[header_idx] & 0x06) >> 1;   */
+    uint8_t source_pcm_resolution           =  ((header[header_idx+0] & 0x01) << 2) | (header[header_idx+1] >> 6);
+    if( source_pcm_resolution == 4 || source_pcm_resolution == 7 )
+        return -1;
+    /* detect header. */
+    dprintf( LOG_LV4, "[debug] [DTS] detect header.\n" );
+    /* setup. */
+    if( stream_raw_info )
+    {
+        static const uint16_t dts_sample_rate_base[3] = {  8000, 11025, 12000 };
+        static const uint32_t dts_bitrate[26] =
+            {
+                  32000,   56000,   64000,   96000,  112000,  128000,  192000,  224000,  256000,
+                 320000,  384000,  448000,  512000,  576000,  640000,  768000,  960000, 1024000,
+                1152000, 1280000, 1344000, 1408000, 1411200, 1472000, 1536000,       0
+            };
+        static const uint16_t speaker_mapping[17] =
+            {
+                MPEG_AUDIO_SPEAKER_FRONT_CENTER ,
+                MPEG_AUDIO_SPEAKER_F_2CHANNELS  | MPEG_AUDIO_SPEAKER_DUAL_MONO   ,
+                MPEG_AUDIO_SPEAKER_F_2CHANNELS  ,
+                MPEG_AUDIO_SPEAKER_F_2CHANNELS  ,   /* (L+R) + (L-R) (sum-difference)   */
+                MPEG_AUDIO_SPEAKER_F_2CHANNELS  ,   /* LT +RT (left and right total)    */
+                MPEG_AUDIO_SPEAKER_F_3CHANNELS  ,
+                MPEG_AUDIO_SPEAKER_F_2CHANNELS  | MPEG_AUDIO_SPEAKER_REAR_SRROUND,
+                MPEG_AUDIO_SPEAKER_F_3CHANNELS  | MPEG_AUDIO_SPEAKER_REAR_SRROUND,
+                MPEG_AUDIO_SPEAKER_F_2CHANNELS  | MPEG_AUDIO_SPEAKER_R_2CHANNELS ,
+                MPEG_AUDIO_SPEAKER_F_3CHANNELS  | MPEG_AUDIO_SPEAKER_R_2CHANNELS ,
+                MPEG_AUDIO_SPEAKER_F_2CHANNELS  | MPEG_AUDIO_SPEAKER_O_2CHANNELS | MPEG_AUDIO_SPEAKER_R_2CHANNELS ,
+                MPEG_AUDIO_SPEAKER_FRONT_CENTER | MPEG_AUDIO_SPEAKER_F_2CHANNELS | MPEG_AUDIO_SPEAKER_R_2CHANNELS | MPEG_AUDIO_SPEAKER_OVERHEAD    ,
+                MPEG_AUDIO_SPEAKER_FRONT_CENTER | MPEG_AUDIO_SPEAKER_REAR_CENTER | MPEG_AUDIO_SPEAKER_F_2CHANNELS | MPEG_AUDIO_SPEAKER_R_2CHANNELS ,
+                MPEG_AUDIO_SPEAKER_F_3CHANNELS  | MPEG_AUDIO_SPEAKER_O_2CHANNELS | MPEG_AUDIO_SPEAKER_R_2CHANNELS ,
+                MPEG_AUDIO_SPEAKER_F_2CHANNELS  | MPEG_AUDIO_SPEAKER_O_2CHANNELS | MPEG_AUDIO_SPEAKER_R_2CHANNELS | MPEG_AUDIO_SPEAKER_R2_2CHANNELS,
+                MPEG_AUDIO_SPEAKER_F_3CHANNELS  | MPEG_AUDIO_SPEAKER_O_2CHANNELS | MPEG_AUDIO_SPEAKER_R_3CHANNELS ,
+                0
+            };
+        stream_raw_info->frame_length       = primary_frame_byte_size + 1;
+        stream_raw_info->sampling_frequency = dts_sample_rate_base[core_audio_sampling_frequency / 5] * (1 << ((core_audio_sampling_frequency % 5) - 1));
+        stream_raw_info->bitrate            = dts_bitrate[transmission_bit_rate];
+        stream_raw_info->channel            = speaker_mapping[audio_channel_arangement]
+                                            | ((low_frequency_effects_flag == 1 || low_frequency_effects_flag == 2) ? MPEG_AUDIO_SPEAKER_LFE_CHANNEL : 0);
+        stream_raw_info->bit_depth          = (source_pcm_resolution & 4) ? 24 : (source_pcm_resolution & 2) ? 20 : 16;
+    }
+    return 0;
+}
+
+extern int32_t mpeg_stream_check_header( mpeg_stream_type stream_type, mpeg_stream_group_type stream_judge, int search_point, uint8_t *buffer, uint32_t buffer_size, mpeg_stream_raw_info_t *stream_raw_info, int32_t *data_offset )
 {
     int32_t header_offset = -1;
+    if( stream_raw_info )
+        memset( stream_raw_info, 0, sizeof(mpeg_stream_raw_info_t) );
+    if( data_offset )
+        *data_offset = 0;
     switch( stream_judge )
     {
         case STREAM_IS_MPEG1_AUDIO :
@@ -769,43 +1076,67 @@ extern int32_t mpeg_stream_check_header( mpeg_stream_type stream_type, mpeg_stre
                 int idx_max = buffer_size - header_check[index].size;
                 for( int i = 0; i <= idx_max; ++i )
                 {
-                    if( header_check[index].func( &(buffer[i]) ) )
+                    if( header_check[index].func( &(buffer[i]), stream_raw_info ) )
                         continue;
                     /* setup. */
                     header_offset = i;
-                    dprintf( LOG_LV4, "        check_buffer_size:%d  header_offset:%d\n", buffer_size, header_offset );
                     break;
                 }
             }
             break;
-        case STREAM_IS_PCM_AUDIO :      // FIXME
-            if( buffer_size > STREAM_LPCM_HEADER_CHECK_SIZE )
+        case STREAM_IS_PCM_AUDIO :
+            if( buffer_size >= STREAM_LPCM_HEADER_CHECK_SIZE )
             {
-#if 0
-                int channels_num_code = (buffer[2] & 0xF0) > 4;
-                int sample_rate_code  =  buffer[2] & 0x0F;
-                int sample_size_code  = (buffer[3] & 0xC0) > 6;
-#endif
-                /* setup. */
-                /* 0 (start point) :  skip header size.             */
-                /* 1 ( end  point) :  return end point.             */
-                header_offset = search_point ? 0 : STREAM_LPCM_HEADER_CHECK_SIZE;
-                dprintf( LOG_LV4, "[debug] [LPCM] detect header.\n"
-                                  "        check_buffer_size:%d  header_offset:%d\n", buffer_size, header_offset );
-                break;
+                if( !lpcm_header_check( buffer, stream_raw_info ) )
+                {
+                    /* setup. */
+                    /* 0 (start point) :  skip header size.             */
+                    /* 1 ( end  point) :  return end point.             */
+                    header_offset = search_point ? 0 : STREAM_LPCM_HEADER_CHECK_SIZE;
+                    if( data_offset )
+                        *data_offset = search_point ? STREAM_LPCM_HEADER_CHECK_SIZE : 0;
+                }
             }
             break;
-        case STREAM_IS_DOLBY_AUDIO :    // FIXME
-            header_offset = 0;          // FIXME
+        case STREAM_IS_DOLBY_AUDIO :
+            {
+                static const struct {
+                    header_check_func   func;
+                    int                 size;
+                } header_check[2] =
+                    {
+                        { ac3_header_check , STREAM_AC3_HEADER_CHECK_SIZE  },
+                        { eac3_header_check, STREAM_EAC3_HEADER_CHECK_SIZE }
+                    };
+                int index = !(stream_type == STREAM_AUDIO_AC3);
+                if( buffer_size >= header_check[index].size )
+                {
+                    if( !header_check[index].func( buffer, stream_raw_info ) )
+                        /* setup. */
+                        header_offset = 0;
+                }
+            }
+            break;
+        case STREAM_IS_DTS_AUDIO :
+            if( buffer_size >= STREAM_DTS_HEADER_CHECK_SIZE )
+            {
+                if( !dts_header_check( buffer, stream_raw_info ) )
+                    /* setup. */
+                    header_offset = 0;
+            }
             break;
         default :
             header_offset = 0;
             break;
     }
+    if( header_offset >= 0 && (stream_judge & STREAM_IS_AUDIO) )
+        dprintf( LOG_LV4, "        check_buffer_size:%d  header_offset:%d\n", buffer_size, header_offset );
+    //if( stream_raw_info )
+    //    dprintf( LOG_LV4, "[debug] %6uHz  %7uKbps  %u channel  other:%u\n", stream_raw_info->sampling_frequency, stream_raw_info->bitrate, stream_raw_info->channel, stream_raw_info->layer );
     return header_offset;
 }
 
-extern uint32_t mpeg_stream_get_header_check_size( mpeg_stream_group_type stream_judge )
+extern uint32_t mpeg_stream_get_header_check_size( mpeg_stream_type stream_type, mpeg_stream_group_type stream_judge )
 {
     uint32_t check_size = STREAM_HEADER_CHECK_MAX_SIZE;
     switch( stream_judge )
@@ -821,6 +1152,10 @@ extern uint32_t mpeg_stream_get_header_check_size( mpeg_stream_group_type stream
             check_size = STREAM_LPCM_HEADER_CHECK_SIZE;
             break;
         case STREAM_IS_DOLBY_AUDIO :
+            check_size = (stream_type == STREAM_AUDIO_AC3) ? STREAM_AC3_HEADER_CHECK_SIZE : STREAM_EAC3_HEADER_CHECK_SIZE;
+            break;
+        case STREAM_IS_DTS_AUDIO :
+            check_size = STREAM_DTS_HEADER_CHECK_SIZE;
             break;
         default :
             break;

@@ -245,6 +245,18 @@ static void *demux( void *args )
     return (void *)(0);
 }
 
+static void get_speaker_mapping_info( uint16_t speaker_mapping, char *mapping_info )
+{
+    uint8_t f_channels = !!(speaker_mapping & MPEG_AUDIO_SPEAKER_FRONT_CENTER) + !!(speaker_mapping & MPEG_AUDIO_SPEAKER_FRONT_LEFT   ) + !!(speaker_mapping & MPEG_AUDIO_SPEAKER_FRONT_RIGHT);
+    uint8_t r_channels = !!(speaker_mapping & MPEG_AUDIO_SPEAKER_REAR_SRROUND) + !!(speaker_mapping & MPEG_AUDIO_SPEAKER_REAR_LEFT    ) + !!(speaker_mapping & MPEG_AUDIO_SPEAKER_REAR_RIGHT )
+                       + !!(speaker_mapping & MPEG_AUDIO_SPEAKER_REAR_LEFT2  ) + !!(speaker_mapping & MPEG_AUDIO_SPEAKER_REAR_RIGHT2  )
+                       + !!(speaker_mapping & MPEG_AUDIO_SPEAKER_OUTSIDE_LEFT) + !!(speaker_mapping & MPEG_AUDIO_SPEAKER_OUTSIDE_RIGHT);
+    uint8_t lfe        = !!(speaker_mapping & MPEG_AUDIO_SPEAKER_LFE_CHANNEL);
+    sprintf( mapping_info, "%u/%u", f_channels, r_channels );
+    if( lfe )
+        strcat( mapping_info, "+lfe" );
+}
+
 static void parse_mpeg( param_t *p )
 {
     if( !p || !p->input )
@@ -316,8 +328,10 @@ static void parse_mpeg( param_t *p )
                         break;
                     int64_t pts = stream_info.audio_pts;
                     int64_t dts = stream_info.audio_dts;
+                    char mapping_info[8];
+                    get_speaker_mapping_info( stream_info.channel, mapping_info );
                     dprintf( LOG_LV0, " [%8u]", j );
-                    dprintf( LOG_LV0, "  %6uHz  %3uKbps  %u channel  other:%u", stream_info.sampling_frequency, stream_info.bitrate, stream_info.channel, stream_info.layer );
+                    dprintf( LOG_LV0, "  %6uHz  %4uKbps  %s channel  layer %1u  %2u bits", stream_info.sampling_frequency, stream_info.bitrate / 1000, mapping_info, stream_info.layer, stream_info.bit_depth );
                     dprintf( LOG_LV0, "  POS: %10"PRId64"", stream_info.file_position );
                     dprintf( LOG_LV0, "  size: %10u  raw_size: %10u", stream_info.sample_size, stream_info.raw_data_size );
                     dprintf( LOG_LV0, "  PTS: %10"PRId64" [%8"PRId64"ms]", pts, pts / 90 );
@@ -368,8 +382,10 @@ static void parse_mpeg( param_t *p )
                         break;
                     int64_t pts = stream_info.audio_pts;
                     int64_t dts = stream_info.audio_dts;
+                    char mapping_info[8];
+                    get_speaker_mapping_info( stream_info.channel, mapping_info );
                     dprintf( LOG_LV0, " [%8u]", j );
-                    dprintf( LOG_LV0, "  %6uHz  %3uKbps  %u channel  other:%u", stream_info.sampling_frequency, stream_info.bitrate, stream_info.channel, stream_info.layer );
+                    dprintf( LOG_LV0, "  %6uHz  %4uKbps  %s channel  layer %1u  %2u bits", stream_info.sampling_frequency, stream_info.bitrate / 1000, mapping_info, stream_info.layer, stream_info.bit_depth );
                     dprintf( LOG_LV0, "  POS: %10"PRId64"", stream_info.file_position );
                     dprintf( LOG_LV0, "  size: %10u  raw_size: %10u", stream_info.sample_size, stream_info.raw_data_size );
                     dprintf( LOG_LV0, "  PTS: %10"PRId64" [%8"PRId64"ms]", pts, pts / 90 );

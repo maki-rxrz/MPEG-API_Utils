@@ -61,7 +61,8 @@ typedef enum {
     STREAM_IS_MPEG2_AUDIO   = 0x0800 | STREAM_IS_MPEG_AUDIO,
     STREAM_IS_AAC_AUDIO     = 0x1000 | STREAM_IS_MPEG_AUDIO,
     STREAM_IS_PCM_AUDIO     = 0x2000 | STREAM_IS_AUDIO     ,
-    STREAM_IS_DOLBY_AUDIO   = 0x8000 | STREAM_IS_AUDIO
+    STREAM_IS_DOLBY_AUDIO   = 0x4000 | STREAM_IS_AUDIO     ,
+    STREAM_IS_DTS_AUDIO     = 0x8000 | STREAM_IS_AUDIO
 } mpeg_stream_group_type;
 
 typedef enum {
@@ -70,6 +71,8 @@ typedef enum {
     STREAM_VIDEO_MPEG2      = 0x02,    /* ITU-T Rec. H.262 | ISO/IEC 13818-2 Video or ISO/IEC 11172-2 constrained parameter video stream */
     STREAM_AUDIO_MP1        = 0x03,    /* ISO/IEC 11172 Audio                                                                            */
     STREAM_AUDIO_MP2        = 0x04,    /* ISO/IEC 13818-3 Audio                                                                          */
+    STREAM_PRIVATE_SECTION  = 0x05,    /* ITU-T Rec. H.222.0 | ISO/IEC 13818-1 private_sections                                          */
+    STREAM_PES_PRIVATE_DATA = 0x06,    /* ITU-T Rec. H.222.0 | ISO/IEC 13818-1 PES packets containing private data                       */
     STREAM_VIDEO_MPEG2_A    = 0x0A,    /* ISO/IEC 13818-6 type A                                                                         */
     STREAM_VIDEO_MPEG2_B    = 0x0B,    /* ISO/IEC 13818-6 type B                                                                         */
     STREAM_VIDEO_MPEG2_C    = 0x0C,    /* ISO/IEC 13818-6 type C                                                                         */
@@ -85,9 +88,9 @@ typedef enum {
     STREAM_AUDIO_AC3        = 0x81,
     STREAM_AUDIO_DTS        = 0x82,    /* DTS                                                                                            */
     STREAM_AUDIO_MLP        = 0x83,    /* MLP                                                                                            */
-    STREAM_AUDIO_DDPLUS     = 0x84,    /* DD+                                                                                            */
     STREAM_AUDIO_DTS_HD     = 0x85,    /* DTS-HD                                                                                         */
     STREAM_AUDIO_DTS_HD_XLL = 0x86,    /* DTS-HD with XLL                                                                                */
+    STREAM_AUDIO_DDPLUS     = 0x87,    /* DD+                                                                                            */
     STREAM_AUDIO_DDPLUS_SUB = 0xA1,    /* DD+ for secondary audio                                                                        */
     STREAM_AUDIO_DTS_HD_SUB = 0xA2,    /* DTS-HD LBR for secondary audio                                                                 */
     STREAM_VIDEO_VC1        = 0xFD,    /* VC-1 */
@@ -100,5 +103,29 @@ typedef enum {
     MPEG_VIDEO_P_FRAME       = 0x02,
     MPEG_VIDEO_B_FRAME       = 0x03
 } mpeg_video_frame_type;
+
+typedef enum {
+    MPEG_AUDIO_SPEAKER_FRONT_CENTER  = 0x0001,
+    MPEG_AUDIO_SPEAKER_FRONT_LEFT    = 0x0002,
+    MPEG_AUDIO_SPEAKER_FRONT_RIGHT   = 0x0004,
+    MPEG_AUDIO_SPEAKER_REAR_SRROUND  = 0x0008,
+    MPEG_AUDIO_SPEAKER_REAR_LEFT     = 0x0010,
+    MPEG_AUDIO_SPEAKER_REAR_RIGHT    = 0x0020,
+    MPEG_AUDIO_SPEAKER_OUTSIDE_LEFT  = 0x0040,
+    MPEG_AUDIO_SPEAKER_OUTSIDE_RIGHT = 0x0080,
+    MPEG_AUDIO_SPEAKER_REAR_CENTER   = 0x0100,
+    MPEG_AUDIO_SPEAKER_REAR_LEFT2    = 0x0200,
+    MPEG_AUDIO_SPEAKER_REAR_RIGHT2   = 0x0400,
+    MPEG_AUDIO_SPEAKER_LFE_CHANNEL   = 0x1000,
+    MPEG_AUDIO_SPEAKER_DUAL_MONO     = 0x2000,
+    MPEG_AUDIO_SPEAKER_JOINT_STEREO  = 0x4000,
+    MPEG_AUDIO_SPEAKER_OVERHEAD      = 0x8000,
+    MPEG_AUDIO_SPEAKER_F_2CHANNELS   = MPEG_AUDIO_SPEAKER_FRONT_LEFT   | MPEG_AUDIO_SPEAKER_FRONT_RIGHT  ,
+    MPEG_AUDIO_SPEAKER_R_2CHANNELS   = MPEG_AUDIO_SPEAKER_REAR_LEFT    | MPEG_AUDIO_SPEAKER_REAR_RIGHT   ,
+    MPEG_AUDIO_SPEAKER_R2_2CHANNELS  = MPEG_AUDIO_SPEAKER_REAR_LEFT2   | MPEG_AUDIO_SPEAKER_REAR_RIGHT2  ,
+    MPEG_AUDIO_SPEAKER_O_2CHANNELS   = MPEG_AUDIO_SPEAKER_OUTSIDE_LEFT | MPEG_AUDIO_SPEAKER_OUTSIDE_RIGHT,
+    MPEG_AUDIO_SPEAKER_F_3CHANNELS   = MPEG_AUDIO_SPEAKER_FRONT_CENTER | MPEG_AUDIO_SPEAKER_F_2CHANNELS  ,
+    MPEG_AUDIO_SPEAKER_R_3CHANNELS   = MPEG_AUDIO_SPEAKER_REAR_SRROUND | MPEG_AUDIO_SPEAKER_R_2CHANNELS
+} mpeg_audio_speaker_mapping_type;
 
 #endif /* __MPEG_COMMON_H__ */

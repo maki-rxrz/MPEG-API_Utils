@@ -73,9 +73,10 @@ typedef struct {
     int64_t                 pts;
     int64_t                 dts;
     uint32_t                sampling_frequency;
-    uint16_t                bitrate;
+    uint32_t                bitrate;
     uint8_t                 channel;
     uint8_t                 layer;
+    uint8_t                 bit_depth;
 } audio_sample_info_t;
 
 typedef struct {

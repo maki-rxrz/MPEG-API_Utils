@@ -300,8 +300,21 @@ typedef struct {
 #define STREAM_MPA_HEADER_CHECK_SIZE                    (4)
 #define STREAM_AAC_HEADER_CHECK_SIZE                    (7)
 #define STREAM_LPCM_HEADER_CHECK_SIZE                   (4)
+#define STREAM_AC3_HEADER_CHECK_SIZE                    (8)
+#define STREAM_EAC3_HEADER_CHECK_SIZE                   (12)
+#define STREAM_DTS_HEADER_CHECK_SIZE                    (15)
 
-#define STREAM_HEADER_CHECK_MAX_SIZE                    STREAM_AAC_HEADER_CHECK_SIZE
+#define STREAM_HEADER_CHECK_MAX_SIZE                    STREAM_DTS_HEADER_CHECK_SIZE
+
+typedef struct {
+    uint32_t            frame_length;
+    /* audio. */
+    uint32_t            sampling_frequency;
+    uint32_t            bitrate;
+    uint8_t             channel;
+    uint8_t             layer;
+    uint8_t             bit_depth;
+} mpeg_stream_raw_info_t;
 
 #ifdef __cplusplus
 extern "C" {
@@ -321,9 +334,9 @@ extern void mpeg_stream_debug_descriptor_info( mpeg_descriptor_info_t *descripto
 
 extern mpeg_stream_group_type mpeg_stream_judge_type( mpeg_stream_type stream_type, uint8_t *descriptor_tags, uint16_t descriptor_num );
 
-extern int32_t mpeg_stream_check_header( mpeg_stream_type stream_type, mpeg_stream_group_type stream_judge, int search_point, uint8_t *buffer, uint32_t buffer_size );
+extern int32_t mpeg_stream_check_header( mpeg_stream_type stream_type, mpeg_stream_group_type stream_judge, int search_point, uint8_t *buffer, uint32_t buffer_size, mpeg_stream_raw_info_t *stream_raw_info, int32_t *data_offset );
 
-extern uint32_t mpeg_stream_get_header_check_size( mpeg_stream_group_type stream_judge );
+extern uint32_t mpeg_stream_get_header_check_size( mpeg_stream_type stream_type, mpeg_stream_group_type stream_judge );
 
 #ifdef __cplusplus
 }

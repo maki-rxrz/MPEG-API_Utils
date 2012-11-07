@@ -65,9 +65,10 @@ typedef struct {
     uint8_t                 top_field_first;
     /* audio. */
     uint32_t                sampling_frequency;
-    uint16_t                bitrate;
+    uint32_t                bitrate;
     uint8_t                 channel;
     uint8_t                 layer;
+    uint8_t                 bit_depth;
 } sample_list_data_t;
 
 typedef struct {
@@ -197,6 +198,7 @@ extern int mpeg_api_create_sample_list( void *ih )
             video_list[i].bitrate              = 0;
             video_list[i].channel              = 0;
             video_list[i].layer                = 0;
+            video_list[i].bit_depth            = 0;
         }
         if( i > 0 )
         {
@@ -259,6 +261,7 @@ extern int mpeg_api_create_sample_list( void *ih )
             audio_list[i].bitrate              = audio_sample_info.bitrate;
             audio_list[i].channel              = audio_sample_info.channel;
             audio_list[i].layer                = audio_sample_info.layer;
+            audio_list[i].bit_depth            = audio_sample_info.bit_depth;
         }
         if( i > 0 )
         {
@@ -438,6 +441,7 @@ extern int mpeg_api_get_sample_info( void *ih, mpeg_sample_type sample_type, uin
         stream_info->bitrate            = list[sample_number].bitrate;
         stream_info->channel            = list[sample_number].channel;
         stream_info->layer              = list[sample_number].layer;
+        stream_info->bit_depth          = list[sample_number].bit_depth;
     }
     else
         return -1;
@@ -552,6 +556,7 @@ extern int mpeg_api_get_audio_frame( void *ih, uint8_t stream_number, stream_inf
     stream_info->bitrate            = audio_sample_info.bitrate;
     stream_info->channel            = audio_sample_info.channel;
     stream_info->layer              = audio_sample_info.layer;
+    stream_info->bit_depth          = audio_sample_info.bit_depth;
     return 0;
 }
 
@@ -612,6 +617,7 @@ extern int mpeg_api_get_stream_info( void *ih, stream_info_t *stream_info, int64
     stream_info->bitrate            = audio_sample_info.bitrate;
     stream_info->channel            = audio_sample_info.channel;
     stream_info->layer              = audio_sample_info.layer;
+    stream_info->bit_depth          = audio_sample_info.bit_depth;
     return (check_stream_exist == BOTH_VA_NONE);
 }
 
