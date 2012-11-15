@@ -230,7 +230,7 @@ end_get_video_picture_info:
     return result;
 }
 
-int64_t mpeges_seek_next_start_position( mpeges_info_t *info )
+static int64_t mpeges_seek_next_start_position( mpeges_info_t *info )
 {
     uint8_t mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE];
     if( fread( mpeg_video_head_data, 1, MPEG_VIDEO_START_CODE_SIZE - 1, info->input ) != MPEG_VIDEO_START_CODE_SIZE - 1 )
