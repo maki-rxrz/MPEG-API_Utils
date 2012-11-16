@@ -31,6 +31,44 @@
 #ifndef __COMMON_H__
 #define __COMMON_H__
 
+#if   defined(USE_MAPI_LIB)
+  #undef  MAPI_DLL_EXPORT
+  #undef  MAPI_DLL_IMPORT
+  #undef  MAPI_INTERNAL_CODE_ENABLED
+  #undef  MAPI_UTILS_CODE_ENABLED
+#elif defined(USE_MAPI_DLL)
+  #undef  MAPI_DLL_EXPORT
+  #define MAPI_DLL_IMPORT
+  #undef  MAPI_INTERNAL_CODE_ENABLED
+  #undef  MAPI_UTILS_CODE_ENABLED
+#endif
+
+/* export */
+#ifdef _WIN32
+  #ifdef MAPI_DLL_EXPORT
+    #ifdef __GNUC__
+      #define MAPI_EXPORT __attribute__((dllexport))
+    #else
+      #define MAPI_EXPORT __declspec(dllexport)
+    #endif
+  #elif defined(MAPI_DLL_IMPORT)
+    #ifdef __GNUC__
+      #define MAPI_EXPORT __attribute__((dllimport))
+    #else
+      #define MAPI_EXPORT __declspec(dllimport)
+    #endif
+  #else
+    #define MAPI_EXPORT
+  #endif
+#else
+  #if __GCC__ >= 4
+    #define MAPI_EXPORT __attribute__((visibility("default")))
+  #else
+    #define MAPI_EXPORT
+  #endif
+#endif
+
+/* log */
 typedef enum {
     LOG_LV0,
     LOG_LV1,
@@ -40,8 +78,14 @@ typedef enum {
     LOG_LV_ALL
 } log_level;
 
+#ifdef MAPI_INTERNAL_CODE_ENABLED
+#define dprintf mpeg_api_debug_log
 extern void dprintf( log_level level, const char *format, ... );
+#elif MAPI_UTILS_CODE_ENABLED
+extern void dprintf( log_level level, const char *format, ... );
+#endif
 
+/* file */
 #define _LARGEFILE_SOURCE
 #define _FILE_OFFSET_BITS 64
 
@@ -59,6 +103,7 @@ extern void dprintf( log_level level, const char *format, ... );
 
 #endif
 
+/* etc */
 #if defined(_WIN32)
 
 #define strdup    _strdup

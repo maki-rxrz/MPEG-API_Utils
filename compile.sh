@@ -16,6 +16,7 @@ cat > config.h << EOF
 EOF
 fi
 
+make lib
 make
 #make CROSS=x86_64-w64-mingw32-
 #make CFLAGS="-Wall -std=gnu99 -m64" LDFLAGS="-m64"

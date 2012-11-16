@@ -103,7 +103,7 @@ typedef struct {
 
 #define TIMESTAMP_WRAP_AROUND_CHECK_VALUE       (0x0FFFFFFFFLL)
 
-extern int mpeg_api_create_sample_list( void *ih )
+MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
@@ -307,7 +307,7 @@ fail_create_list:
     return -1;
 }
 
-extern uint8_t mpeg_api_get_stream_num( void *ih, mpeg_sample_type sample_type )
+MAPI_EXPORT uint8_t mpeg_api_get_stream_num( void *ih, mpeg_sample_type sample_type )
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
@@ -315,7 +315,7 @@ extern uint8_t mpeg_api_get_stream_num( void *ih, mpeg_sample_type sample_type )
     return info->parser->get_stream_num( info->parser_info, sample_type );
 }
 
-extern const char *mpeg_api_get_sample_file_extension( void *ih, mpeg_sample_type sample_type, uint8_t stream_number )
+MAPI_EXPORT const char *mpeg_api_get_sample_file_extension( void *ih, mpeg_sample_type sample_type, uint8_t stream_number )
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
@@ -378,7 +378,7 @@ extern const char *mpeg_api_get_sample_file_extension( void *ih, mpeg_sample_typ
     return raw_ext[sample_type][index];
 }
 
-extern mpeg_stream_type mpeg_api_get_sample_stream_type( void *ih, mpeg_sample_type sample_type, uint8_t stream_number )
+MAPI_EXPORT mpeg_stream_type mpeg_api_get_sample_stream_type( void *ih, mpeg_sample_type sample_type, uint8_t stream_number )
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
@@ -386,7 +386,7 @@ extern mpeg_stream_type mpeg_api_get_sample_stream_type( void *ih, mpeg_sample_t
     return info->parser->get_sample_stream_type( info->parser_info, sample_type, stream_number );
 }
 
-extern uint32_t mpeg_api_get_sample_num( void *ih, mpeg_sample_type sample_type, uint8_t stream_number )
+MAPI_EXPORT uint32_t mpeg_api_get_sample_num( void *ih, mpeg_sample_type sample_type, uint8_t stream_number )
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
@@ -399,7 +399,7 @@ extern uint32_t mpeg_api_get_sample_num( void *ih, mpeg_sample_type sample_type,
     return sample_num;
 }
 
-extern int mpeg_api_get_sample_info( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, uint32_t sample_number, stream_info_t *stream_info )
+MAPI_EXPORT int mpeg_api_get_sample_info( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, uint32_t sample_number, stream_info_t *stream_info )
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info || !stream_info )
@@ -448,7 +448,7 @@ extern int mpeg_api_get_sample_info( void *ih, mpeg_sample_type sample_type, uin
     return 0;
 }
 
-extern int mpeg_api_get_sample_data( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, uint32_t sample_number, uint8_t **dst_buffer, uint32_t *dst_read_size, get_sample_data_mode get_mode )
+MAPI_EXPORT int mpeg_api_get_sample_data( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, uint32_t sample_number, uint8_t **dst_buffer, uint32_t *dst_read_size, get_sample_data_mode get_mode )
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info || !dst_buffer || !dst_read_size )
@@ -487,7 +487,7 @@ extern int mpeg_api_get_sample_data( void *ih, mpeg_sample_type sample_type, uin
     return parser->get_sample_data( parser_info, sample_type, stream_number, file_position, sample_size, read_offset, dst_buffer, dst_read_size, get_mode );
 }
 
-extern int mpeg_api_free_sample_buffer( void *ih, uint8_t **buffer )
+MAPI_EXPORT int mpeg_api_free_sample_buffer( void *ih, uint8_t **buffer )
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info || !buffer )
@@ -496,7 +496,7 @@ extern int mpeg_api_free_sample_buffer( void *ih, uint8_t **buffer )
     return 0;
 }
 
-extern int64_t mpeg_api_get_pcr( void *ih )
+MAPI_EXPORT int64_t mpeg_api_get_pcr( void *ih )
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
@@ -504,7 +504,7 @@ extern int64_t mpeg_api_get_pcr( void *ih )
     return info->parser->get_pcr( info->parser_info );
 }
 
-extern int mpeg_api_get_video_frame( void *ih, uint8_t stream_number, stream_info_t *stream_info )
+MAPI_EXPORT int mpeg_api_get_video_frame( void *ih, uint8_t stream_number, stream_info_t *stream_info )
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
@@ -534,7 +534,7 @@ extern int mpeg_api_get_video_frame( void *ih, uint8_t stream_number, stream_inf
     return 0;
 }
 
-extern int mpeg_api_get_audio_frame( void *ih, uint8_t stream_number, stream_info_t *stream_info )
+MAPI_EXPORT int mpeg_api_get_audio_frame( void *ih, uint8_t stream_number, stream_info_t *stream_info )
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
@@ -560,7 +560,7 @@ extern int mpeg_api_get_audio_frame( void *ih, uint8_t stream_number, stream_inf
     return 0;
 }
 
-extern int mpeg_api_parse( void *ih )
+MAPI_EXPORT int mpeg_api_parse( void *ih )
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
@@ -568,7 +568,7 @@ extern int mpeg_api_parse( void *ih )
     return info->parser->parse( info->parser_info );
 }
 
-extern int mpeg_api_get_stream_info( void *ih, stream_info_t *stream_info, int64_t *video_1st_pts, int64_t*video_key_pts )
+MAPI_EXPORT int mpeg_api_get_stream_info( void *ih, stream_info_t *stream_info, int64_t *video_1st_pts, int64_t*video_key_pts )
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
@@ -621,7 +621,7 @@ extern int mpeg_api_get_stream_info( void *ih, stream_info_t *stream_info, int64
     return (check_stream_exist == BOTH_VA_NONE);
 }
 
-extern int mpeg_api_set_pmt_program_id( void *ih, uint16_t pmt_program_id )
+MAPI_EXPORT int mpeg_api_set_pmt_program_id( void *ih, uint16_t pmt_program_id )
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
@@ -630,7 +630,7 @@ extern int mpeg_api_set_pmt_program_id( void *ih, uint16_t pmt_program_id )
     return 0;
 }
 
-extern void *mpeg_api_initialize_info( const char *mpeg )
+MAPI_EXPORT void *mpeg_api_initialize_info( const char *mpeg )
 {
     mpeg_api_info_t *info = malloc( sizeof(mpeg_api_info_t) );
     if( !info )
@@ -664,7 +664,7 @@ fail_initialize:
     return NULL;
 }
 
-extern void mpeg_api_release_info( void *ih )
+MAPI_EXPORT void mpeg_api_release_info( void *ih )
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info )

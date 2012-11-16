@@ -417,6 +417,7 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
                 debug_level = LOG_LV_ALL;
             else if( debug_level < LOG_LV0 )
                 debug_level = LOG_LV0;
+            mpeg_api_setup_log_lv( debug_level, stderr );
         }
         ++i;
     }
@@ -1329,6 +1330,7 @@ int main( int argc, char *argv[] )
         print_help();
         return -1;
     }
+    mpeg_api_setup_log_lv( debug_level, stderr );
     int i = 1;
     while( i < argc )
     {
