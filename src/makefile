@@ -47,9 +47,9 @@ $(STATIC_LIB): initialize $(SLIB_OBJS)
 	cp -p $(STATIC_LIB) $(BIN_DIR)
 
 $(DYNAMIC_LIB): initialize $(DLIB_OBJS)
-	$(LD) $(LDFLAGS) $(DLIB_OBJS) -shared -Wl,--out-implib,$(LIB_NAME).dll.a -o $(LIB_NAME).dll
-	cp -p $(DYNAMIC_LIB) $(BIN_DIR)
-	$(STRIP) $(BIN_DIR)/$(LIB_NAME).dll
+	$(LD) $(LDFLAGS) $(DLIB_OBJS) -shared -Wl,--out-implib,$(DYNAMIC_LIB).a -o $(DYNAMIC_LIB)
+	cp -p $(DYNAMIC_LIB)* $(BIN_DIR)
+	$(STRIP) $(BIN_DIR)/$(DYNAMIC_LIB)
 
 $(SLIB_DIR)/%.o: %.c .depend
 	$(CC) -c $(CFLAGS) -DMAPI_INTERNAL_CODE_ENABLED $< -o $@
@@ -57,12 +57,12 @@ $(SLIB_DIR)/%.o: %.c .depend
 $(DLIB_DIR)/%.o: %.c .depend
 	$(CC) -c $(CFLAGS) -DMAPI_INTERNAL_CODE_ENABLED -DMAPI_DLL_EXPORT $< -o $@
 
-$(TARGET1): $(STATIC_LIB) $(OBJS1)
-	$(LD) $(LDFLAGS) -o $@ $^ $(STATIC_LIB)
+$(TARGET1): $(OBJS1) $(STATIC_LIB)
+	$(LD) $(LDFLAGS) -o $@ $^
 	$(STRIP) $@
 
-$(TARGET2): $(STATIC_LIB) $(OBJS2)
-	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) $(STATIC_LIB)
+$(TARGET2): $(OBJS2) $(STATIC_LIB)
+	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 	$(STRIP) $@
 
 %.o: %.c .depend
