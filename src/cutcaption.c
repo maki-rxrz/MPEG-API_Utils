@@ -180,9 +180,9 @@ static const struct {
     };
 
 static const struct {
-    char                    type[8];
+    char                   *type;
     mpeg_reader_type        reader;
-    mpeg_reader_delay_type   delay_type;
+    mpeg_reader_delay_type  delay_type;
 } reader_array[READER_TYPE_MAX] =
     {
         {  "m2vvfp"  , MPEG_READER_M2VVFAPI, MPEG_READER_DEALY_VIDEO_GOP_KEYFRAME },
@@ -780,7 +780,7 @@ static cut_list_data_t *malloc_list_data( param_t *p, FILE *list, const char *se
     return list_data;
 }
 
-static int loat_cut_list( param_t *p )
+static int load_cut_list( param_t *p )
 {
     if( !p )
         return -1;
@@ -1290,7 +1290,7 @@ static void output_caption( param_t *p )
         return;
     }
     /* ready. */
-    if( loat_cut_list( p ) )
+    if( load_cut_list( p ) )
     {
         dprintf( LOG_LV0, "[log] error, list file.\n" );
         return;
