@@ -110,7 +110,11 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
         return -1;
     mpeg_parser_t *parser = info->parser;
     void *parser_info = info->parser_info;
-    memset( &(info->sample_list), 0, sizeof(sample_list_t) );
+    //memset( &(info->sample_list), 0, sizeof(sample_list_t) );
+    /* create lists. */
+    gop_list_data_t    *gop_list   = NULL;
+    sample_list_data_t *video_list = NULL;
+    sample_list_data_t *audio_list = NULL;
     /* check stream num. */
     int8_t video_stream_num = parser->get_stream_num( parser_info, SAMPLE_TYPE_VIDEO );
     int8_t audio_stream_num = parser->get_stream_num( parser_info, SAMPLE_TYPE_AUDIO );
@@ -123,10 +127,6 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
     if( (video_stream_num && !video_stream)
      || (audio_stream_num && !audio_stream) )
         goto fail_create_list;
-    /* create lists. */
-    gop_list_data_t    *gop_list   = NULL;
-    sample_list_data_t *video_list = NULL;
-    sample_list_data_t *audio_list = NULL;
     /* video stream. */
     for( uint8_t stream_no = 0; stream_no < video_stream_num; ++stream_no )
     {

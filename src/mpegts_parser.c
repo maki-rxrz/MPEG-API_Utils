@@ -423,7 +423,7 @@ static int mpegts_search_pat_packet( mpegts_file_context_t *file, mpegts_pat_sec
 static int mpegts_parse_pat( mpegts_info_t *info )
 {
     dprintf( LOG_LV2, "[check] mpegts_parse_pat()\n" );
-    int64_t read_pos;
+    int64_t read_pos = -1;
     /* search. */
     mpegts_pat_section_info_t pat_si;
     int section_length;
@@ -524,7 +524,7 @@ static int mpegts_search_pmt_packet( mpegts_info_t *info, mpegts_pmt_section_inf
 static int mpegts_parse_pmt( mpegts_info_t *info )
 {
     dprintf( LOG_LV2, "[check] mpegts_parse_pmt()\n" );
-    int64_t read_pos;
+    int64_t read_pos = -1;
     /* search. */
     mpegts_pmt_section_info_t pmt_si;
     int section_length;
@@ -624,7 +624,7 @@ static int mpegts_get_pcr( mpegts_info_t *info )
     uint16_t program_id = info->pcr_program_id;
     if( program_id & MPEGTS_ILLEGAL_PROGRAM_ID_MASK )
         return -1;
-    int64_t read_pos;
+    int64_t read_pos = -1;
     /* search. */
     mpegts_packet_header_t h;
     do
