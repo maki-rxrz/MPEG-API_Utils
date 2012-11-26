@@ -448,7 +448,7 @@ static int mpegts_parse_pat( mpegts_info_t *info )
     if( !retry_count )
         return -1;
     /* listup. */
-    info->pid_list_in_pat = malloc( sizeof(uint16_t) * ((section_length - TS_PACKET_SECTION_CRC32_SIZE) / TS_PACKET_PAT_SECTION_DATA_SIZE) );
+    info->pid_list_in_pat = (uint16_t *)malloc( sizeof(uint16_t) * ((section_length - TS_PACKET_SECTION_CRC32_SIZE) / TS_PACKET_PAT_SECTION_DATA_SIZE) );
     if( !info->pid_list_in_pat )
         return -1;
     int32_t pid_list_num = 0, read_count = 0;
@@ -563,7 +563,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
     if( !retry_count )
         return -1;
     /* listup. */
-    info->pid_list_in_pmt = malloc( sizeof(mpegts_pid_in_pmt_t) * info->pid_list_num_in_pmt );
+    info->pid_list_in_pmt = (mpegts_pid_in_pmt_t *)malloc( sizeof(mpegts_pid_in_pmt_t) * info->pid_list_num_in_pmt );
     if( !info->pid_list_in_pmt )
         return -1;
     int32_t pid_list_num = 0, read_count = 0;
@@ -1179,7 +1179,7 @@ static void mpegts_get_sample_raw_data( mpegts_file_context_t *file, uint16_t pr
     if( !raw_data_size )
         return;
     /* allocate buffer. */
-    *buffer = malloc( raw_data_size );
+    *buffer = (uint8_t *)malloc( raw_data_size );
     if( !(*buffer) )
         return;
     dprintf( LOG_LV3, "[debug] buffer_size:%u\n", raw_data_size );
@@ -1239,7 +1239,7 @@ static void mpegts_get_sample_pes_packet_data( mpegts_file_context_t *file, uint
     dprintf( LOG_LV2, "[check] mpegts_get_sample_pes_packet_data()\n" );
     /* allocate buffer. */
     uint32_t sample_size = ts_packet_count * TS_PACKET_SIZE;
-    *buffer = malloc( sample_size );
+    *buffer = (uint8_t *)malloc( sample_size );
     if( !(*buffer) )
         return;
     dprintf( LOG_LV3, "[debug] buffer_size:%u\n", sample_size );
@@ -1267,7 +1267,7 @@ static void mpegts_get_sample_ts_packet_data( mpegts_file_context_t *file, uint1
     dprintf( LOG_LV2, "[check] mpegts_get_sample_ts_packet_data()\n" );
     /* allocate buffer. */
     uint32_t sample_size = ts_packet_count * TS_PACKET_SIZE;
-    *buffer = malloc( sample_size );
+    *buffer = (uint8_t *)malloc( sample_size );
     if( !(*buffer) )
         return;
     dprintf( LOG_LV3, "[debug] buffer_size:%u\n", sample_size );
@@ -1732,7 +1732,7 @@ static int set_pmt_program_id( mpegts_info_t *info, uint16_t program_id )
     dprintf( LOG_LV2, "[check] set_pmt_program_id()\n" );
     if( info->pid_list_in_pat )
         free( info->pid_list_in_pat );
-    info->pid_list_in_pat = malloc( sizeof(uint16_t) );
+    info->pid_list_in_pat = (uint16_t *)malloc( sizeof(uint16_t) );
     if( !info->pid_list_in_pat )
         return -1;
     info->pid_list_num_in_pat = 1;
@@ -1848,7 +1848,7 @@ end_parse:
 static void *initialize( const char *input_file )
 {
     dprintf( LOG_LV2, "[mpegts_parser] initialize()\n" );
-    mpegts_info_t *info = calloc( sizeof(mpegts_info_t), 1 );
+    mpegts_info_t *info = (mpegts_info_t *)calloc( sizeof(mpegts_info_t), 1 );
     char *mpegts = strdup( input_file );
     FILE *input = fopen( input_file, "rb" );
     if( !info || !mpegts || !input )

@@ -536,7 +536,7 @@ static void parse_mpeg( param_t *p )
             if( p->demux_mode == OUTPUT_DEMUX_MULTITHREAD_READ && total_stream_num > 1 )
             {
                 dprintf( LOG_LV0, "[log] Demux - Multi thread\n" );
-                demux_param_t *param = malloc( sizeof(demux_param_t) * total_stream_num );
+                demux_param_t *param = (demux_param_t *)malloc( sizeof(demux_param_t) * total_stream_num );
                 if( param )
                 {
                     void *demux_thread[total_stream_num];

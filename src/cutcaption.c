@@ -426,7 +426,7 @@ static int correct_parameter( param_t *p )
     {
         /* correct by "input" + "_new". */
         size_t len = strlen( p->input );
-        p->output = malloc( len + 5 );
+        p->output = (char *)malloc( len + 5 );
         if( !p->output )
         {
             dprintf( LOG_LV0, "[log] malloc error.\n" );
@@ -439,7 +439,7 @@ static int correct_parameter( param_t *p )
     {
         /* correct by adding "_new". */
         size_t len = strlen( p->input );
-        char *tmp = realloc( p->output, len + 5 );
+        char *tmp = (char *)realloc( p->output, len + 5 );
         if( !tmp )
         {
             dprintf( LOG_LV0, "[log] realloc error.\n" );
@@ -477,7 +477,7 @@ static int load_cut_list( param_t *p )
     if( !list )
     {
         /* check user specified delay time. */
-        if( p->delay_time && (p->list_data = malloc( sizeof(cut_list_data_t) )) )
+        if( p->delay_time && (p->list_data = (cut_list_data_t *)malloc( sizeof(cut_list_data_t) )) )
         {
             p->reader = MPEG_READER_NONE;
             PUSH_LIST_DATA( p, 0, INT32_MAX - 1 );
@@ -874,7 +874,7 @@ static void correct_d2v_input( param_t *p )
     {
         size_t path_size = str - (unsigned char *)(p->input);
         size_t len = path_size + strlen( filename ) + 1;
-        input = malloc( len + 10 );
+        input = (char *)malloc( len + 10 );
         if( !input )
             goto end_correct;
         strncpy( input, p->input, path_size );

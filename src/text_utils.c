@@ -65,7 +65,7 @@ static const struct {
 
 static int load_avs_txt( common_param_t *p, FILE *list, const char *search_word )
 {
-    char *line = malloc( p->line_max );
+    char *line = (char *)malloc( p->line_max );
     if( !line )
         return -1;
     int alloc_count = 1;
@@ -103,7 +103,7 @@ static int load_avs_txt( common_param_t *p, FILE *list, const char *search_word 
             if( line_size < string_len )
             {
                 ++alloc_count;
-                char *tmp = realloc( line, p->line_max * alloc_count );
+                char *tmp = (char *)realloc( line, p->line_max * alloc_count );
                 if( !tmp )
                     goto fail_load;
                 line = tmp;
@@ -310,7 +310,7 @@ static cut_list_data_t *malloc_list_data( common_param_t *p, FILE *list, const c
         return NULL;
     /* malloc and initialize. */
     size_t size = sizeof(cut_list_data_t) * search_word_count;
-    cut_list_data_t *list_data = malloc( size );
+    cut_list_data_t *list_data = (cut_list_data_t *)malloc( size );
     if( list_data )
         memset( list_data, 0, size );
     return list_data;

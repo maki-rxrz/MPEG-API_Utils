@@ -121,9 +121,9 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
     video_stream_data_t *video_stream = NULL;
     audio_stream_data_t *audio_stream = NULL;
     if( video_stream_num )
-        video_stream = calloc( sizeof(video_stream_data_t), video_stream_num );
+        video_stream = (video_stream_data_t *)calloc( sizeof(video_stream_data_t), video_stream_num );
     if( audio_stream_num )
-        audio_stream = calloc( sizeof(audio_stream_data_t), audio_stream_num );
+        audio_stream = (audio_stream_data_t *)calloc( sizeof(audio_stream_data_t), audio_stream_num );
     if( (video_stream_num && !video_stream)
      || (audio_stream_num && !audio_stream) )
         goto fail_create_list;
@@ -132,8 +132,8 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
     {
         int64_t gop_list_size   = DEFAULT_GOP_SAMPLE_NUM;
         int64_t video_list_size = DEFAULT_VIDEO_SAMPLE_NUM;
-        gop_list   = malloc( sizeof(gop_list_data_t)    * gop_list_size   );
-        video_list = malloc( sizeof(sample_list_data_t) * video_list_size );
+        gop_list   = (gop_list_data_t    *)malloc( sizeof(gop_list_data_t)    * gop_list_size   );
+        video_list = (sample_list_data_t *)malloc( sizeof(sample_list_data_t) * video_list_size );
         if( !gop_list || !video_list )
             goto fail_create_list;
         /* create video lists. */
@@ -146,7 +146,7 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
             if( i >= video_list_size )
             {
                 video_list_size += DEFAULT_VIDEO_SAMPLE_NUM;
-                sample_list_data_t *tmp = realloc( video_list, sizeof(sample_list_data_t) * video_list_size );
+                sample_list_data_t *tmp = (sample_list_data_t *)realloc( video_list, sizeof(sample_list_data_t) * video_list_size );
                 if( !tmp )
                     goto fail_create_list;
                 video_list = tmp;
@@ -168,7 +168,7 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
                 if( gop_number >= gop_list_size )
                 {
                     gop_list_size += DEFAULT_GOP_SAMPLE_NUM;
-                    gop_list_data_t *tmp = realloc( gop_list, sizeof(gop_list_data_t) * gop_list_size );
+                    gop_list_data_t *tmp = (gop_list_data_t *)realloc( gop_list, sizeof(gop_list_data_t) * gop_list_size );
                     if( !tmp )
                         goto fail_create_list;
                     gop_list = tmp;
@@ -219,7 +219,7 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
     for( uint8_t stream_no = 0; stream_no < audio_stream_num; ++stream_no )
     {
         int64_t audio_list_size = DEFAULT_AUDIO_SAMPLE_NUM;
-        audio_list = malloc( sizeof(sample_list_data_t) * audio_list_size );
+        audio_list = (sample_list_data_t *)malloc( sizeof(sample_list_data_t) * audio_list_size );
         if( !audio_list )
             goto fail_create_list;
         /* create audio sample list. */
@@ -231,7 +231,7 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
             if( i >= audio_list_size )
             {
                 audio_list_size += DEFAULT_AUDIO_SAMPLE_NUM;
-                sample_list_data_t *tmp = realloc( audio_list, sizeof(sample_list_data_t) * audio_list_size );
+                sample_list_data_t *tmp = (sample_list_data_t *)realloc( audio_list, sizeof(sample_list_data_t) * audio_list_size );
                 if( !tmp )
                     goto fail_create_list;
                 audio_list = tmp;
@@ -632,7 +632,7 @@ MAPI_EXPORT int mpeg_api_set_pmt_program_id( void *ih, uint16_t pmt_program_id )
 
 MAPI_EXPORT void *mpeg_api_initialize_info( const char *mpeg )
 {
-    mpeg_api_info_t *info = malloc( sizeof(mpeg_api_info_t) );
+    mpeg_api_info_t *info = (mpeg_api_info_t *)malloc( sizeof(mpeg_api_info_t) );
     if( !info )
         return NULL;
     mpeg_parser_t *parser;

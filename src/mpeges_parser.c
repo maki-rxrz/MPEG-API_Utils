@@ -287,7 +287,7 @@ static int get_sample_data( void *ih, mpeg_sample_type sample_type, uint8_t stre
     /* seek reading start position. */
     fseeko( info->input, position, SEEK_SET );
     /* allocate buffer. */
-    uint8_t *buffer = malloc( sample_size );
+    uint8_t *buffer = (uint8_t *)malloc( sample_size );
     if( !buffer )
         return -1;
     dprintf( LOG_LV3, "[debug] buffer_size:%d\n", sample_size );

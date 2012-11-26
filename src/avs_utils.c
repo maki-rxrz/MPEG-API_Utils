@@ -167,10 +167,10 @@ static char **make_elements_list( char *str, int elements_num, int max_size )
 {
     if( !str )
         return NULL;
-    char **elements_list = malloc( sizeof(char *) * elements_num );
+    char **elements_list = (char **)malloc( sizeof(char *) * elements_num );
     if( !elements_list )
         return NULL;
-    char *tmp = malloc( sizeof(char) * (max_size + 1) * elements_num );
+    char *tmp = (char *)malloc( sizeof(char) * (max_size + 1) * elements_num );
     if( !tmp )
     {
         free( elements_list );

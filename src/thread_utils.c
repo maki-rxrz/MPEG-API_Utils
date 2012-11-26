@@ -44,7 +44,7 @@ typedef struct {
 
 extern void *thread_create( thread_func func, void *func_arg )
 {
-    thread_control_t *thread_ctrl = malloc( sizeof(thread_control_t) );
+    thread_control_t *thread_ctrl = (thread_control_t *)malloc( sizeof(thread_control_t) );
     if( !thread_ctrl )
         return NULL;
     int result = pthread_create( &(thread_ctrl->thread), NULL, func, func_arg );
