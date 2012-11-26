@@ -451,7 +451,7 @@ static int mpegts_parse_pat( mpegts_info_t *info )
     info->pid_list_in_pat = malloc( sizeof(uint16_t) * ((section_length - TS_PACKET_SECTION_CRC32_SIZE) / TS_PACKET_PAT_SECTION_DATA_SIZE) );
     if( !info->pid_list_in_pat )
         return -1;
-    int pid_list_num = 0, read_count = 0;
+    int32_t pid_list_num = 0, read_count = 0;
     while( read_count < section_length - TS_PACKET_SECTION_CRC32_SIZE )
     {
         uint8_t *section_data = &(section_buffer[read_count]);
@@ -546,7 +546,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
         if( mpegts_get_table_section_data( &(info->file_read), info->pmt_program_id, section_buffer, section_length ) )
             continue;
         /* check pid list num. */
-        int pid_list_num = 0, read_count = 0;
+        int32_t pid_list_num = 0, read_count = 0;
         while( read_count < section_length - TS_PACKET_SECTION_CRC32_SIZE )
         {
             uint8_t *section_data = &(section_buffer[read_count]);
@@ -566,7 +566,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
     info->pid_list_in_pmt = malloc( sizeof(mpegts_pid_in_pmt_t) * info->pid_list_num_in_pmt );
     if( !info->pid_list_in_pmt )
         return -1;
-    int pid_list_num = 0, read_count = 0;
+    int32_t pid_list_num = 0, read_count = 0;
     while( read_count < section_length - TS_PACKET_SECTION_CRC32_SIZE )
     {
         uint8_t *section_data        = &(section_buffer[read_count]);
@@ -1414,12 +1414,12 @@ static int seek_next_sample_position( void *ih, mpeg_sample_type sample_type, ui
     return 0;
 }
 
-static uint32_t get_stream_num( void *ih, mpeg_sample_type sample_type )
+static uint8_t get_stream_num( void *ih, mpeg_sample_type sample_type )
 {
     mpegts_info_t *info = (mpegts_info_t *)ih;
     if( !info )
         return 0;
-    uint32_t stream_num = 0;
+    uint8_t stream_num = 0;
     if( sample_type == SAMPLE_TYPE_VIDEO )
         stream_num = info->video_stream_num;
     else if( sample_type == SAMPLE_TYPE_AUDIO )
@@ -1583,8 +1583,8 @@ static int set_pmt_stream_info( mpegts_info_t *info )
     int64_t start_position = ftello( info->file_read.input );
     mpegts_packet_header_t h;
     /* check stream num. */
-    uint32_t video_stream_num = 0, audio_stream_num = 0;
-    for( int pid_list_index = 0; pid_list_index < info->pid_list_num_in_pmt; ++pid_list_index )
+    uint8_t video_stream_num = 0, audio_stream_num = 0;
+    for( int32_t pid_list_index = 0; pid_list_index < info->pid_list_num_in_pmt; ++pid_list_index )
     {
         mpeg_stream_group_type stream_judge = info->pid_list_in_pmt[pid_list_index].stream_judge;
         if( stream_judge & STREAM_IS_VIDEO )
@@ -1605,7 +1605,7 @@ static int set_pmt_stream_info( mpegts_info_t *info )
         goto fail_set_pmt_stream_info;
     /* check exist. */
     video_stream_num = audio_stream_num = 0;
-    for( int pid_list_index = 0; pid_list_index < info->pid_list_num_in_pmt; ++pid_list_index )
+    for( int32_t pid_list_index = 0; pid_list_index < info->pid_list_num_in_pmt; ++pid_list_index )
     {
         uint16_t program_id                 = info->pid_list_in_pmt[pid_list_index].program_id;
         mpeg_stream_type stream_type        = info->pid_list_in_pmt[pid_list_index].stream_type;
@@ -1614,7 +1614,7 @@ static int set_pmt_stream_info( mpegts_info_t *info )
         static const char* stream_name[2] = { "video", "audio" };
         int index;
         mpegts_stream_context_t *stream = NULL;
-        uint32_t *stream_num;
+        uint8_t *stream_num;
         if( stream_judge & STREAM_IS_VIDEO )
         {
             stream     = &(video_context[video_stream_num]);
@@ -1682,7 +1682,7 @@ static void release_stream_handle( mpegts_info_t *info )
 {
     if( info->video_stream )
     {
-        for( int32_t i = 0; i <  info->video_stream_num; ++i )
+        for( uint8_t i = 0; i <  info->video_stream_num; ++i )
             fclose( info->video_stream[i].file_read.input );
         free( info->video_stream );
         info->video_stream     = NULL;
@@ -1690,7 +1690,7 @@ static void release_stream_handle( mpegts_info_t *info )
     }
     if( info->audio_stream )
     {
-        for( int32_t i = 0; i <  info->audio_stream_num; ++i )
+        for( uint8_t i = 0; i <  info->audio_stream_num; ++i )
             fclose( info->audio_stream[i].file_read.input );
         free( info->audio_stream );
         info->audio_stream     = NULL;
@@ -1767,7 +1767,7 @@ static int set_stream_program_id( mpegts_info_t *info, uint16_t program_id )
     /* search program id and stream type. */
     int result = -1;
 #if 0       // FIXME
-    for( int pid_list_index = 0; pid_list_index < info->pid_list_num_in_pmt; ++pid_list_index )
+    for( int32_t pid_list_index = 0; pid_list_index < info->pid_list_num_in_pmt; ++pid_list_index )
     {
         if( info->pid_list_in_pmt[pid_list_index].program_id == program_id )
         {

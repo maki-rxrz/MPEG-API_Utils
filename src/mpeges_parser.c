@@ -330,7 +330,7 @@ static int seek_next_sample_position( void *ih, mpeg_sample_type sample_type, ui
     return 0;
 }
 
-static uint32_t get_stream_num( void *ih, mpeg_sample_type sample_type )
+static uint8_t get_stream_num( void *ih, mpeg_sample_type sample_type )
 {
     mpeges_info_t *info = (mpeges_info_t *)ih;
     if( !info )
