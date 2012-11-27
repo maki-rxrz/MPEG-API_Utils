@@ -53,6 +53,7 @@ typedef struct {
     int64_t                 timestamp_base;
     int32_t                 total_picture_num;
     int32_t                 picture_num;
+    mpeg_video_info_t      *video_info;
 } mpeges_info_t;
 
 static int mpeges_first_check( mpeges_info_t *info )
@@ -87,7 +88,6 @@ static int mpeges_parse_stream_type( mpeges_info_t *info )
     int result = -1;
     fpos_t start_position;
     fgetpos( info->input, &start_position );
-    mpeg_video_info_t video_info;
     while( 1 )
     {
         if( !fread( &(mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE - 1]), 1, 1, info->input ) )
@@ -110,11 +110,11 @@ static int mpeges_parse_stream_type( mpeges_info_t *info )
             uint8_t buf[read_size];
             if( fread( buf, 1, read_size, info->input ) != read_size )
                 goto end_parse_stream_type;
-            int64_t check_size = mpeg_video_get_header_info( buf, start_code_info.start_code, &video_info );
+            int64_t check_size = mpeg_video_get_header_info( buf, start_code_info.start_code, info->video_info );
             if( check_size < read_size )
                 fseeko( info->input, start_code_position + MPEG_VIDEO_START_CODE_SIZE + check_size, SEEK_SET );
             /* debug. */
-            mpeg_video_debug_header_info( &video_info, start_code_info.searching_status );
+            mpeg_video_debug_header_info( info->video_info, start_code_info.searching_status );
             /* check the status detection. */
             if( start_code_info.searching_status == DETECT_SHC )
             {
@@ -138,7 +138,7 @@ end_parse_stream_type:
     return result;
 }
 
-static void mpeges_get_stream_timestamp( mpeges_info_t *info, mpeg_video_info_t *video_info, int64_t *pts_set_p, int64_t *dts_set_p )
+static void mpeges_get_stream_timestamp( mpeges_info_t *info, int64_t *pts_set_p, int64_t *dts_set_p )
 {
     dprintf( LOG_LV2, "[check] mpeges_get_stream_timestamp()\n" );
     dprintf( LOG_LV3, "[debug] fps: %u / %u\n"
@@ -148,11 +148,11 @@ static void mpeges_get_stream_timestamp( mpeges_info_t *info, mpeg_video_info_t 
                       "        picture_coding_type:%u\n"
                       "        temporal_reference:%u\n"
                       , info->fps_numerator, info->fps_denominator, info->timestamp_base, info->total_picture_num, info->picture_num
-                      , video_info->picture.picture_coding_type, video_info->picture.temporal_reference );
+                      , info->video_info->picture.picture_coding_type, info->video_info->picture.temporal_reference );
     /* calculate timestamp. */
-    int64_t pts = info->timestamp_base * (info->total_picture_num + video_info->picture.temporal_reference);
-    int64_t dts = (video_info->picture.picture_coding_type != MPEG_VIDEO_B_FRAME
-                 && video_info->picture.temporal_reference != info->picture_num)
+    int64_t pts = info->timestamp_base * (info->total_picture_num + info->video_info->picture.temporal_reference);
+    int64_t dts = (info->video_info->picture.picture_coding_type != MPEG_VIDEO_B_FRAME
+                 && info->video_info->picture.temporal_reference != info->picture_num)
                  ? info->timestamp_base * (info->total_picture_num + info->picture_num - 1)
                  : pts;
     /* setup. */
@@ -160,7 +160,7 @@ static void mpeges_get_stream_timestamp( mpeges_info_t *info, mpeg_video_info_t 
     *dts_set_p = dts;
 }
 
-static int mpeges_get_mpeg_video_picture_info( mpeges_info_t *info, mpeg_video_info_t *video_info )
+static int mpeges_get_mpeg_video_picture_info( mpeges_info_t *info )
 {
     dprintf( LOG_LV2, "[check] mpeges_get_mpeg_video_picture_info()\n" );
     /* parse raw data. */
@@ -191,17 +191,17 @@ static int mpeges_get_mpeg_video_picture_info( mpeges_info_t *info, mpeg_video_i
             uint8_t buf[read_size];
             if( fread( buf, 1, read_size, info->input ) != read_size )
                 goto end_get_video_picture_info;
-            int64_t check_size = mpeg_video_get_header_info( buf, start_code_info.start_code, video_info );
+            int64_t check_size = mpeg_video_get_header_info( buf, start_code_info.start_code, info->video_info );
             if( check_size < read_size )
                 fseeko( info->input, start_code_position + MPEG_VIDEO_START_CODE_SIZE + check_size, SEEK_SET );
             /* debug. */
-            mpeg_video_debug_header_info( video_info, start_code_info.searching_status );
+            mpeg_video_debug_header_info( info->video_info, start_code_info.searching_status );
             /* check the status detection. */
             if( start_code_info.searching_status == DETECT_SHC )
                 read_position = start_code_position;
             else if( start_code_info.searching_status == DETECT_SESC )
             {
-                mpeg_video_get_frame_rate( video_info, &(info->fps_numerator), &(info->fps_denominator) );
+                mpeg_video_get_frame_rate( info->video_info, &(info->fps_numerator), &(info->fps_denominator) );
                 info->timestamp_base = 90 * 1000 * info->fps_denominator / info->fps_numerator;
             }
             else if( start_code_info.searching_status == DETECT_GSC )
@@ -350,24 +350,22 @@ static int get_video_info( void *ih, uint8_t stream_number, video_sample_info_t 
     if( !info || stream_number )
         return -1;
     /* parse data. */
-    mpeg_video_info_t video_info;
-    //memset( &video_info, 0, sizeof(mpeg_video_info_t) );
-    if( mpeges_get_mpeg_video_picture_info( info, &video_info ) )
+    if( mpeges_get_mpeg_video_picture_info( info ) )
         return -1;
     int64_t gop_number           = info->gop_number;
-    uint8_t progressive_sequence = video_info.sequence_ext.progressive_sequence;
-    uint8_t closed_gop           = video_info.gop.closed_gop;
-    uint8_t picture_coding_type  = video_info.picture.picture_coding_type;
-    int16_t temporal_reference   = video_info.picture.temporal_reference;
-    uint8_t picture_structure    = video_info.picture_coding_ext.picture_structure;
-    uint8_t progressive_frame    = video_info.picture_coding_ext.progressive_frame;
-    uint8_t repeat_first_field   = video_info.picture_coding_ext.repeat_first_field;
-    uint8_t top_field_first      = video_info.picture_coding_ext.top_field_first;
+    uint8_t progressive_sequence = info->video_info->sequence_ext.progressive_sequence;
+    uint8_t closed_gop           = info->video_info->gop.closed_gop;
+    uint8_t picture_coding_type  = info->video_info->picture.picture_coding_type;
+    int16_t temporal_reference   = info->video_info->picture.temporal_reference;
+    uint8_t picture_structure    = info->video_info->picture_coding_ext.picture_structure;
+    uint8_t progressive_frame    = info->video_info->picture_coding_ext.progressive_frame;
+    uint8_t repeat_first_field   = info->video_info->picture_coding_ext.repeat_first_field;
+    uint8_t top_field_first      = info->video_info->picture_coding_ext.top_field_first;
     /* search next start position. */
     int64_t read_last_position = mpeges_seek_next_start_position( info );
     /* get timestamp. */
     int64_t pts = MPEG_TIMESTAMP_INVALID_VALUE, dts = MPEG_TIMESTAMP_INVALID_VALUE;
-    mpeges_get_stream_timestamp( info, &video_info, &pts, &dts );
+    mpeges_get_stream_timestamp( info, &pts, &dts );
     /* setup. */
     video_sample_info->file_position        = info->read_position;
     video_sample_info->sample_size          = read_last_position - info->read_position;
@@ -421,11 +419,10 @@ static int parse( void *ih )
 static void *initialize( const char *mpeges )
 {
     dprintf( LOG_LV2, "[mpeges_parser] initialize()\n" );
-    mpeges_info_t *info = calloc( sizeof(mpeges_info_t), 1 );
-    if( !info )
-        return NULL;
+    mpeges_info_t     *info       = (mpeges_info_t *)calloc( sizeof(mpeges_info_t), 1 );
+    mpeg_video_info_t *video_info = (mpeg_video_info_t *)malloc( sizeof(mpeg_video_info_t) );
     FILE *input = fopen( mpeges, "rb" );
-    if( !input )
+    if( !info || !video_info || !input )
         goto fail_initialize;
     /* initialize. */
     info->input             = input;
@@ -435,6 +432,7 @@ static void *initialize( const char *mpeges )
     info->fps_numerator     = NTSC_FRAME_RATE_NUM;
     info->fps_denominator   = NTSC_FRAME_RATE_DEN;
     info->timestamp_base    = 90 * 1000 * info->fps_denominator / info->fps_numerator;
+    info->video_info        = video_info;
     /* first check. */
     if( mpeges_first_check( info ) )
         goto fail_initialize;
@@ -443,6 +441,8 @@ fail_initialize:
     dprintf( LOG_LV2, "[mpeges_parser] failed initialize.\n" );
     if( input )
         fclose( input );
+    if( video_info )
+        free( video_info );
     if( info )
         free( info );
     return NULL;
@@ -455,8 +455,8 @@ static void release( void *ih )
     if( !info )
         return;
     /*  release. */
-    if( info->input )
-        fclose( info->input );
+    fclose( info->input );
+    free( info->video_info );
     free( info );
 }
 

@@ -67,6 +67,7 @@ typedef struct {
     uint16_t                    program_id;
     mpeg_stream_type            stream_type;
     mpeg_stream_group_type      stream_judge;
+    void                       *stream_parse_info;
     int64_t                     gop_number;
 } mpegts_stream_context_t;
 
@@ -1286,6 +1287,19 @@ static void mpegts_get_sample_ts_packet_data( mpegts_file_context_t *file, uint1
     }
 }
 
+static int mpegts_malloc_stream_parse_context( mpeg_stream_type stream_type, mpeg_stream_group_type stream_judge, void **stream_parse_info )
+{
+    *stream_parse_info = NULL;
+    if( (stream_judge & STREAM_IS_MPEG_VIDEO) == STREAM_IS_MPEG_VIDEO )
+    {
+        void *context = malloc( sizeof(mpeg_video_info_t) );
+        if( !context )
+            return -1;
+        *stream_parse_info = context;
+    }
+    return 0;
+}
+
 static mpeg_stream_type get_sample_stream_type( void *ih, mpeg_sample_type sample_type, uint8_t stream_number )
 {
     mpegts_info_t *info = (mpegts_info_t *)ih;
@@ -1453,6 +1467,7 @@ static int get_video_info( void *ih, uint8_t stream_number, video_sample_info_t 
     uint16_t program_id                 =   info->video_stream[stream_number].program_id;
     mpeg_stream_type stream_type        =   info->video_stream[stream_number].stream_type;
     mpeg_stream_group_type stream_judge =   info->video_stream[stream_number].stream_judge;
+    void *stream_parse_info             =   info->video_stream[stream_number].stream_parse_info;
     int64_t *video_stream_gop_number    = &(info->video_stream[stream_number].gop_number);
     /* check PES start code. */
     mpeg_pes_packet_start_code_type start_code = mpeg_pes_get_stream_start_code( stream_judge );
@@ -1478,19 +1493,18 @@ static int get_video_info( void *ih, uint8_t stream_number, video_sample_info_t 
     uint8_t top_field_first = 0;
     if( (stream_judge & STREAM_IS_MPEG_VIDEO) == STREAM_IS_MPEG_VIDEO )
     {
-        mpeg_video_info_t video_info;
-        //memset( &video_info, 0, sizeof(mpeg_video_info_t) );
-        if( !mpegts_get_mpeg_video_picture_info( file_read, program_id, &video_info, video_stream_gop_number ) )
+        mpeg_video_info_t *video_info = (mpeg_video_info_t*)stream_parse_info;
+        if( !mpegts_get_mpeg_video_picture_info( file_read, program_id, video_info, video_stream_gop_number ) )
         {
             gop_number           = *video_stream_gop_number;
-            progressive_sequence = video_info.sequence_ext.progressive_sequence;
-            closed_gop           = video_info.gop.closed_gop;
-            picture_coding_type  = video_info.picture.picture_coding_type;
-            temporal_reference   = video_info.picture.temporal_reference;
-            picture_structure    = video_info.picture_coding_ext.picture_structure;
-            progressive_frame    = video_info.picture_coding_ext.progressive_frame;
-            repeat_first_field   = video_info.picture_coding_ext.repeat_first_field;
-            top_field_first      = video_info.picture_coding_ext.top_field_first;
+            progressive_sequence = video_info->sequence_ext.progressive_sequence;
+            closed_gop           = video_info->gop.closed_gop;
+            picture_coding_type  = video_info->picture.picture_coding_type;
+            temporal_reference   = video_info->picture.temporal_reference;
+            picture_structure    = video_info->picture_coding_ext.picture_structure;
+            progressive_frame    = video_info->picture_coding_ext.progressive_frame;
+            repeat_first_field   = video_info->picture_coding_ext.repeat_first_field;
+            top_field_first      = video_info->picture_coding_ext.top_field_first;
         }
     }
     else
@@ -1634,6 +1648,16 @@ static int set_pmt_stream_info( mpegts_info_t *info )
                 FILE *input = fopen( info->mpegts, "rb" );
                 if( input )
                 {
+                    /* initialize. */
+                    stream->file_read.input = stream->stream_parse_info = NULL;
+                    /* allocate. */
+                    void *stream_parse_info;
+                    if( mpegts_malloc_stream_parse_context( stream_type, stream_judge, &stream_parse_info ) )
+                    {
+                        fclose( input );
+                        goto fail_allocate_contexts;
+                    }
+                    /* setup. */
                     stream->file_read.input                  = input;
                     stream->file_read.packet_size            = info->file_read.packet_size;
                     stream->file_read.sync_byte_position     = -1;
@@ -1643,6 +1667,7 @@ static int set_pmt_stream_info( mpegts_info_t *info )
                     stream->program_id                       = program_id;
                     stream->stream_type                      = stream_type;
                     stream->stream_judge                     = stream_judge;
+                    stream->stream_parse_info                = stream_parse_info;
                     stream->gop_number                       = -1;
                     dprintf( LOG_LV2, "[check] %s PID:0x%04X  stream_type:0x%02X\n", stream_name[index], program_id, stream_type );
                     mpegts_fseek( &(stream->file_read), info->file_read.read_position, MPEGTS_SEEK_SET );
@@ -1670,6 +1695,27 @@ static int set_pmt_stream_info( mpegts_info_t *info )
     info->video_stream_num = video_stream_num;
     info->audio_stream_num = audio_stream_num;
     return 0;
+fail_allocate_contexts:
+    /* release. */
+    if( video_context )
+        for( uint8_t i = 0; i < video_stream_num; ++i )
+        {
+            mpegts_stream_context_t *stream = &(video_context[i]);
+            if( stream->file_read.input )
+                fclose( stream->file_read.input );
+            if( stream->stream_parse_info )
+                free( stream->stream_parse_info );
+        }
+    if( audio_context )
+        for( uint8_t i = 0; i < audio_stream_num; ++i )
+        {
+            mpegts_stream_context_t *stream = &(audio_context[i]);
+            if( stream->file_read.input )
+                fclose( stream->file_read.input );
+            if( stream->stream_parse_info )
+                free( stream->stream_parse_info );
+        }
+        free( audio_context );
 fail_set_pmt_stream_info:
     if( video_context )
         free( video_context );
@@ -1683,7 +1729,12 @@ static void release_stream_handle( mpegts_info_t *info )
     if( info->video_stream )
     {
         for( uint8_t i = 0; i <  info->video_stream_num; ++i )
-            fclose( info->video_stream[i].file_read.input );
+        {
+            mpegts_stream_context_t *stream = &(info->video_stream[i]);
+            fclose( stream->file_read.input );
+            if( stream->stream_parse_info )
+                free( stream->stream_parse_info );
+        }
         free( info->video_stream );
         info->video_stream     = NULL;
         info->video_stream_num = 0;
@@ -1691,7 +1742,12 @@ static void release_stream_handle( mpegts_info_t *info )
     if( info->audio_stream )
     {
         for( uint8_t i = 0; i <  info->audio_stream_num; ++i )
-            fclose( info->audio_stream[i].file_read.input );
+        {
+            mpegts_stream_context_t *stream = &(info->audio_stream[i]);
+            fclose( stream->file_read.input );
+            if( stream->stream_parse_info )
+                free( stream->stream_parse_info );
+        }
         free( info->audio_stream );
         info->audio_stream     = NULL;
         info->audio_stream_num = 0;

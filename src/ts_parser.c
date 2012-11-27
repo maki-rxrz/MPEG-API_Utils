@@ -274,6 +274,9 @@ static void parse_mpeg( param_t *p )
     void *info = mpeg_api_initialize_info( p->input );
     if( !info )
         return;
+    stream_info_t *stream_info = malloc( sizeof(stream_info) );
+    if( !stream_info )
+        goto end_parse;
     if( p->pmt_program_id )
         if( 0 > mpeg_api_set_pmt_program_id( info, p->pmt_program_id ) )
             goto end_parse;
@@ -298,29 +301,28 @@ static void parse_mpeg( param_t *p )
                 int64_t gop_number = -1;
                 for( uint32_t j = 0; ; ++j )
                 {
-                    stream_info_t stream_info;
-                    if( mpeg_api_get_video_frame( info, i, &stream_info ) )
+                    if( mpeg_api_get_video_frame( info, i, stream_info ) )
                         break;
-                    int64_t pts = stream_info.video_pts;
-                    int64_t dts = stream_info.video_dts;
-                    if( stream_info.gop_number < 0 )
+                    int64_t pts = stream_info->video_pts;
+                    int64_t dts = stream_info->video_dts;
+                    if( stream_info->gop_number < 0 )
                     {
                         dprintf( LOG_LV0, " [no GOP Picture data]" );
                         j = -1;
                     }
                     else
                     {
-                        if( gop_number < stream_info.gop_number )
+                        if( gop_number < stream_info->gop_number )
                         {
-                            gop_number = stream_info.gop_number;
-                            dprintf( LOG_LV0, " [GOP:%6"PRId64"]  progr_sequence:%d  closed_gop:%d\n", gop_number, stream_info.progressive_sequence, stream_info.closed_gop );
+                            gop_number = stream_info->gop_number;
+                            dprintf( LOG_LV0, " [GOP:%6"PRId64"]  progr_sequence:%d  closed_gop:%d\n", gop_number, stream_info->progressive_sequence, stream_info->closed_gop );
                         }
                         dprintf( LOG_LV0, " [%8u]", j );
                     }
-                    dprintf( LOG_LV0, "  pict_struct:%d  order:%2d  [%c]", stream_info.picture_structure, stream_info.temporal_reference, frame[stream_info.picture_coding_type] );
-                    dprintf( LOG_LV0, "  progr_frame:%d  rff:%d  tff:%d", stream_info.progressive_frame, stream_info.repeat_first_field, stream_info.top_field_first );
-                    dprintf( LOG_LV0, "  POS: %10"PRId64"", stream_info.file_position );
-                    dprintf( LOG_LV0, "  size: %10u  raw_size: %10u", stream_info.sample_size, stream_info.raw_data_size );
+                    dprintf( LOG_LV0, "  pict_struct:%d  order:%2d  [%c]", stream_info->picture_structure, stream_info->temporal_reference, frame[stream_info->picture_coding_type] );
+                    dprintf( LOG_LV0, "  progr_frame:%d  rff:%d  tff:%d", stream_info->progressive_frame, stream_info->repeat_first_field, stream_info->top_field_first );
+                    dprintf( LOG_LV0, "  POS: %10"PRId64"", stream_info->file_position );
+                    dprintf( LOG_LV0, "  size: %10u  raw_size: %10u", stream_info->sample_size, stream_info->raw_data_size );
                     dprintf( LOG_LV0, "  PTS: %10"PRId64" [%8"PRId64"ms]", pts, pts / 90 );
                     if( dts != pts )
                         dprintf( LOG_LV0, "  DTS: %10"PRId64" [%8"PRId64"ms]", dts, dts / 90 );
@@ -332,17 +334,16 @@ static void parse_mpeg( param_t *p )
                 dprintf( LOG_LV0, "[log] Audio Stream[%3u]\n", i );
                 for( uint32_t j = 0; ; ++j )
                 {
-                    stream_info_t stream_info;
-                    if( mpeg_api_get_audio_frame( info, i, &stream_info ) )
+                    if( mpeg_api_get_audio_frame( info, i, stream_info ) )
                         break;
-                    int64_t pts = stream_info.audio_pts;
-                    int64_t dts = stream_info.audio_dts;
+                    int64_t pts = stream_info->audio_pts;
+                    int64_t dts = stream_info->audio_dts;
                     char mapping_info[8];
-                    get_speaker_mapping_info( stream_info.channel, mapping_info );
+                    get_speaker_mapping_info( stream_info->channel, mapping_info );
                     dprintf( LOG_LV0, " [%8u]", j );
-                    dprintf( LOG_LV0, "  %6uHz  %4uKbps  %s channel  layer %1u  %2u bits", stream_info.sampling_frequency, stream_info.bitrate / 1000, mapping_info, stream_info.layer, stream_info.bit_depth );
-                    dprintf( LOG_LV0, "  POS: %10"PRId64"", stream_info.file_position );
-                    dprintf( LOG_LV0, "  size: %10u  raw_size: %10u", stream_info.sample_size, stream_info.raw_data_size );
+                    dprintf( LOG_LV0, "  %6uHz  %4uKbps  %s channel  layer %1u  %2u bits", stream_info->sampling_frequency, stream_info->bitrate / 1000, mapping_info, stream_info->layer, stream_info->bit_depth );
+                    dprintf( LOG_LV0, "  POS: %10"PRId64"", stream_info->file_position );
+                    dprintf( LOG_LV0, "  size: %10u  raw_size: %10u", stream_info->sample_size, stream_info->raw_data_size );
                     dprintf( LOG_LV0, "  PTS: %10"PRId64" [%8"PRId64"ms]", pts, pts / 90 );
                     if( dts != pts )
                         dprintf( LOG_LV0, "  DTS: %10"PRId64" [%8"PRId64"ms]", dts, dts / 90 );
@@ -360,21 +361,20 @@ static void parse_mpeg( param_t *p )
                 int64_t gop_number = -1;
                 for( uint32_t j = 0; ; ++j )
                 {
-                    stream_info_t stream_info;
-                    if( mpeg_api_get_sample_info( info, SAMPLE_TYPE_VIDEO, i, j, &stream_info ) )
+                    if( mpeg_api_get_sample_info( info, SAMPLE_TYPE_VIDEO, i, j, stream_info ) )
                         break;
-                    int64_t pts = stream_info.video_pts;
-                    int64_t dts = stream_info.video_dts;
-                    if( gop_number < stream_info.gop_number )
+                    int64_t pts = stream_info->video_pts;
+                    int64_t dts = stream_info->video_dts;
+                    if( gop_number < stream_info->gop_number )
                     {
-                        gop_number = stream_info.gop_number;
-                        dprintf( LOG_LV0, " [GOP:%6"PRId64"]  progr_sequence:%d  closed_gop:%d\n", gop_number, stream_info.progressive_sequence, stream_info.closed_gop );
+                        gop_number = stream_info->gop_number;
+                        dprintf( LOG_LV0, " [GOP:%6"PRId64"]  progr_sequence:%d  closed_gop:%d\n", gop_number, stream_info->progressive_sequence, stream_info->closed_gop );
                     }
                     dprintf( LOG_LV0, " [%8u]", j );
-                    dprintf( LOG_LV0, "  pict_struct:%d  order:%2d  [%c]", stream_info.picture_structure, stream_info.temporal_reference, frame[stream_info.picture_coding_type] );
-                    dprintf( LOG_LV0, "  progr_frame:%d  rff:%d  tff:%d", stream_info.progressive_frame, stream_info.repeat_first_field, stream_info.top_field_first );
-                    dprintf( LOG_LV0, "  POS: %10"PRId64"", stream_info.file_position );
-                    dprintf( LOG_LV0, "  size: %10u  raw_size: %10u", stream_info.sample_size, stream_info.raw_data_size );
+                    dprintf( LOG_LV0, "  pict_struct:%d  order:%2d  [%c]", stream_info->picture_structure, stream_info->temporal_reference, frame[stream_info->picture_coding_type] );
+                    dprintf( LOG_LV0, "  progr_frame:%d  rff:%d  tff:%d", stream_info->progressive_frame, stream_info->repeat_first_field, stream_info->top_field_first );
+                    dprintf( LOG_LV0, "  POS: %10"PRId64"", stream_info->file_position );
+                    dprintf( LOG_LV0, "  size: %10u  raw_size: %10u", stream_info->sample_size, stream_info->raw_data_size );
                     dprintf( LOG_LV0, "  PTS: %10"PRId64" [%8"PRId64"ms]", pts, pts / 90 );
                     if( dts != pts )
                         dprintf( LOG_LV0, "  DTS: %10"PRId64" [%8"PRId64"ms]", dts, dts / 90 );
@@ -386,17 +386,16 @@ static void parse_mpeg( param_t *p )
                 dprintf( LOG_LV0, "[log] Audio Stream[%3u]\n", i );
                 for( uint32_t j = 0; ; ++j )
                 {
-                    stream_info_t stream_info;
-                    if( mpeg_api_get_sample_info( info, SAMPLE_TYPE_AUDIO, i, j, &stream_info ) )
+                    if( mpeg_api_get_sample_info( info, SAMPLE_TYPE_AUDIO, i, j, stream_info ) )
                         break;
-                    int64_t pts = stream_info.audio_pts;
-                    int64_t dts = stream_info.audio_dts;
+                    int64_t pts = stream_info->audio_pts;
+                    int64_t dts = stream_info->audio_dts;
                     char mapping_info[8];
-                    get_speaker_mapping_info( stream_info.channel, mapping_info );
+                    get_speaker_mapping_info( stream_info->channel, mapping_info );
                     dprintf( LOG_LV0, " [%8u]", j );
-                    dprintf( LOG_LV0, "  %6uHz  %4uKbps  %s channel  layer %1u  %2u bits", stream_info.sampling_frequency, stream_info.bitrate / 1000, mapping_info, stream_info.layer, stream_info.bit_depth );
-                    dprintf( LOG_LV0, "  POS: %10"PRId64"", stream_info.file_position );
-                    dprintf( LOG_LV0, "  size: %10u  raw_size: %10u", stream_info.sample_size, stream_info.raw_data_size );
+                    dprintf( LOG_LV0, "  %6uHz  %4uKbps  %s channel  layer %1u  %2u bits", stream_info->sampling_frequency, stream_info->bitrate / 1000, mapping_info, stream_info->layer, stream_info->bit_depth );
+                    dprintf( LOG_LV0, "  POS: %10"PRId64"", stream_info->file_position );
+                    dprintf( LOG_LV0, "  size: %10u  raw_size: %10u", stream_info->sample_size, stream_info->raw_data_size );
                     dprintf( LOG_LV0, "  PTS: %10"PRId64" [%8"PRId64"ms]", pts, pts / 90 );
                     if( dts != pts )
                         dprintf( LOG_LV0, "  DTS: %10"PRId64" [%8"PRId64"ms]", dts, dts / 90 );
@@ -462,18 +461,17 @@ static void parse_mpeg( param_t *p )
                     /* get first video stream info. */
                     for( uint32_t j = 0; j < sample_num; ++j )
                     {
-                        stream_info_t stream_info;
-                        if( mpeg_api_get_sample_info( info, SAMPLE_TYPE_VIDEO, i, j, &stream_info ) )
+                        if( mpeg_api_get_sample_info( info, SAMPLE_TYPE_VIDEO, i, j, stream_info ) )
                         {
                             fclose( video[i] );
                             video[i] = NULL;
                             break;
                         }
-                        if( stream_info.temporal_reference == -1 )
+                        if( stream_info->temporal_reference == -1 )
                             break;
-                        if( !(stream_info.temporal_reference) )
+                        if( !(stream_info->temporal_reference) )
                         {
-                            video_first_pts = stream_info.video_pts;
+                            video_first_pts = stream_info->video_pts;
                             break;
                         }
                     }
@@ -490,10 +488,9 @@ static void parse_mpeg( param_t *p )
                     int64_t audio_delay = 0;
                     if( video_first_pts >= 0 )
                     {
-                        stream_info_t stream_info;
-                        if( mpeg_api_get_sample_info( info, SAMPLE_TYPE_AUDIO, i, 0, &stream_info ) )
+                        if( mpeg_api_get_sample_info( info, SAMPLE_TYPE_AUDIO, i, 0, stream_info ) )
                             continue;
-                        audio_delay = stream_info.audio_pts - video_first_pts;
+                        audio_delay = stream_info->audio_pts - video_first_pts;
                         if( llabs(audio_delay) > p->wrap_around_check_v )
                             audio_delay += MPEG_TIMESTAMP_WRAPAROUND_VALUE * ((audio_delay) > 0 ? -1 : 1);
                     }
@@ -649,6 +646,8 @@ static void parse_mpeg( param_t *p )
     else
         dprintf( LOG_LV0, "[log] MPEG no read.\n" );
 end_parse:
+    if( stream_info )
+        free( stream_info );
     mpeg_api_release_info( info );
 }
 

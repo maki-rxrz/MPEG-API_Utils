@@ -910,17 +910,19 @@ static void parse_reader_offset( param_t *p )
     void *info = mpeg_api_initialize_info( mpegts );
     if( !info )
         return;
+    stream_info_t *stream_info = malloc( sizeof(stream_info) );
+    if( !stream_info )
+        goto end_parse;
     if( p->pmt_program_id )
         if( 0 > mpeg_api_set_pmt_program_id( info, p->pmt_program_id ) )
             goto end_parse;
-    stream_info_t stream_info;
     int64_t video_1st_pts, video_key_pts;
-    int get_info_result = mpeg_api_get_stream_info( info, &stream_info, &video_1st_pts, &video_key_pts );
+    int get_info_result = mpeg_api_get_stream_info( info, stream_info, &video_1st_pts, &video_key_pts );
     if( !get_info_result )
     {
-        int64_t pcr           = stream_info.pcr;
-        int64_t video_pts     = stream_info.video_pts;
-        int64_t audio_pts     = stream_info.audio_pts;
+        int64_t pcr           = stream_info->pcr;
+        int64_t video_pts     = stream_info->video_pts;
+        int64_t audio_pts     = stream_info->audio_pts;
         /* check wrap around. */
         int64_t video_1st_offset = (pcr > video_1st_pts + p->wrap_around_check_v) ? MPEG_TIMESTAMP_WRAPAROUND_VALUE : 0;
         int64_t video_key_offset = (pcr > video_key_pts + p->wrap_around_check_v) ? MPEG_TIMESTAMP_WRAPAROUND_VALUE : 0;
@@ -956,6 +958,8 @@ static void parse_reader_offset( param_t *p )
     else if( get_info_result > 0 )
         dprintf( LOG_LV1, "[reader] MPEG-TS not have both video and audio stream.\n" );
 end_parse:
+    if( stream_info )
+        free( stream_info );
     mpeg_api_release_info( info );
 }
 
