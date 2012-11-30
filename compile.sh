@@ -9,6 +9,8 @@
 # $ compile.sh CROSS=x86_64-w64-mingw32- BINDIR="../bin/x64" MAKEOPT="-j4"
 #-------------------------------------------------------------------------------
 
+BIN_DIR="../bin"
+
 # check options
 for opt do
     optarg="${opt#*=}"
@@ -34,7 +36,7 @@ done
 if [ "$#" != "0" ] ; then
     echo "[ User specified options ]"
     [ "$MAKE_OPT"      != "" ] && echo "MAKE_OPT : $MAKE_OPT"
-    [ "$USER_BINDIR"   != "" ] && echo "BINDIR   : $USER_BINDIR"   && BIN_DIR="BIN_DIR=$USER_BINDIR"
+    [ "$USER_BINDIR"   != "" ] && echo "BINDIR   : $USER_BINDIR"   && BIN_DIR="$USER_BINDIR"
     [ "$CROSS_PREFIX"  != "" ] && echo "CROSS    : $CROSS_PREFIX"
     [ "$EXTRA_CFLAGS"  != "" ] && echo "CFLAGS   : $EXTRA_CFLAGS"
     [ "$EXTRA_LDFLAGS" != "" ] && echo "LDFLAGS  : $EXTRA_LDFLAGS"
@@ -58,5 +60,5 @@ EOF
 fi
 
 # make libs and utils
-make lib CROSS="$CROSS_PREFIX" ECFLAGS="$EXTRA_CFLAGS" ELDFLAGS="$EXTRA_LDFLAGS" $MAKE_OPT
-make     CROSS="$CROSS_PREFIX" ECFLAGS="$EXTRA_CFLAGS" ELDFLAGS="$EXTRA_LDFLAGS" $MAKE_OPT
+make lib CROSS="$CROSS_PREFIX" ECFLAGS="$EXTRA_CFLAGS" ELDFLAGS="$EXTRA_LDFLAGS" BIN_DIR="$BIN_DIR" $MAKE_OPT
+make     CROSS="$CROSS_PREFIX" ECFLAGS="$EXTRA_CFLAGS" ELDFLAGS="$EXTRA_LDFLAGS" BIN_DIR="$BIN_DIR" $MAKE_OPT
