@@ -81,6 +81,13 @@ typedef struct {
 
 #define TIMESTAMP_WRAP_AROUND_CHECK_VALUE       (0x0FFFFFFFFLL)
 
+static void print_version( void )
+{
+    fprintf( stdout,
+        "MPEG-2 TS/ES Parser version " PROGRAM_VERSION "." REVISION_NUMBER "\n"
+    );
+}
+
 static void print_help( void )
 {
     fprintf( stdout,
@@ -100,6 +107,7 @@ static void print_help( void )
         "                                   - va : video/audio\n"
         "       --demux-mode <integer>  Specify output demux mode. [0-1]\n"
         "       --debug <integer>       Specify output log level. [1-4]\n"
+        "    -v --version               Display the version information."
         "\n"
     );
 }
@@ -644,13 +652,26 @@ end_parse:
     mpeg_api_release_info( info );
 }
 
-int main( int argc, char *argv[] )
+int check_commandline( int argc, char *argv[] )
 {
+    for( int i = 0; i < argc; ++i )
+        if( !strcasecmp( argv[i], "--version" ) || !strcasecmp( argv[i], "-v" ) )
+        {
+            print_version();
+            return 1;
+        }
     if( argc < 2 )
     {
         print_help();
-        return -1;
+        return 1;
     }
+    return 0;
+}
+
+int main( int argc, char *argv[] )
+{
+    if( check_commandline( argc, argv ) )
+        return 0;
     mpeg_api_setup_log_lv( debug_level, stderr );
     int i = 1;
     while( i < argc )
