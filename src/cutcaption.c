@@ -910,7 +910,7 @@ static void parse_reader_offset( param_t *p )
     void *info = mpeg_api_initialize_info( mpegts );
     if( !info )
         return;
-    stream_info_t *stream_info = malloc( sizeof(stream_info) );
+    stream_info_t *stream_info = malloc( sizeof(*stream_info) );
     if( !stream_info )
         goto end_parse;
     if( p->pmt_program_id )

@@ -1493,7 +1493,7 @@ static int get_video_info( void *ih, uint8_t stream_number, video_sample_info_t 
     uint8_t top_field_first = 0;
     if( (stream_judge & STREAM_IS_MPEG_VIDEO) == STREAM_IS_MPEG_VIDEO )
     {
-        mpeg_video_info_t *video_info = (mpeg_video_info_t*)stream_parse_info;
+        mpeg_video_info_t *video_info = (mpeg_video_info_t *)stream_parse_info;
         if( !mpegts_get_mpeg_video_picture_info( file_read, program_id, video_info, video_stream_gop_number ) )
         {
             gop_number           = *video_stream_gop_number;
