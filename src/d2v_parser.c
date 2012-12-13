@@ -14,8 +14,6 @@
  *   A-2. You can freely redistribute this software.
  *   A-3. You can freely modify this software. And the source
  *       may be used in any software with no limitation.
- *   A-4. When you release a modified version to public, you
- *       must publish it with your name.
  *
  * B. The author is not responsible for any kind of damages or loss
  *   while using or misusing this software, which is distributed
