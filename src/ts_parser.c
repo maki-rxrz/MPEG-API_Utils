@@ -75,6 +75,7 @@ typedef struct {
     output_demux_mode_type  demux_mode;
     uint16_t                pmt_program_id;
     int64_t                 wrap_around_check_v;
+    FILE                   *logfile;
 } param_t;
 
 #define TIMESTAMP_WRAP_AROUND_CHECK_VALUE       (0x0FFFFFFFFLL)
@@ -105,20 +106,87 @@ static void print_help( void )
         "                                   - va : video/audio\n"
         "       --demux-mode <integer>  Specify output demux mode. [0-1]\n"
         "       --debug <integer>       Specify output log level. [1-4]\n"
+        "       --log <string>          Specify output file name of log.\n"
+        "       --log-silent            Log: Suppress the output to stderr.\n"
+        "       --log-output-all        Log: Output all log to both file and stderr.\n"
         "    -v --version               Display the version information."
         "\n"
     );
 }
 
-static log_level debug_level = LOG_LV0;
+static struct {
+    log_level   log_lv;
+    FILE       *msg_out;
+    log_mode    mode;
+} debug_ctrl = { 0 };
+
 extern void dprintf( log_level level, const char *format, ... )
 {
-    if( debug_level < level )
+    /* check level. */
+    if( debug_ctrl.log_lv < level )
         return;
+    /* check mode and output. */
+    FILE *msg_out[3] = { debug_ctrl.msg_out, NULL, NULL };
+    switch( debug_ctrl.mode )
+    {
+        case LOG_MODE_SILENT :
+            /* log only. */
+            if( msg_out[0] == stderr )
+                return;
+            break;
+        case LOG_MODE_NORMAL :
+            /* log and stderr(lv0). */
+            if( msg_out[0] != stderr && level == LOG_LV0 )
+                msg_out[1] = stderr;
+            break;
+        case LOG_MODE_OUTPUT_ALL :
+            /* log and stderr. */
+            if( msg_out[0] != stderr )
+                msg_out[1] = stderr;
+            break;
+        default:
+            return;
+    }
+    /* output. */
     va_list argptr;
     va_start( argptr, format );
-    vfprintf( stderr, format, argptr );
+    for( int i = 0; msg_out[i]; ++i )
+        vfprintf( msg_out[i], format, argptr );
     va_end( argptr );
+}
+
+static void debug_setup_log_lv( log_level level, FILE *output )
+{
+    if( level != LOG_LV_KEEP )
+        debug_ctrl.log_lv = level;
+    if( output )
+        debug_ctrl.msg_out = output;
+    mpeg_api_setup_log_lv( level, output );
+}
+
+static void debug_setup_mode( log_mode mode )
+{
+    debug_ctrl.mode = mode;
+}
+
+static void debug_initialize( void )
+{
+    debug_setup_log_lv( LOG_LV0, stderr );
+    debug_setup_mode( LOG_MODE_NORMAL );
+}
+
+static FILE *file_open( const char *file, const char *ext, const char *mode )
+{
+    if( !file || !mode )
+        return NULL;
+    size_t len     = strlen( file );
+    size_t ext_len = ext ? strlen( ext ) : 0;
+    char full_name[len + ext_len];
+    strcpy( full_name, file );
+    if( ext_len )
+        strcat( full_name, ext );
+    FILE *fp = fopen( full_name, mode );
+    return fp;
 }
 
 static int init_parameter( param_t *p )
@@ -128,11 +196,14 @@ static int init_parameter( param_t *p )
     memset( p, 0, sizeof(param_t) );
     p->output_stream       = OUTPUT_STREAM_BOTH_VA;
     p->wrap_around_check_v = TIMESTAMP_WRAP_AROUND_CHECK_VALUE;
+    p->logfile             = stderr;
     return 0;
 }
 
 static void cleanup_parameter( param_t *p )
 {
+    if( p->logfile && p->logfile != stderr )
+        fclose( p->logfile );
     if( p->output )
         free( p->output );
     if( p->input )
@@ -180,13 +251,28 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
             p->demux_mode = atoi( argv[++i] );
         else if( !strcasecmp( argv[i], "--debug" ) )
         {
-            debug_level = atoi( argv[++i] );
-            if( debug_level > LOG_LV_ALL )
-                debug_level = LOG_LV_ALL;
-            else if( debug_level < LOG_LV0 )
-                debug_level = LOG_LV0;
-            mpeg_api_setup_log_lv( debug_level, stderr );
+            log_level lv = atoi( argv[++i] );
+            if( lv > LOG_LV_ALL )
+                lv = LOG_LV_ALL;
+            else if( lv < LOG_LV0 )
+                lv = LOG_LV0;
+            debug_setup_log_lv( lv, NULL );
         }
+        else if( !strcasecmp( argv[i], "--log" ) )
+        {
+            FILE *log = fopen( argv[++i], "at" );
+            if( log )
+            {
+                if( p->logfile != stderr )
+                    fclose( p->logfile );
+                p->logfile = log;
+                debug_setup_log_lv( LOG_LV_KEEP, p->logfile );
+            }
+        }
+        else if( !strcasecmp( argv[i], "--log-silent" ) )
+            debug_setup_mode( LOG_MODE_SILENT );
+        else if( !strcasecmp( argv[i], "--log-output-all" ) )
+            debug_setup_mode( LOG_MODE_OUTPUT_ALL );
         ++i;
     }
     if( i < argc )
@@ -669,13 +755,13 @@ int main( int argc, char *argv[] )
 {
     if( check_commandline( argc, argv ) )
         return 0;
-    mpeg_api_setup_log_lv( debug_level, stderr );
     int i = 1;
     while( i < argc )
     {
         param_t param;
         if( init_parameter( &param ) )
             return -1;
+        debug_initialize();
         i = parse_commandline( argc, argv, i, &param );
         if( i < 0 )
             break;

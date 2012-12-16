@@ -37,7 +37,7 @@
 static struct {
     log_level   log_lv;
     FILE       *msg_out;
-} debug_ctrl = { LOG_LV0, NULL };
+} debug_ctrl = { 0 };
 
 extern void dprintf( log_level level, const char *format, ... )
 {
@@ -51,6 +51,8 @@ extern void dprintf( log_level level, const char *format, ... )
 
 MAPI_EXPORT void mpeg_api_setup_log_lv( log_level level, FILE *output )
 {
-    debug_ctrl.log_lv  = level;
-    debug_ctrl.msg_out = output;
+    if( level != LOG_LV_KEEP )
+        debug_ctrl.log_lv = level;
+    if( output )
+        debug_ctrl.msg_out = output;
 }
