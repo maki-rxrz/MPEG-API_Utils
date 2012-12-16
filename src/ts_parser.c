@@ -175,20 +175,6 @@ static void debug_initialize( void )
     debug_setup_mode( LOG_MODE_NORMAL );
 }
 
-static FILE *file_open( const char *file, const char *ext, const char *mode )
-{
-    if( !file || !mode )
-        return NULL;
-    size_t len     = strlen( file );
-    size_t ext_len = ext ? strlen( ext ) : 0;
-    char full_name[len + ext_len];
-    strcpy( full_name, file );
-    if( ext_len )
-        strcat( full_name, ext );
-    FILE *fp = fopen( full_name, mode );
-    return fp;
-}
-
 static int init_parameter( param_t *p )
 {
     if( !p )
