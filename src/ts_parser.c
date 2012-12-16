@@ -40,7 +40,7 @@
 #include "mpeg_utils.h"
 #include "thread_utils.h"
 
-#define PROGRAM_VERSION                 "0.0.2"
+#define PROGRAM_VERSION                 "0.0.3"
 
 #ifndef REVISION_NUMBER
 #define REVISION_NUMBER                 "0"
