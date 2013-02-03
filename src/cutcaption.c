@@ -87,6 +87,11 @@ typedef struct {
     uint32_t            den;
 } frame_rate_t;
 
+typedef enum {
+    EXECUTE_CUT_CAPTION    = 0,
+    EXECUTE_ANALYZE_MPEGTS = 1
+} execute_mode_type;
+
 typedef struct {
     /* common */
     UTILS_COMMON_PARAMTER
@@ -102,6 +107,7 @@ typedef struct {
     int32_t             shift_pos_x;
     int32_t             shift_pos_y;
     FILE               *logfile;
+    execute_mode_type   execute_mode;
 } param_t;
 
 typedef void (*cut_caption_func)( param_t *p, FILE *input, FILE *output );
@@ -178,6 +184,7 @@ static void print_help( void )
         "       --log <string>          Specify output file name of log.\n"
         "       --log-silent            Log: Suppress the output to stderr.\n"
         "       --log-output-all        Log: Output all log to both file and stderr.\n"
+        "       --analyze               Display the analysis information.\n"
         "    -v --version               Display the version information."
         "\n"
         "  [ASS Subtitles only]\n"
@@ -439,6 +446,8 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
             debug_setup_mode( LOG_MODE_SILENT );
         else if( !strcasecmp( argv[i], "--log-output-all" ) )
             debug_setup_mode( LOG_MODE_OUTPUT_ALL );
+        else if( !strcasecmp( argv[i], "--analyze" ) )
+            p->execute_mode = EXECUTE_ANALYZE_MPEGTS;
         ++i;
     }
     if( i < argc )
@@ -965,7 +974,14 @@ end_correct:
     d2v_parser.release( d2v_info );
 }
 
-static void parse_reader_offset( param_t *p )
+typedef struct {
+    int64_t video_1st_start;
+    int64_t video_key_start;
+    int64_t video_odr_start;
+    int64_t audio_start;
+} delay_info_type;
+
+static void parse_reader_offset( param_t *p, delay_info_type *delay_info )
 {
     if( !p || p->reader == MPEG_READER_NONE )
         return;
@@ -1029,6 +1045,14 @@ static void parse_reader_offset( param_t *p )
         dprintf( LOG_LV2, "[check] [read_delay] video_1st: %"PRId64", video_odr: %"PRId64", video_key: %"PRId64"\n"
                           "                     audio: %"PRId64"\n", video_1st_start, video_odr_start, video_key_start, audio_start );
         dprintf( LOG_LV1, "[reader] delay: %"PRId64"\n", p->reader_delay );
+        /* setup required informations. */
+        if( delay_info )
+        {
+            delay_info->video_1st_start = video_1st_start;
+            delay_info->video_key_start = video_key_start;
+            delay_info->video_odr_start = video_odr_start;
+            delay_info->audio_start     = audio_start;
+        }
     }
     else if( get_info_result > 0 )
         dprintf( LOG_LV1, "[reader] MPEG-TS not have both video and audio stream.\n" );
@@ -1054,7 +1078,7 @@ static void output_caption( param_t *p )
         dprintf( LOG_LV0, "[log] error, list file.\n" );
         return;
     }
-    parse_reader_offset( p );
+    parse_reader_offset( p, NULL );
     /* do. */
     for( int i = 0; i < CAPTION_TYPE_MAX; ++i )
     {
@@ -1082,6 +1106,31 @@ static void output_caption( param_t *p )
     }
 }
 
+static void analyze_mpegts( param_t *p )
+{
+    /* check. */
+    if( !p || !p->input )
+    {
+        dprintf( LOG_LV0, "[log] error, parameters...\n" );
+        return;
+    }
+    /* parse. */
+    delay_info_type delay_info = { 0 };
+    parse_reader_offset( p, &delay_info );
+    /* display. */
+    dprintf( LOG_LV0,
+        "[analyze_mpegts]  %s.ts\n"
+        "[reader's delay]\n"
+        "  MPEG-2 VIDEO VFAPI Plug-In: %"PRId64" msec\n"
+        "  DGIndex and DGDecode      : %"PRId64" msec\n"
+        "  Libav reader              : %"PRId64" msec\n"
+        "  TMPGEnc series            : %"PRId64" msec\n"
+        "\n"
+        , p->input
+        , delay_info.video_key_start, delay_info.video_odr_start, delay_info.video_1st_start
+        , (delay_info.video_1st_start > delay_info.audio_start) ? delay_info.video_1st_start : delay_info.audio_start );
+}
+
 static int check_commandline( int argc, char *argv[] )
 {
     for( int i = 0; i < argc; ++i )
@@ -1090,7 +1139,7 @@ static int check_commandline( int argc, char *argv[] )
             print_version();
             return 1;
         }
-    if( argc < 4 )
+    if( argc < 3 )
     {
         print_help();
         return 1;
@@ -1105,6 +1154,8 @@ int main( int argc, char *argv[] )
     int i = 1;
     while( i < argc )
     {
+        typedef void (*exec_func_type)( param_t *p );
+        static const exec_func_type exec_func[2] = { output_caption, analyze_mpegts };
         param_t param;
         if( init_parameter( &param ) )
             return -1;
@@ -1113,7 +1164,7 @@ int main( int argc, char *argv[] )
         if( i < 0 )
             break;
         if( param.input )
-            output_caption( &param );
+            exec_func[param.execute_mode]( &param );
         cleanup_parameter( &param );
     }
     return 0;
