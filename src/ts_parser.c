@@ -721,7 +721,7 @@ end_parse:
     mpeg_api_release_info( info );
 }
 
-int check_commandline( int argc, char *argv[] )
+static int check_commandline( int argc, char *argv[] )
 {
     for( int i = 0; i < argc; ++i )
         if( !strcasecmp( argv[i], "--version" ) || !strcasecmp( argv[i], "-v" ) )
