@@ -153,7 +153,7 @@ static void print_help( void )
         "\n"
         "options:\n"
         "    -o --output <string>       Specify output file name.\n"
-        "       --force-output          Force the output overwritten.\n"
+        "       --force-output          Overwrite the existing output file.\n"
         "    -l --list <string>         Specify cut list name.\n"
         "                                   - txt, avs, vcf, keyframe\n"
         "       --key-type <integer>    Set keyframe list type. [1-3]\n"
