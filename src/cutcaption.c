@@ -345,9 +345,12 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
         else if( !strcasecmp( argv[i], "--reader" ) || !strcasecmp( argv[i], "-r" ) )
         {
             char *c = argv[++i];
-            for( int j = 0; j < READER_TYPE_MAX; ++i )
+            for( int j = 0; j < READER_TYPE_MAX; ++j )
                 if( !strcasecmp( c, reader_array[j].type ) || !strncasecmp( c, reader_array[j].type, 1 ) )
+                {
                     p->reader = reader_array[j].reader;
+                    break;
+                }
         }
         else if( !strcasecmp( argv[i], "--no-reader" ) )
             p->reader = MPEG_READER_NONE;
