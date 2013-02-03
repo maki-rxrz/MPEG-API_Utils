@@ -313,9 +313,7 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
             p->output = strdup( argv[++i] );
         }
         else if( !strcasecmp( argv[i], "--force-output" ) )
-        {
             p->output_no_overwrite = 0;
-        }
         else if( !strcasecmp( argv[i], "--list" ) || !strcasecmp( argv[i], "-l" ) )
         {
             if( p->list )
