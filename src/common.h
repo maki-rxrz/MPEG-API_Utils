@@ -116,6 +116,10 @@ extern void dprintf( log_level level, const char *format, ... );
 #define wcsstrdup _wcstrdup
 #define mbsdup    _mbsdup
 
+#ifndef _MBCS
+#define _MBCS
+#endif
+
 #endif
 
 #endif /* __COMMON_H__ */

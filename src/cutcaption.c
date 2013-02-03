@@ -910,7 +910,11 @@ static void cut_srt( param_t *p, FILE *input, FILE *output )
     }
 }
 
+#ifdef _MBCS
 #include <mbstring.h>
+#else
+#define _mbspbrk    strpbrk
+#endif
 static void correct_d2v_input( param_t *p )
 {
     void *d2v_info = d2v_parser.parse( p->input );
