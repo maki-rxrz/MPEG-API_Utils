@@ -99,7 +99,7 @@ static void print_help( void )
         "    -o --output <string>       Specify output file name.\n"
         "       --pmt-pid <integer>     Specify Program Map Table ID.\n"
         "       --output-mode <integer> Specify output mode. [0-4]\n"
-        "       --output-stream <string>"
+        "       --output-stream <string>\n"
         "                               Specify output stream type.\n"
         "                                   - v  : video only\n"
         "                                   - a  : audio only\n"
