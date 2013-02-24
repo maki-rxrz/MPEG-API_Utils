@@ -1302,9 +1302,9 @@ static mpeg_stream_type get_sample_stream_type( void *ih, mpeg_sample_type sampl
 {
     mpegts_info_t *info = (mpegts_info_t *)ih;
     if( !info )
-        return STREAM_INVAILED;
+        return STREAM_INVALID;
     /* check stream type. */
-    mpeg_stream_type stream_type = STREAM_INVAILED;
+    mpeg_stream_type stream_type = STREAM_INVALID;
     if( sample_type == SAMPLE_TYPE_VIDEO && stream_number < info->video_stream_num )
         stream_type = info->video_stream[stream_number].stream_type;
     else if( sample_type == SAMPLE_TYPE_AUDIO && stream_number < info->audio_stream_num )
@@ -1329,7 +1329,7 @@ static int get_sample_data( void *ih, mpeg_sample_type sample_type, uint8_t stre
     /* check program id. */
     mpegts_file_context_t *file_read = NULL;
     uint16_t program_id = TS_PID_ERR;
-    mpeg_stream_type stream_type = STREAM_INVAILED;
+    mpeg_stream_type stream_type = STREAM_INVALID;
     mpeg_stream_group_type stream_judge = STREAM_IS_UNKNOWN;
     if( sample_type == SAMPLE_TYPE_VIDEO && stream_number < info->video_stream_num )
     {

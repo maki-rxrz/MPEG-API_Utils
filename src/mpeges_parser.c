@@ -258,9 +258,9 @@ static mpeg_stream_type get_sample_stream_type( void *ih, mpeg_sample_type sampl
 {
     mpeges_info_t *info = (mpeges_info_t *)ih;
     if( !info || stream_number )
-        return STREAM_INVAILED;
+        return STREAM_INVALID;
     /* check stream type. */
-    mpeg_stream_type stream_type = STREAM_INVAILED;
+    mpeg_stream_type stream_type = STREAM_INVALID;
     if( sample_type == SAMPLE_TYPE_VIDEO )
         stream_type = info->video_stream_type;
     return stream_type;
@@ -426,7 +426,7 @@ static void *initialize( const char *mpeges )
     info->input             = input;
     info->read_position     = -1;
     info->gop_number        = -1;
-    info->video_stream_type = STREAM_INVAILED;
+    info->video_stream_type = STREAM_INVALID;
     info->fps_numerator     = NTSC_FRAME_RATE_NUM;
     info->fps_denominator   = NTSC_FRAME_RATE_DEN;
     info->timestamp_base    = 90 * 1000 * info->fps_denominator / info->fps_numerator;

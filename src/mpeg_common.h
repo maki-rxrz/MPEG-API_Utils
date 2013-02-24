@@ -92,7 +92,7 @@ typedef enum {
     STREAM_AUDIO_DDPLUS_SUB = 0xA1,    /* DD+ for secondary audio                                                                        */
     STREAM_AUDIO_DTS_HD_SUB = 0xA2,    /* DTS-HD LBR for secondary audio                                                                 */
     STREAM_VIDEO_VC1        = 0xFD,    /* VC-1 */
-    STREAM_INVAILED         = 0xFF
+    STREAM_INVALID          = 0xFF
 } mpeg_stream_type;
 
 typedef enum {
