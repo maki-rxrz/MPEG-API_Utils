@@ -46,6 +46,15 @@ typedef enum {
 } get_sample_data_mode;
 
 typedef enum {
+    MPEG_READER_DEALY_NONE               = 0,
+    MPEG_READER_DEALY_VIDEO_GOP_KEYFRAME = 1,
+    MPEG_READER_DEALY_VIDEO_GOP_TR_ORDER = 2,
+    MPEG_READER_DEALY_FAST_VIDEO_STREAM  = 3,
+    MPEG_READER_DEALY_FAST_STREAM        = 4,
+    MPEG_READER_DEALY_INVALID
+} mpeg_reader_delay_type;
+
+typedef enum {
     STREAM_IS_UNKNOWN       = 0x0000                       ,
     STREAM_IS_VIDEO         = 0x0001                       ,
     STREAM_IS_MPEG_VIDEO    = 0x0002 | STREAM_IS_VIDEO     ,

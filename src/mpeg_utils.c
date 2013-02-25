@@ -155,11 +155,6 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
             if( result )
                 break;
             /* setup GOP list. */
-            if( video_sample_info.gop_number < 0 )
-            {
-                i = -1;
-                continue;
-            }
             if( gop_number < video_sample_info.gop_number )
             {
                 gop_number = video_sample_info.gop_number;
@@ -200,6 +195,27 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
         }
         if( i > 0 )
         {
+            /* correct check for no GOP picture. */
+            int16_t temporal_reference = (1 << 16) - 1;
+            compare_ts = 0;
+            for( uint32_t j = 0; j < i; ++j )
+            {
+                if( video_list[j].gop_number >= 0 )
+                    break;
+                if( video_list[j].temporal_reference < temporal_reference )
+                    compare_ts = video_list[j].timestamp.pts;
+            }
+            if( compare_ts )
+            {
+                for( uint32_t j = 0; j < i; ++j )
+                {
+                    if( video_list[j].gop_number >= 0 )
+                        break;
+                    video_list[j].timestamp.pts += (compare_ts > video_list[j].timestamp.pts + info->wrap_around_check_v) ? MPEG_TIMESTAMP_WRAPAROUND_VALUE : 0;
+                    video_list[j].timestamp.dts += (compare_ts > video_list[j].timestamp.dts + info->wrap_around_check_v) ? MPEG_TIMESTAMP_WRAPAROUND_VALUE : 0;
+                }
+            }
+            /* setup video sample list. */
             video_stream[stream_no].video_gop     = gop_list;
             video_stream[stream_no].video_gop_num = gop_number + 1;
             video_stream[stream_no].video         = video_list;
@@ -263,6 +279,7 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
         }
         if( i > 0 )
         {
+            /* setup audio sample list. */
             audio_stream[stream_no].audio     = audio_list;
             audio_stream[stream_no].audio_num = i;
         }

@@ -68,14 +68,6 @@ typedef enum {
 } output_mode_type;
 
 typedef enum {
-    MPEG_READER_DEALY_NONE               = 0,
-    MPEG_READER_DEALY_VIDEO_GOP_KEYFRAME = 1,
-    MPEG_READER_DEALY_VIDEO_GOP_TR_ORDER = 2,
-    MPEG_READER_DEALY_FAST_VIDEO_STREAM  = 3,
-    MPEG_READER_DEALY_FAST_STREAM        = 4
-} mpeg_reader_delay_type;
-
-typedef enum {
     ASPECT_RATIO_DEFAULT = 0,
     ASPECT_RATIO_SQUARE  = 1,
     ASPECT_RATIO_WIDE    = 2,

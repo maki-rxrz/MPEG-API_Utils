@@ -75,6 +75,7 @@ typedef struct {
     output_demux_mode_type  demux_mode;
     uint16_t                pmt_program_id;
     int64_t                 wrap_around_check_v;
+    mpeg_reader_delay_type  delay_type;
     FILE                   *logfile;
 } param_t;
 
@@ -113,6 +114,11 @@ static void print_help( void )
         "       --demux-mode <integer>  Specify output demux mode. [0-1]\n"
         "                                   - 0 : Sequential read\n"
         "                                   - 1 : Multithread read\n"
+        "       --delay-type            Specify audio delay type.\n"
+        "                                   - 0 : None\n"
+        "                                   - 1 : GOP Key frame\n"
+        "                                   - 2 : GOP 1st frame\n"
+        "                                   - 3 : 1st Video frame\n"
         "       --debug <integer>       Specify output log level. [1-4]\n"
         "       --log <string>          Specify output file name of log.\n"
         "       --log-silent            Log: Suppress the output to stderr.\n"
@@ -190,6 +196,7 @@ static int init_parameter( param_t *p )
     memset( p, 0, sizeof(param_t) );
     p->output_stream       = OUTPUT_STREAM_BOTH_VA;
     p->wrap_around_check_v = TIMESTAMP_WRAP_AROUND_CHECK_VALUE;
+    p->delay_type          = MPEG_READER_DEALY_VIDEO_GOP_TR_ORDER;
     p->logfile             = stderr;
     return 0;
 }
@@ -243,6 +250,12 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
         }
         else if( !strcasecmp( argv[i], "--demux-mode" ) )
             p->demux_mode = atoi( argv[++i] );
+        else if( !strcasecmp( argv[i], "--delay-type" ) )
+        {
+            mpeg_reader_delay_type delay_type = atoi( argv[++i] );
+            if( MPEG_READER_DEALY_NONE <= delay_type && delay_type < MPEG_READER_DEALY_INVALID )
+                p->delay_type = delay_type;
+        }
         else if( !strcasecmp( argv[i], "--debug" ) )
         {
             log_level lv = atoi( argv[++i] );
@@ -299,6 +312,7 @@ typedef struct {
     char                   *stream_name;
     uint8_t                 stream_no;
     uint32_t                sample_num;
+    uint32_t                start_number;
 } demux_param_t;
 
 static void *demux( void *args )
@@ -313,9 +327,10 @@ static void *demux( void *args )
     char *stream_name         = param->stream_name;
     uint8_t stream_no         = param->stream_no;
     uint32_t num              = param->sample_num;
+    uint32_t start            = param->start_number;
     /* demux */
-    dprintf( LOG_LV1, " %s Stream[%3u] [demux] start - sample_num:%u\n", stream_name, stream_no, num );
-    for( uint32_t i = 0; i < num; ++i )
+    dprintf( LOG_LV1, " %s Stream[%3u] [demux] start - sample_num:%u  start_num:%u\n", stream_name, stream_no, num, start );
+    for( uint32_t i = start; i < num; ++i )
     {
         uint8_t *buffer = NULL;
         uint32_t data_size = 0;
@@ -436,6 +451,7 @@ static void parse_mpeg( param_t *p )
             for( uint8_t i = 0; i < video_stream_num; ++i )
             {
                 dprintf( LOG_LV0, "[log] Video Stream[%3u]\n", i );
+                uint32_t no_gop_picture_num = 0;
                 int64_t gop_number = -1;
                 for( uint32_t j = 0; ; ++j )
                 {
@@ -443,12 +459,20 @@ static void parse_mpeg( param_t *p )
                         break;
                     int64_t pts = stream_info->video_pts;
                     int64_t dts = stream_info->video_dts;
-                    if( gop_number < stream_info->gop_number )
+                    if( stream_info->gop_number < 0 )
                     {
-                        gop_number = stream_info->gop_number;
-                        dprintf( LOG_LV0, " [GOP:%6"PRId64"]  progr_sequence:%d  closed_gop:%d\n", gop_number, stream_info->progressive_sequence, stream_info->closed_gop );
+                        dprintf( LOG_LV0, " [no GOP Picture data]" );
+                        ++no_gop_picture_num;
                     }
-                    dprintf( LOG_LV0, " [%8u]", j );
+                    else
+                    {
+                        if( gop_number < stream_info->gop_number )
+                        {
+                            gop_number = stream_info->gop_number;
+                            dprintf( LOG_LV0, " [GOP:%6"PRId64"]  progr_sequence:%d  closed_gop:%d\n", gop_number, stream_info->progressive_sequence, stream_info->closed_gop );
+                        }
+                        dprintf( LOG_LV0, " [%8u]", j - no_gop_picture_num );
+                    }
                     dprintf( LOG_LV0, "  pict_struct:%d  order:%2d  [%c]", stream_info->picture_structure, stream_info->temporal_reference, frame[stream_info->picture_coding_type] );
                     dprintf( LOG_LV0, "  progr_frame:%d  rff:%d  tff:%d", stream_info->progressive_frame, stream_info->repeat_first_field, stream_info->top_field_first );
                     dprintf( LOG_LV0, "  POS: %10"PRId64"", stream_info->file_position );
@@ -503,7 +527,7 @@ static void parse_mpeg( param_t *p )
                 memset( video, 0, sizeof(FILE *) * video_stream_num );
             if( audio_stream_num )
                 memset( audio, 0, sizeof(FILE *) * audio_stream_num );
-            int64_t video_first_pts = -1;
+            int64_t video_pts = -1;
             for( uint8_t i = 0; i < video_stream_num; ++i )
             {
                 /* check sample num. */
@@ -534,23 +558,38 @@ static void parse_mpeg( param_t *p )
                         strcat( dump_name, ".video" );
                     video[i] = fopen( dump_name, "wb" );
                 }
-                if( video_first_pts < 0 && video[i] )
+                if( video_pts < 0 && video[i] && p->delay_type != MPEG_READER_DEALY_NONE )
                 {
-                    /* get first video stream info. */
-                    for( uint32_t j = 0; j < sample_num; ++j )
+                    /* get video stream info. */
+                    if( !mpeg_api_get_sample_info( info, SAMPLE_TYPE_VIDEO, i, 0, stream_info ) )
                     {
-                        if( mpeg_api_get_sample_info( info, SAMPLE_TYPE_VIDEO, i, j, stream_info ) )
+                        int64_t video_1st_pts = stream_info->video_pts;
+                        int64_t video_key_pts = (stream_info->picture_coding_type == MPEG_VIDEO_I_FRAME) ? stream_info->video_pts : -1;
+                        uint32_t j = 0;
+                        while( stream_info->temporal_reference || video_key_pts < 0 )
                         {
-                            fclose( video[i] );
-                            video[i] = NULL;
-                            break;
+                            ++j;
+                            if( mpeg_api_get_sample_info( info, SAMPLE_TYPE_VIDEO, i, j, stream_info ) )
+                                break;
+                            if( video_1st_pts > stream_info->video_pts && video_1st_pts < stream_info->video_pts + p->wrap_around_check_v )
+                                video_1st_pts = stream_info->video_pts;
+                            if( video_key_pts < 0 && stream_info->picture_coding_type == MPEG_VIDEO_I_FRAME )
+                                video_key_pts = stream_info->video_pts;
                         }
-                        if( stream_info->temporal_reference == -1 )
-                            break;
-                        if( !(stream_info->temporal_reference) )
+                        switch( p->delay_type )
                         {
-                            video_first_pts = stream_info->video_pts;
-                            break;
+                            case MPEG_READER_DEALY_VIDEO_GOP_KEYFRAME :
+                                video_pts = video_key_pts;
+                                break;
+                            case MPEG_READER_DEALY_VIDEO_GOP_TR_ORDER :
+                                video_pts = stream_info->video_pts;
+                                break;
+                            case MPEG_READER_DEALY_FAST_VIDEO_STREAM :
+                            case MPEG_READER_DEALY_FAST_STREAM :
+                                video_pts = video_1st_pts;
+                                break;
+                            default :
+                                break;
                         }
                     }
                 }
@@ -564,11 +603,11 @@ static void parse_mpeg( param_t *p )
                 {
                     /* calculate audio delay time. */
                     int64_t audio_delay = 0;
-                    if( video_first_pts >= 0 )
+                    if( video_pts >= 0 )
                     {
                         if( mpeg_api_get_sample_info( info, SAMPLE_TYPE_AUDIO, i, 0, stream_info ) )
                             continue;
-                        audio_delay = stream_info->audio_pts - video_first_pts;
+                        audio_delay = stream_info->audio_pts - video_pts;
                         if( llabs(audio_delay) > p->wrap_around_check_v )
                             audio_delay += MPEG_TIMESTAMP_WRAPAROUND_VALUE * ((audio_delay) > 0 ? -1 : 1);
                     }
@@ -622,13 +661,23 @@ static void parse_mpeg( param_t *p )
                     {
                         if( video[i] )
                         {
-                            param[thread_index].api_info    = info;
-                            param[thread_index].get_type    = SAMPLE_TYPE_VIDEO;
-                            param[thread_index].get_mode    = get_sample_list[get_index].get_mode;
-                            param[thread_index].file        = video[i];
-                            param[thread_index].stream_name = "Video";
-                            param[thread_index].stream_no   = i;
-                            param[thread_index].sample_num  = mpeg_api_get_sample_num( info, SAMPLE_TYPE_VIDEO, i );
+                            uint32_t start_number = 0;
+                            while( 1 )
+                            {
+                                if( mpeg_api_get_sample_info( info, SAMPLE_TYPE_VIDEO, i, start_number, stream_info ) )
+                                    break;
+                                if( stream_info->gop_number >= 0 )
+                                    break;
+                                ++start_number;
+                            }
+                            param[thread_index].api_info     = info;
+                            param[thread_index].get_type     = SAMPLE_TYPE_VIDEO;
+                            param[thread_index].get_mode     = get_sample_list[get_index].get_mode;
+                            param[thread_index].file         = video[i];
+                            param[thread_index].stream_name  = "Video";
+                            param[thread_index].stream_no    = i;
+                            param[thread_index].sample_num   = mpeg_api_get_sample_num( info, SAMPLE_TYPE_VIDEO, i );
+                            param[thread_index].start_number = start_number;
                             demux_thread[thread_index] = thread_create( demux, &param[thread_index] );
                             ++thread_index;
                         }
@@ -638,13 +687,14 @@ static void parse_mpeg( param_t *p )
                     {
                         if( audio[i] )
                         {
-                            param[thread_index].api_info    = info;
-                            param[thread_index].get_type    = SAMPLE_TYPE_AUDIO;
-                            param[thread_index].get_mode    = get_sample_list[get_index].get_mode;
-                            param[thread_index].file        = audio[i];
-                            param[thread_index].stream_name = "Audio";
-                            param[thread_index].stream_no   = i;
-                            param[thread_index].sample_num  = mpeg_api_get_sample_num( info, SAMPLE_TYPE_AUDIO, i );
+                            param[thread_index].api_info     = info;
+                            param[thread_index].get_type     = SAMPLE_TYPE_AUDIO;
+                            param[thread_index].get_mode     = get_sample_list[get_index].get_mode;
+                            param[thread_index].file         = audio[i];
+                            param[thread_index].stream_name  = "Audio";
+                            param[thread_index].stream_no    = i;
+                            param[thread_index].sample_num   = mpeg_api_get_sample_num( info, SAMPLE_TYPE_AUDIO, i );
+                            param[thread_index].start_number = 0;
                             demux_thread[thread_index] = thread_create( demux, &param[thread_index] );
                             ++thread_index;
                         }
@@ -679,6 +729,14 @@ static void parse_mpeg( param_t *p )
                         dprintf( LOG_LV1, " Video Stream[%3u] [demux] start - sample_num:%u\n", i, sample_num );
                         for( uint32_t j = 0; j < sample_num; ++j )
                         {
+                            while( 1 )
+                            {
+                                if( mpeg_api_get_sample_info( info, SAMPLE_TYPE_VIDEO, i, j, stream_info ) )
+                                    break;
+                                if( stream_info->gop_number >= 0 )
+                                    break;
+                                ++j;
+                            }
                             uint8_t *buffer = NULL;
                             uint32_t data_size = 0;
                             if( mpeg_api_get_sample_data( info, SAMPLE_TYPE_VIDEO, i, j, &buffer, &data_size, get_sample_list[get_index].get_mode ) )
