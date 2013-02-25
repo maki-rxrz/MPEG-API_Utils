@@ -93,6 +93,7 @@ typedef struct {
     void                   *parser_info;
     sample_list_t           sample_list;
     int64_t                 wrap_around_check_v;
+    int64_t                 file_size;
 } mpeg_api_info_t;
 
 #define DEFAULT_GOP_SAMPLE_NUM              (40000)
@@ -107,7 +108,7 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
     if( !info || !info->parser_info )
         return -1;
     mpeg_parser_t *parser = info->parser;
-    void *parser_info = info->parser_info;
+    void *parser_info     = info->parser_info;
     //memset( &(info->sample_list), 0, sizeof(sample_list_t) );
     /* create lists. */
     gop_list_data_t    *gop_list   = NULL;
@@ -192,6 +193,8 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
             video_list[i].channel              = 0;
             video_list[i].layer                = 0;
             video_list[i].bit_depth            = 0;
+            /* progress. */
+            dprintf( LOG_LV_PROGRESS, "[create_list] %14"PRIu64"/%-14"PRIu64"\r", video_list[i].file_position, info->file_size );
         }
         if( i > 0 )
         {
@@ -220,6 +223,8 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
             video_stream[stream_no].video_gop_num = gop_number + 1;
             video_stream[stream_no].video         = video_list;
             video_stream[stream_no].video_num     = i;
+            /* progress. */
+            dprintf( LOG_LV_PROGRESS, "[create_list] %14"PRIu64"/%-14"PRIu64"\n", info->file_size, info->file_size );
         }
         else
         {
@@ -276,12 +281,16 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
             audio_list[i].channel              = audio_sample_info.channel;
             audio_list[i].layer                = audio_sample_info.layer;
             audio_list[i].bit_depth            = audio_sample_info.bit_depth;
+            /* progress. */
+            dprintf( LOG_LV_PROGRESS, "[create_list] %14"PRIu64"/%-14"PRIu64"\r", audio_list[i].file_position, info->file_size );
         }
         if( i > 0 )
         {
             /* setup audio sample list. */
             audio_stream[stream_no].audio     = audio_list;
             audio_stream[stream_no].audio_num = i;
+            /* progress. */
+            dprintf( LOG_LV_PROGRESS, "[create_list] %14"PRIu64"/%-14"PRIu64"\n", info->file_size, info->file_size );
         }
         else
             free( audio_list );
@@ -469,7 +478,7 @@ MAPI_EXPORT int mpeg_api_get_sample_data( void *ih, mpeg_sample_type sample_type
     if( !info || !info->parser_info || !dst_buffer || !dst_read_size )
         return -1;
     mpeg_parser_t *parser = info->parser;
-    void *parser_info = info->parser_info;
+    void *parser_info     = info->parser_info;
     sample_list_data_t *list;
     int64_t list_num;
     if( sample_type == SAMPLE_TYPE_VIDEO )
@@ -525,7 +534,7 @@ MAPI_EXPORT int mpeg_api_get_video_frame( void *ih, uint8_t stream_number, strea
     if( !info || !info->parser_info )
         return -1;
     mpeg_parser_t *parser = info->parser;
-    void *parser_info = info->parser_info;
+    void *parser_info     = info->parser_info;
     parser->seek_next_sample_position( parser_info, SAMPLE_TYPE_VIDEO, stream_number );
     /* get video. */
     video_sample_info_t video_sample_info;
@@ -555,7 +564,7 @@ MAPI_EXPORT int mpeg_api_get_audio_frame( void *ih, uint8_t stream_number, strea
     if( !info || !info->parser_info )
         return -1;
     mpeg_parser_t *parser = info->parser;
-    void *parser_info = info->parser_info;
+    void *parser_info     = info->parser_info;
     /* get audio. */
     parser->seek_next_sample_position( parser_info, SAMPLE_TYPE_AUDIO, stream_number );
     audio_sample_info_t audio_sample_info;
@@ -589,7 +598,7 @@ MAPI_EXPORT int mpeg_api_get_stream_info( void *ih, stream_info_t *stream_info, 
     if( !info || !info->parser_info )
         return -1;
     mpeg_parser_t *parser = info->parser;
-    void *parser_info = info->parser_info;
+    void *parser_info     = info->parser_info;
     //int64_t start_position = parser->get_sample_position( parser_info );
     /* parse. */
     if( parser->parse( parser_info ) )
@@ -666,10 +675,17 @@ MAPI_EXPORT void *mpeg_api_initialize_info( const char *mpeg )
     }
     if( !parser_info )
         goto fail_initialize;
+    /* check file size. */
+    FILE *target = fopen( mpeg, "rb" );
+    fseeko( target, 0, SEEK_END );
+    int64_t file_size = ftello( target );
+    fclose( target );
+    /* setup. */
     memset( info, 0, sizeof(mpeg_api_info_t) );
     info->parser              = parser;
     info->parser_info         = parser_info;
     info->wrap_around_check_v = TIMESTAMP_WRAP_AROUND_CHECK_VALUE;
+    info->file_size           = file_size;
     return info;
 fail_initialize:
     if( parser_info )

@@ -204,26 +204,29 @@ extern void dprintf( log_level level, const char *format, ... )
         return;
     /* check mode and output. */
     FILE *msg_out[3] = { debug_ctrl.msg_out, NULL, NULL };
-    switch( debug_ctrl.mode )
-    {
-        case LOG_MODE_SILENT :
-            /* log only. */
-            if( msg_out[0] == stderr )
+    if( level == LOG_LV_PROGRESS )
+        msg_out[0] = stderr;
+    else
+        switch( debug_ctrl.mode )
+        {
+            case LOG_MODE_SILENT :
+                /* log only. */
+                if( msg_out[0] == stderr )
+                    return;
+                break;
+            case LOG_MODE_NORMAL :
+                /* log and stderr(lv0). */
+                if( msg_out[0] != stderr && level == LOG_LV0 )
+                    msg_out[1] = stderr;
+                break;
+            case LOG_MODE_OUTPUT_ALL :
+                /* log and stderr. */
+                if( msg_out[0] != stderr )
+                    msg_out[1] = stderr;
+                break;
+            default:
                 return;
-            break;
-        case LOG_MODE_NORMAL :
-            /* log and stderr(lv0). */
-            if( msg_out[0] != stderr && level == LOG_LV0 )
-                msg_out[1] = stderr;
-            break;
-        case LOG_MODE_OUTPUT_ALL :
-            /* log and stderr. */
-            if( msg_out[0] != stderr )
-                msg_out[1] = stderr;
-            break;
-        default:
-            return;
-    }
+        }
     /* output. */
     va_list argptr;
     va_start( argptr, format );

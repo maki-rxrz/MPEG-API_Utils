@@ -1174,7 +1174,7 @@ end_get_info:
 
 static void mpegts_get_sample_raw_data( mpegts_file_context_t *file, uint16_t program_id, mpeg_stream_type stream_type, mpeg_stream_group_type stream_judge, uint32_t raw_data_size, int32_t read_offset, uint8_t **buffer, uint32_t *read_size )
 {
-    dprintf( LOG_LV2, "[check] mpegts_get_sample_raw_data()\n" );
+    dprintf( LOG_LV3, "[check] mpegts_get_sample_raw_data()\n" );
     if( !raw_data_size )
         return;
     /* allocate buffer. */
@@ -1235,7 +1235,7 @@ static void mpegts_get_sample_raw_data( mpegts_file_context_t *file, uint16_t pr
 
 static void mpegts_get_sample_pes_packet_data( mpegts_file_context_t *file, uint16_t program_id, uint32_t ts_packet_count, uint8_t **buffer, uint32_t *read_size )
 {
-    dprintf( LOG_LV2, "[check] mpegts_get_sample_pes_packet_data()\n" );
+    dprintf( LOG_LV3, "[check] mpegts_get_sample_pes_packet_data()\n" );
     /* allocate buffer. */
     uint32_t sample_size = ts_packet_count * TS_PACKET_SIZE;
     *buffer = (uint8_t *)malloc( sample_size );
@@ -1263,7 +1263,7 @@ static void mpegts_get_sample_pes_packet_data( mpegts_file_context_t *file, uint
 
 static void mpegts_get_sample_ts_packet_data( mpegts_file_context_t *file, uint16_t program_id, uint32_t ts_packet_count, uint8_t **buffer, uint32_t *read_size )
 {
-    dprintf( LOG_LV2, "[check] mpegts_get_sample_ts_packet_data()\n" );
+    dprintf( LOG_LV3, "[check] mpegts_get_sample_ts_packet_data()\n" );
     /* allocate buffer. */
     uint32_t sample_size = ts_packet_count * TS_PACKET_SIZE;
     *buffer = (uint8_t *)malloc( sample_size );

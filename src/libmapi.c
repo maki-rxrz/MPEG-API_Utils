@@ -41,11 +41,14 @@ static struct {
 
 extern void dprintf( log_level level, const char *format, ... )
 {
-    if( debug_ctrl.log_lv < level || !debug_ctrl.msg_out )
+    FILE *msg_out = debug_ctrl.msg_out;
+    if( level == LOG_LV_PROGRESS )
+        msg_out = stderr;
+    if( debug_ctrl.log_lv < level || !msg_out )
         return;
     va_list argptr;
     va_start( argptr, format );
-    vfprintf( debug_ctrl.msg_out, format, argptr );
+    vfprintf( msg_out, format, argptr );
     va_end( argptr );
 }
 

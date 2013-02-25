@@ -141,26 +141,29 @@ extern void dprintf( log_level level, const char *format, ... )
         return;
     /* check mode and output. */
     FILE *msg_out[3] = { debug_ctrl.msg_out, NULL, NULL };
-    switch( debug_ctrl.mode )
-    {
-        case LOG_MODE_SILENT :
-            /* log only. */
-            if( msg_out[0] == stderr )
+    if( level == LOG_LV_PROGRESS )
+        msg_out[0] = stderr;
+    else
+        switch( debug_ctrl.mode )
+        {
+            case LOG_MODE_SILENT :
+                /* log only. */
+                if( msg_out[0] == stderr )
+                    return;
+                break;
+            case LOG_MODE_NORMAL :
+                /* log and stderr(lv0). */
+                if( msg_out[0] != stderr && level == LOG_LV0 )
+                    msg_out[1] = stderr;
+                break;
+            case LOG_MODE_OUTPUT_ALL :
+                /* log and stderr. */
+                if( msg_out[0] != stderr )
+                    msg_out[1] = stderr;
+                break;
+            default:
                 return;
-            break;
-        case LOG_MODE_NORMAL :
-            /* log and stderr(lv0). */
-            if( msg_out[0] != stderr && level == LOG_LV0 )
-                msg_out[1] = stderr;
-            break;
-        case LOG_MODE_OUTPUT_ALL :
-            /* log and stderr. */
-            if( msg_out[0] != stderr )
-                msg_out[1] = stderr;
-            break;
-        default:
-            return;
-    }
+        }
     /* output. */
     va_list argptr;
     va_start( argptr, format );
@@ -329,7 +332,7 @@ static void *demux( void *args )
     uint32_t num              = param->sample_num;
     uint32_t start            = param->start_number;
     /* demux */
-    dprintf( LOG_LV1, " %s Stream[%3u] [demux] start - sample_num:%u  start_num:%u\n", stream_name, stream_no, num, start );
+    dprintf( LOG_LV_PROGRESS, " %s Stream[%3u] [demux] start - sample_num:%u  start_num:%u\n", stream_name, stream_no, num, start );
     for( uint32_t i = start; i < num; ++i )
     {
         uint8_t *buffer = NULL;
@@ -341,9 +344,9 @@ static void *demux( void *args )
             fwrite( buffer, 1, data_size, file );
             mpeg_api_free_sample_buffer( info, &buffer );
         }
-        dprintf( LOG_LV1, " %s Stream[%3u] [%8u]  size: %10u\n", stream_name, stream_no, i, data_size );
+        dprintf( LOG_LV_PROGRESS, " %s Stream[%3u] [%8u]  size: %10u\r", stream_name, stream_no, i, data_size );
     }
-    dprintf( LOG_LV1, " %s Stream[%3u] [demux] end\n", stream_name, stream_no );
+    dprintf( LOG_LV_PROGRESS, " %s Stream[%3u] [demux] end - output: %u/%-10u\n", stream_name, stream_no, num - start, num );
     return (void *)(0);
 }
 
@@ -532,7 +535,7 @@ static void parse_mpeg( param_t *p )
             {
                 /* check sample num. */
                 uint32_t sample_num = mpeg_api_get_sample_num( info, SAMPLE_TYPE_VIDEO, i );
-                dprintf( LOG_LV0, "[log] Video Stream[%3u]  sample_num:%8u\n", i, sample_num );
+                dprintf( LOG_LV_PROGRESS, "[log] Video Stream[%3u]  sample_num:%8u\n", i, sample_num );
                 if( sample_num && (p->output_stream & OUTPUT_STREAM_VIDEO) )
                 {
                     /* open output file. */
@@ -598,7 +601,7 @@ static void parse_mpeg( param_t *p )
             {
                 /* check sample num. */
                 uint32_t sample_num = mpeg_api_get_sample_num( info, SAMPLE_TYPE_AUDIO, i );
-                dprintf( LOG_LV0, "[log] Audio Stream[%3u]  sample_num:%8u\n", i, sample_num );
+                dprintf( LOG_LV_PROGRESS, "[log] Audio Stream[%3u]  sample_num:%8u\n", i, sample_num );
                 if( sample_num && (p->output_stream & OUTPUT_STREAM_AUDIO) )
                 {
                     /* calculate audio delay time. */
@@ -645,11 +648,11 @@ static void parse_mpeg( param_t *p )
                 }
             }
             /* outptut. */
-            dprintf( LOG_LV1, "[log] Demux - START\n" );
+            dprintf( LOG_LV_PROGRESS, "[log] Demux - START\n" );
             uint16_t total_stream_num = video_stream_num + audio_stream_num;
             if( p->demux_mode == OUTPUT_DEMUX_MULTITHREAD_READ && total_stream_num > 1 )
             {
-                dprintf( LOG_LV1, "[log] Demux - Multi thread\n" );
+                dprintf( LOG_LV_PROGRESS, "[log] Demux - Multi thread\n" );
                 demux_param_t *param = (demux_param_t *)malloc( sizeof(demux_param_t) * total_stream_num );
                 if( param )
                 {
@@ -704,7 +707,7 @@ static void parse_mpeg( param_t *p )
                     {
                         for( uint16_t i = 0; i < thread_index; ++i )
                         {
-                            dprintf( LOG_LV1, "[log] wait %s Stream[%3u]...\n", param[i].stream_name, param[i].stream_no );
+                            //dprintf( LOG_LV_PROGRESS, "[log] wait %s Stream[%3u]...\n", param[i].stream_name, param[i].stream_no );
                             thread_wait_end( demux_thread[i], NULL );
                         }
                     }
@@ -720,13 +723,13 @@ static void parse_mpeg( param_t *p )
             }
             else
             {
-                dprintf( LOG_LV1, "[log] Demux - Sequential read\n" );
+                dprintf( LOG_LV_PROGRESS, "[log] Demux - Sequential read\n" );
                 for( uint8_t i = 0; i < video_stream_num; ++i )
                 {
                     if( video[i] )
                     {
                         uint32_t sample_num = mpeg_api_get_sample_num( info, SAMPLE_TYPE_VIDEO, i );
-                        dprintf( LOG_LV1, " Video Stream[%3u] [demux] start - sample_num:%u\n", i, sample_num );
+                        dprintf( LOG_LV_PROGRESS, " Video Stream[%3u] [demux] start - sample_num:%u\n", i, sample_num );
                         for( uint32_t j = 0; j < sample_num; ++j )
                         {
                             while( 1 )
@@ -746,7 +749,7 @@ static void parse_mpeg( param_t *p )
                                 fwrite( buffer, 1, data_size, video[i] );
                                 mpeg_api_free_sample_buffer( info, &buffer );
                             }
-                            dprintf( LOG_LV1, " [%8u]  size: %10u\n", j, data_size );
+                            dprintf( LOG_LV_PROGRESS, " [%8u]  size: %10u\r", j, data_size );
                         }
                         fclose( video[i] );
                     }
@@ -756,7 +759,7 @@ static void parse_mpeg( param_t *p )
                     if( audio[i] )
                     {
                         uint32_t sample_num = mpeg_api_get_sample_num( info, SAMPLE_TYPE_AUDIO, i );
-                        dprintf( LOG_LV1, " Audio Stream[%3u] [demux] start - sample_num:%u\n", i, sample_num );
+                        dprintf( LOG_LV_PROGRESS, " Audio Stream[%3u] [demux] start - sample_num:%u\n", i, sample_num );
                         for( uint32_t j = 0; j < sample_num; ++j )
                         {
                             uint8_t *buffer = NULL;
@@ -768,13 +771,13 @@ static void parse_mpeg( param_t *p )
                                 fwrite( buffer, 1, data_size, audio[i] );
                                 mpeg_api_free_sample_buffer( info, &buffer );
                             }
-                            dprintf( LOG_LV1, " [%8u]  size: %10u\n", j, data_size );
+                            dprintf( LOG_LV_PROGRESS, " [%8u]  size: %10u\r", j, data_size );
                         }
                         fclose( audio[i] );
                     }
                 }
             }
-            dprintf( LOG_LV1, "[log] Demux - END\n" );
+            dprintf( LOG_LV_PROGRESS, "[log] Demux - END\n" );
         }
     }
     else if( parse_result > 0 )
