@@ -175,7 +175,7 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
                 gop_list[gop_number].closed_gop           = video_sample_info.closed_gop;
                 /* correct check. */
                 if( compare_ts > video_sample_info.pts + info->wrap_around_check_v )
-                    ++ wrap_around_count;
+                    ++wrap_around_count;
                 compare_ts = video_sample_info.pts;
             }
             /* setup. */
@@ -184,8 +184,8 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
             video_list[i].raw_data_size        = video_sample_info.raw_data_size;
             video_list[i].raw_data_read_offset = video_sample_info.raw_data_read_offset;
             video_list[i].gop_number           = video_sample_info.gop_number;
-            video_list[i].timestamp.pts        = video_sample_info.pts + (wrap_around_count + (compare_ts > video_sample_info.pts + info->wrap_around_check_v) ? 1 : 0 ) * MPEG_TIMESTAMP_MAX_VALUE;
-            video_list[i].timestamp.dts        = video_sample_info.dts + (wrap_around_count + (compare_ts > video_sample_info.dts + info->wrap_around_check_v) ? 1 : 0 ) * MPEG_TIMESTAMP_MAX_VALUE;
+            video_list[i].timestamp.pts        = video_sample_info.pts + (wrap_around_count + (compare_ts > video_sample_info.pts + info->wrap_around_check_v) ? 1 : 0 ) * MPEG_TIMESTAMP_WRAPAROUND_VALUE;
+            video_list[i].timestamp.dts        = video_sample_info.dts + (wrap_around_count + (compare_ts > video_sample_info.dts + info->wrap_around_check_v) ? 1 : 0 ) * MPEG_TIMESTAMP_WRAPAROUND_VALUE;
             video_list[i].picture_coding_type  = video_sample_info.picture_coding_type;
             video_list[i].temporal_reference   = video_sample_info.temporal_reference;
             video_list[i].progressive_frame    = video_sample_info.progressive_frame;
@@ -241,7 +241,7 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
                 break;
             /* correct check. */
             if( compare_ts > audio_sample_info.pts + info->wrap_around_check_v )
-                ++ wrap_around_count;
+                ++wrap_around_count;
             compare_ts = audio_sample_info.pts;
             /* setup. */
             audio_list[i].file_position        = audio_sample_info.file_position;
@@ -249,8 +249,8 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
             audio_list[i].raw_data_size        = audio_sample_info.raw_data_size;
             audio_list[i].raw_data_read_offset = audio_sample_info.raw_data_read_offset;
             audio_list[i].gop_number           = 0;
-            audio_list[i].timestamp.pts        = audio_sample_info.pts + wrap_around_count * MPEG_TIMESTAMP_MAX_VALUE;
-            audio_list[i].timestamp.dts        = audio_sample_info.dts + wrap_around_count * MPEG_TIMESTAMP_MAX_VALUE;
+            audio_list[i].timestamp.pts        = audio_sample_info.pts + wrap_around_count * MPEG_TIMESTAMP_WRAPAROUND_VALUE;
+            audio_list[i].timestamp.dts        = audio_sample_info.dts + wrap_around_count * MPEG_TIMESTAMP_WRAPAROUND_VALUE;
             audio_list[i].picture_coding_type  = 0;
             audio_list[i].temporal_reference   = 0;
             audio_list[i].picture_structure    = 0;
