@@ -20,17 +20,19 @@ DLIB_OBJS   = $(LIB_SRCS:%.c=$(DLIB_DIR)/%.o)
 
 SRCS = $(SRCS1) $(SRCS2) $(LIB_SRCS)
 
-CC      = $(CROSS)gcc
-LD      = $(CROSS)gcc
-STRIP   = $(CROSS)strip
-AR      = $(CROSS)ar
-RANLIB  = $(CROSS)ranlib
-DLLTOOL = $(CROSS)dlltool
-LIBTOOL = libtool
+DEP_CC  =  $(CROSS)gcc
+CC      = @$(CROSS)gcc
+LD      = @$(CROSS)gcc
+STRIP   = @$(CROSS)strip
+AR      = @$(CROSS)ar
+RANLIB  = @$(CROSS)ranlib
+DLLTOOL = @$(CROSS)dlltool
+LIBTOOL = @libtool
+CP      = @cp -p
 RM      = rm -rf
 
-CFLAGS  = -Wall -std=gnu99 $(ECFLAGS)
-LDFLAGS = $(ELDFLAGS)
+CFLAGS  = -Wall -std=gnu99 $(XCFLAGS)
+LDFLAGS = $(XLDFLAGS)
 LIBS    = -lpthread
 
 .PHONY: all lib init clean
@@ -43,30 +45,38 @@ init:
 	@mkdir -p "$(BIN_DIR)" "$(SLIB_DIR)" "$(DLIB_DIR)"
 
 $(STATIC_LIB): $(SLIB_OBJS)
+	@echo "  AR  $(STATIC_LIB)"
 	$(AR) rc $(STATIC_LIB) $(SLIB_OBJS)
+	@echo "  RANLIB  $(STATIC_LIB)"
 	$(RANLIB) $(STATIC_LIB)
-	cp -p $(STATIC_LIB) $(BIN_DIR)
+	$(CP) $(STATIC_LIB) $(BIN_DIR)
 
 $(DYNAMIC_LIB): $(DLIB_OBJS)
+	@echo "  LD  $(DYNAMIC_LIB)"
 	$(LD) $(LDFLAGS) $(DLIB_OBJS) -shared -Wl,--out-implib,$(DYNAMIC_LIB).a -o $(DYNAMIC_LIB)
-	cp -p $(DYNAMIC_LIB)* $(BIN_DIR)
+	$(CP) $(DYNAMIC_LIB)* $(BIN_DIR)
 	$(STRIP) $(BIN_DIR)/$(DYNAMIC_LIB)
 
 $(SLIB_DIR)/%.o: %.c .depend
+	@echo "  CC  $<"
 	$(CC) -c $(CFLAGS) -DMAPI_INTERNAL_CODE_ENABLED $< -o $@
 
 $(DLIB_DIR)/%.o: %.c .depend
+	@echo "  CC  $<"
 	$(CC) -c $(CFLAGS) -DMAPI_INTERNAL_CODE_ENABLED -DMAPI_DLL_EXPORT $< -o $@
 
 $(TARGET1): $(OBJS1) $(STATIC_LIB)
+	@echo "  LD  $(TARGET1)"
 	$(LD) $(LDFLAGS) -o $@ $^
 	$(STRIP) $@
 
 $(TARGET2): $(OBJS2) $(STATIC_LIB)
+	@echo "  LD  $(TARGET2)"
 	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 	$(STRIP) $@
 
 %.o: %.c .depend
+	@echo "  CC  $<"
 	$(CC) -c $(CFLAGS) -DMAPI_UTILS_CODE_ENABLED $< -o $@
 
 clean:
@@ -78,4 +88,4 @@ endif
 
 .depend:
 	@$(RM) .depend
-	@$(foreach SRC, $(SRCS), $(CC) $(SRC) $(CFLAGS) -MT $(SRC:%.c=%.o) -MM >> .depend;)
+	@$(foreach SRC, $(SRCS), $(DEP_CC) $(SRC) $(CFLAGS) -MT $(SRC:%.c=%.o) -MM >> .depend;)
