@@ -30,6 +30,9 @@ for opt do
         MAKEOPT=*)
             MAKE_OPT="$optarg"
         ;;
+        THREADS=*)
+            THREAD_LIBS="$optarg"
+        ;;
     esac
 done
 
@@ -40,6 +43,7 @@ if [ "$#" != "0" ] ; then
     [ "$CROSS_PREFIX"  != "" ] && echo "CROSS    : $CROSS_PREFIX"
     [ "$EXTRA_CFLAGS"  != "" ] && echo "CFLAGS   : $EXTRA_CFLAGS"
     [ "$EXTRA_LDFLAGS" != "" ] && echo "LDFLAGS  : $EXTRA_LDFLAGS"
+    [ "$THREAD_LIBS"   != "" ] && echo "THREADS  : $THREAD_LIBS"
     echo ""
 fi
 
@@ -60,5 +64,5 @@ EOF
 fi
 
 # make libs and utils
-make lib CROSS="$CROSS_PREFIX" XCFLAGS="$EXTRA_CFLAGS" XLDFLAGS="$EXTRA_LDFLAGS" BIN_DIR="$BIN_DIR" $MAKE_OPT
-make     CROSS="$CROSS_PREFIX" XCFLAGS="$EXTRA_CFLAGS" XLDFLAGS="$EXTRA_LDFLAGS" BIN_DIR="$BIN_DIR" $MAKE_OPT
+make lib CROSS="$CROSS_PREFIX" XCFLAGS="$EXTRA_CFLAGS" XLDFLAGS="$EXTRA_LDFLAGS" BIN_DIR="$BIN_DIR" THREAD_LIBS="$THREAD_LIBS" $MAKE_OPT
+make     CROSS="$CROSS_PREFIX" XCFLAGS="$EXTRA_CFLAGS" XLDFLAGS="$EXTRA_LDFLAGS" BIN_DIR="$BIN_DIR" THREAD_LIBS="$THREAD_LIBS" $MAKE_OPT

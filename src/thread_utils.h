@@ -29,7 +29,9 @@
 #ifndef __THREAD_UTILS_H__
 #define __THREAD_UTILS_H__
 
-typedef void * (*thread_func)( void * );
+#define thread_func_ret     void *
+
+typedef thread_func_ret (*thread_func)( void * );
 
 #ifdef __cplusplus
 extern "C" {

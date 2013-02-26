@@ -36,6 +36,7 @@
 
 #include "mpeg_parser.h"
 #include "mpeg_utils.h"
+#include "thread_utils.h"
 
 typedef struct {
     uint8_t                 progressive_sequence;
@@ -102,39 +103,55 @@ typedef struct {
 
 #define TIMESTAMP_WRAP_AROUND_CHECK_VALUE       (0x0FFFFFFFFLL)
 
-MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
+typedef struct {
+    mpeg_api_info_t  *api_info;
+    mpeg_sample_type  sample_type;
+    uint8_t           stream_no;
+    void             *list_data;
+    uint16_t          thread_index;
+    uint16_t          thread_num;
+    int64_t          *progress;
+} parse_param_t;
+
+static void parse_progress( parse_param_t *param, int64_t position )
 {
-    mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
-    if( !info || !info->parser_info )
-        return -1;
+    if( param )
+    {
+        param->progress[param->thread_index] = position;
+        uint64_t average = 0;
+        for( uint16_t i = 0; i < param->thread_num; ++i )
+            average += param->progress[i];
+        average /= param->thread_num;
+        dprintf( LOG_LV_PROGRESS, "[parse_stream] %14"PRIu64"/%-14"PRIu64"\r", average, param->api_info->file_size );
+    }
+    else
+        dprintf( LOG_LV_PROGRESS, "[parse_stream] %14"PRIu64"/%-14"PRIu64"\n", position, position );
+}
+
+static thread_func_ret parse_stream( void *args )
+{
+    parse_param_t *param = (parse_param_t *)args;
+    if( !param )
+        return (thread_func_ret)(-1);
+    mpeg_api_info_t *info        = param->api_info;
+    mpeg_sample_type sample_type = param->sample_type;
+    uint8_t stream_no            = param->stream_no;
+    void *list_data              = param->list_data;
     mpeg_parser_t *parser = info->parser;
     void *parser_info     = info->parser_info;
-    //memset( &(info->sample_list), 0, sizeof(sample_list_t) );
-    /* create lists. */
+    /* parse */
     gop_list_data_t    *gop_list   = NULL;
     sample_list_data_t *video_list = NULL;
     sample_list_data_t *audio_list = NULL;
-    /* check stream num. */
-    int8_t video_stream_num = parser->get_stream_num( parser_info, SAMPLE_TYPE_VIDEO );
-    int8_t audio_stream_num = parser->get_stream_num( parser_info, SAMPLE_TYPE_AUDIO );
-    video_stream_data_t *video_stream = NULL;
-    audio_stream_data_t *audio_stream = NULL;
-    if( video_stream_num )
-        video_stream = (video_stream_data_t *)calloc( sizeof(video_stream_data_t), video_stream_num );
-    if( audio_stream_num )
-        audio_stream = (audio_stream_data_t *)calloc( sizeof(audio_stream_data_t), audio_stream_num );
-    if( (video_stream_num && !video_stream)
-     || (audio_stream_num && !audio_stream) )
-        goto fail_create_list;
-    /* video stream. */
-    for( uint8_t stream_no = 0; stream_no < video_stream_num; ++stream_no )
+    if( sample_type == SAMPLE_TYPE_VIDEO )
     {
+        video_stream_data_t *video_stream = (video_stream_data_t *)list_data;
         int64_t gop_list_size   = DEFAULT_GOP_SAMPLE_NUM;
         int64_t video_list_size = DEFAULT_VIDEO_SAMPLE_NUM;
         gop_list   = (gop_list_data_t    *)malloc( sizeof(gop_list_data_t)    * gop_list_size   );
         video_list = (sample_list_data_t *)malloc( sizeof(sample_list_data_t) * video_list_size );
         if( !gop_list || !video_list )
-            goto fail_create_list;
+            goto fail_parse_stream;
         /* create video lists. */
         uint32_t wrap_around_count = 0;
         int64_t compare_ts = 0;
@@ -147,7 +164,7 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
                 video_list_size += DEFAULT_VIDEO_SAMPLE_NUM;
                 sample_list_data_t *tmp = (sample_list_data_t *)realloc( video_list, sizeof(sample_list_data_t) * video_list_size );
                 if( !tmp )
-                    goto fail_create_list;
+                    goto fail_parse_stream;
                 video_list = tmp;
             }
             parser->seek_next_sample_position( parser_info, SAMPLE_TYPE_VIDEO, stream_no );
@@ -164,7 +181,7 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
                     gop_list_size += DEFAULT_GOP_SAMPLE_NUM;
                     gop_list_data_t *tmp = (gop_list_data_t *)realloc( gop_list, sizeof(gop_list_data_t) * gop_list_size );
                     if( !tmp )
-                        goto fail_create_list;
+                        goto fail_parse_stream;
                     gop_list = tmp;
                 }
                 gop_list[gop_number].progressive_sequence = video_sample_info.progressive_sequence;
@@ -194,7 +211,7 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
             video_list[i].layer                = 0;
             video_list[i].bit_depth            = 0;
             /* progress. */
-            dprintf( LOG_LV_PROGRESS, "[create_list] %14"PRIu64"/%-14"PRIu64"\r", video_list[i].file_position, info->file_size );
+            parse_progress( param, video_sample_info.file_position );
         }
         if( i > 0 )
         {
@@ -219,12 +236,10 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
                 }
             }
             /* setup video sample list. */
-            video_stream[stream_no].video_gop     = gop_list;
-            video_stream[stream_no].video_gop_num = gop_number + 1;
-            video_stream[stream_no].video         = video_list;
-            video_stream[stream_no].video_num     = i;
-            /* progress. */
-            dprintf( LOG_LV_PROGRESS, "[create_list] %14"PRIu64"/%-14"PRIu64"\n", info->file_size, info->file_size );
+            video_stream->video_gop     = gop_list;
+            video_stream->video_gop_num = gop_number + 1;
+            video_stream->video         = video_list;
+            video_stream->video_num     = i;
         }
         else
         {
@@ -234,13 +249,13 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
         gop_list   = NULL;
         video_list = NULL;
     }
-    /* audio stream. */
-    for( uint8_t stream_no = 0; stream_no < audio_stream_num; ++stream_no )
+    else if( sample_type == SAMPLE_TYPE_AUDIO )
     {
+        audio_stream_data_t *audio_stream = (audio_stream_data_t *)list_data;
         int64_t audio_list_size = DEFAULT_AUDIO_SAMPLE_NUM;
         audio_list = (sample_list_data_t *)malloc( sizeof(sample_list_data_t) * audio_list_size );
         if( !audio_list )
-            goto fail_create_list;
+            goto fail_parse_stream;
         /* create audio sample list. */
         uint32_t wrap_around_count = 0;
         int64_t compare_ts = 0;
@@ -252,7 +267,7 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
                 audio_list_size += DEFAULT_AUDIO_SAMPLE_NUM;
                 sample_list_data_t *tmp = (sample_list_data_t *)realloc( audio_list, sizeof(sample_list_data_t) * audio_list_size );
                 if( !tmp )
-                    goto fail_create_list;
+                    goto fail_parse_stream;
                 audio_list = tmp;
             }
             parser->seek_next_sample_position( parser_info, SAMPLE_TYPE_AUDIO, stream_no );
@@ -282,20 +297,113 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
             audio_list[i].layer                = audio_sample_info.layer;
             audio_list[i].bit_depth            = audio_sample_info.bit_depth;
             /* progress. */
-            dprintf( LOG_LV_PROGRESS, "[create_list] %14"PRIu64"/%-14"PRIu64"\r", audio_list[i].file_position, info->file_size );
+            parse_progress( param, audio_sample_info.file_position );
         }
         if( i > 0 )
         {
             /* setup audio sample list. */
-            audio_stream[stream_no].audio     = audio_list;
-            audio_stream[stream_no].audio_num = i;
-            /* progress. */
-            dprintf( LOG_LV_PROGRESS, "[create_list] %14"PRIu64"/%-14"PRIu64"\n", info->file_size, info->file_size );
+            audio_stream->audio     = audio_list;
+            audio_stream->audio_num = i;
         }
         else
             free( audio_list );
         audio_list = NULL;
     }
+    return (thread_func_ret)(0);
+fail_parse_stream:
+    if( gop_list )
+        free( gop_list );
+    if( video_list )
+        free( video_list );
+    if( audio_list )
+        free( audio_list );
+    return (thread_func_ret)(-1);
+}
+
+MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
+{
+    mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
+    if( !info || !info->parser_info )
+        return -1;
+    mpeg_parser_t *parser = info->parser;
+    void *parser_info     = info->parser_info;
+    /* check stream num. */
+    int8_t video_stream_num = parser->get_stream_num( parser_info, SAMPLE_TYPE_VIDEO );
+    int8_t audio_stream_num = parser->get_stream_num( parser_info, SAMPLE_TYPE_AUDIO );
+    video_stream_data_t *video_stream = NULL;
+    audio_stream_data_t *audio_stream = NULL;
+    if( video_stream_num )
+        video_stream = (video_stream_data_t *)calloc( sizeof(video_stream_data_t), video_stream_num );
+    if( audio_stream_num )
+        audio_stream = (audio_stream_data_t *)calloc( sizeof(audio_stream_data_t), audio_stream_num );
+    if( (video_stream_num && !video_stream)
+     || (audio_stream_num && !audio_stream) )
+        goto fail_create_list;
+    /* create lists. */
+    uint16_t thread_num = video_stream_num + audio_stream_num;
+    parse_param_t *param    = (parse_param_t *)malloc( sizeof(parse_param_t) * thread_num );
+    int64_t       *progress = (int64_t       *)calloc( sizeof(int64_t) * thread_num, thread_num );
+    if( !param || !progress )
+    {
+        if( param )
+            free( param );
+        if( progress );
+            free( progress );
+        goto fail_create_list;
+    }
+    else
+    {
+        void *parse_thread[thread_num];
+        memset( parse_thread, 0, sizeof(void *) * thread_num );
+        uint16_t thread_index = 0;
+        /* video. */
+        for( uint8_t i = 0; i < video_stream_num; ++i )
+        {
+            param[thread_index].api_info     = info;
+            param[thread_index].sample_type  = SAMPLE_TYPE_VIDEO;
+            param[thread_index].stream_no    = i;
+            param[thread_index].list_data    = &(video_stream[i]);
+            param[thread_index].thread_index = thread_index;
+            param[thread_index].thread_num   = thread_num;
+            param[thread_index].progress     = progress;
+            parse_thread[thread_index] = thread_create( parse_stream, &param[thread_index] );
+            ++thread_index;
+        }
+        /* audio. */
+        for( uint8_t i = 0; i < audio_stream_num; ++i )
+        {
+            param[thread_index].api_info     = info;
+            param[thread_index].sample_type  = SAMPLE_TYPE_AUDIO;
+            param[thread_index].stream_no    = i;
+            param[thread_index].list_data    = &(audio_stream[i]);
+            param[thread_index].thread_index = thread_index;
+            param[thread_index].thread_num   = thread_num;
+            param[thread_index].progress     = progress;
+            parse_thread[thread_index] = thread_create( parse_stream, &param[thread_index] );
+            ++thread_index;
+        }
+        /* wait parse end. */
+        if( thread_index )
+        {
+            for( uint16_t i = 0; i < thread_index; ++i )
+            {
+                //dprintf( LOG_LV_PROGRESS, "[log] wait %s Stream[%3u]...\n", param[i].stream_name, param[i].stream_no );
+                thread_wait_end( parse_thread[i], NULL );
+            }
+        }
+        free( param );
+        free( progress );
+        parse_progress( NULL, info->file_size );
+    }
+    /* check. */
+    if( video_stream )
+        for( uint8_t i = 0; i < video_stream_num; ++i )
+            if( !video_stream[i].video )
+                goto fail_create_list;
+    if( audio_stream )
+        for( uint8_t i = 0; i < video_stream_num; ++i )
+            if( !audio_stream[i].audio )
+                goto fail_create_list;
     /* setup. */
     info->sample_list.video_stream     = video_stream;
     info->sample_list.audio_stream     = audio_stream;
@@ -303,28 +411,22 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
     info->sample_list.audio_stream_num = audio_stream_num;
     return 0;
 fail_create_list:
-    if( gop_list )
-        free( gop_list );
-    if( video_list )
-        free( video_list );
-    if( audio_list )
-        free( audio_list );
     if( video_stream )
     {
-        for( uint8_t stream_no = 0; stream_no < video_stream_num; ++stream_no )
+        for( uint8_t i = 0; i < video_stream_num; ++i )
         {
-            if( video_stream[stream_no].video_gop )
-                free( video_stream[stream_no].video_gop );
-            if( video_stream[stream_no].video )
-                free( video_stream[stream_no].video );
+            if( video_stream[i].video_gop )
+                free( video_stream[i].video_gop );
+            if( video_stream[i].video )
+                free( video_stream[i].video );
         }
         free( video_stream );
     }
     if( audio_stream )
     {
-        for( uint8_t stream_no = 0; stream_no < video_stream_num; ++stream_no )
-            if( audio_stream[stream_no].audio )
-                free( audio_stream[stream_no].audio );
+        for( uint8_t i = 0; i < video_stream_num; ++i )
+            if( audio_stream[i].audio )
+                free( audio_stream[i].audio );
         free( audio_stream );
     }
     memset( &(info->sample_list), 0, sizeof(sample_list_t) );

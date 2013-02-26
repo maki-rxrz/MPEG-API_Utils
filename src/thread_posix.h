@@ -1,5 +1,5 @@
 /*****************************************************************************
- * thread_utils.c
+ * thread_posix.h
  *****************************************************************************
  *
  * Authors: Masaki Tanaka <maki.rxrz@gmail.com>
@@ -27,18 +27,36 @@
  *
  ****************************************************************************/
 
-#include "common.h"
+#define PTW32_STATIC_LIB 1
 
-#include <stdlib.h>
+#include <pthread.h>
 
-#if defined(MAPI_PTHREAD_ENABLED)
+#include "thread_utils.h"
 
-#include "thread_posix.h"
+typedef struct {
+    pthread_t       thread;
+} thread_control_t;
 
-#elif defined(MAPI_WTHREAD_ENABLED)
+extern void *thread_create( thread_func func, void *func_arg )
+{
+    thread_control_t *thread_ctrl = (thread_control_t *)malloc( sizeof(thread_control_t) );
+    if( !thread_ctrl )
+        return NULL;
+    int result = pthread_create( &(thread_ctrl->thread), NULL, func, func_arg );
+    if( result )
+    {
+        dprintf( LOG_LV0, "[log] thread_create()  result:%d\n", result );
+        free( thread_ctrl );
+        thread_ctrl = NULL;
+    }
+    return thread_ctrl;
+}
 
-#include "thread_win32.h"
-
-#else
-#error "Need the thread library..."
-#endif
+extern void thread_wait_end( void * th, void **value_ptr )
+{
+    thread_control_t *thread_ctrl = (thread_control_t *)th;
+    int result = pthread_join( thread_ctrl->thread, value_ptr );
+    if( result )
+        dprintf( LOG_LV0, "[log] thread_wait_end()  result:%d\n", result );
+    free( thread_ctrl );
+}

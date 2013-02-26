@@ -318,11 +318,11 @@ typedef struct {
     uint32_t                start_number;
 } demux_param_t;
 
-static void *demux( void *args )
+static thread_func_ret demux( void *args )
 {
     demux_param_t *param = (demux_param_t *)args;
     if( !param )
-        return (void *)(-1);
+        return (thread_func_ret)(-1);
     void *info                = param->api_info;
     mpeg_sample_type get_type = param->get_type;
     get_sample_data_mode mode = param->get_mode;
@@ -347,7 +347,7 @@ static void *demux( void *args )
         dprintf( LOG_LV_PROGRESS, " %s Stream[%3u] [%8u]  size: %10u\r", stream_name, stream_no, i, data_size );
     }
     dprintf( LOG_LV_PROGRESS, " %s Stream[%3u] [demux] end - output: %u/%-10u\n", stream_name, stream_no, num - start, num );
-    return (void *)(0);
+    return (thread_func_ret)(0);
 }
 
 static void get_speaker_mapping_info( uint16_t speaker_mapping, char *mapping_info )

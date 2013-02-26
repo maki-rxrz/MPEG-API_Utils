@@ -1,5 +1,5 @@
 BIN_DIR  = ../bin
-API_SRCS = mpeg_utils.c mpeges_parser.c mpegts_parser.c mpeg_stream.c mpeg_video.c
+API_SRCS = mpeg_utils.c mpeges_parser.c mpegts_parser.c mpeg_stream.c mpeg_video.c thread_utils.c
 
 TARGET1 = $(BIN_DIR)/cutcaption.exe
 SRCS1   = cutcaption.c d2v_parser.c text_utils.c avs_utils.c
@@ -33,7 +33,14 @@ RM      = rm -rf
 
 CFLAGS  = -Wall -std=gnu99 $(XCFLAGS)
 LDFLAGS = $(XLDFLAGS)
-LIBS    = -lpthread
+LIBS    =
+
+ifeq ($(THREAD_LIBS), win32)
+CFLAGS += -DMAPI_WTHREAD_ENABLED
+else
+CFLAGS += -DMAPI_PTHREAD_ENABLED
+LIBS   += -lpthread
+endif
 
 .PHONY: all lib init clean
 
@@ -53,7 +60,7 @@ $(STATIC_LIB): $(SLIB_OBJS)
 
 $(DYNAMIC_LIB): $(DLIB_OBJS)
 	@echo "  LD  $(DYNAMIC_LIB)"
-	$(LD) $(LDFLAGS) $(DLIB_OBJS) -shared -Wl,--out-implib,$(DYNAMIC_LIB).a -o $(DYNAMIC_LIB)
+	$(LD) $(LDFLAGS) $(DLIB_OBJS) $(LIBS) -shared -Wl,--out-implib,$(DYNAMIC_LIB).a -o $(DYNAMIC_LIB)
 	$(CP) $(DYNAMIC_LIB)* $(BIN_DIR)
 	$(STRIP) $(BIN_DIR)/$(DYNAMIC_LIB)
 
@@ -67,7 +74,7 @@ $(DLIB_DIR)/%.o: %.c .depend
 
 $(TARGET1): $(OBJS1) $(STATIC_LIB)
 	@echo "  LD  $(TARGET1)"
-	$(LD) $(LDFLAGS) -o $@ $^
+	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 	$(STRIP) $@
 
 $(TARGET2): $(OBJS2) $(STATIC_LIB)
