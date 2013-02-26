@@ -78,6 +78,7 @@ typedef struct {
 typedef struct {
     parser_status_type          status;
     char                       *mpegts;
+    int64_t                     file_size;
     mpegts_file_context_t       file_read;
     int32_t                     pid_list_num_in_pat;
     uint16_t                   *pid_list_in_pat;
@@ -520,47 +521,112 @@ static int mpegts_search_pmt_packet( mpegts_info_t *info, mpegts_pmt_section_inf
     return 0;
 }
 
+#define PMT_PARSE_COUNT_NUM     (9)
+
 static int mpegts_parse_pmt( mpegts_info_t *info )
 {
     dprintf( LOG_LV2, "[check] mpegts_parse_pmt()\n" );
     int64_t read_pos = -1;
     /* search. */
     mpegts_pmt_section_info_t pmt_si;
-    int section_length;
-    uint8_t section_buffer[TS_PACKET_TABLE_SECTION_SIZE_MAX];
-    int retry_count = info->packet_check_retry_num;
-    while( retry_count )
+    int section_lengths[PMT_PARSE_COUNT_NUM] = { 0 };
+    uint8_t section_buffers[PMT_PARSE_COUNT_NUM][TS_PACKET_TABLE_SECTION_SIZE_MAX];
+    int64_t reset_position = -1;
+    int64_t check_offset = info->file_size / (PMT_PARSE_COUNT_NUM + 1);
+    check_offset -= check_offset % info->file_read.packet_size;
+    for( int i = 0; i < PMT_PARSE_COUNT_NUM; ++i )
     {
-        --retry_count;
-        if( mpegts_search_pmt_packet( info, &pmt_si ) )
-            return -1;
-        /* get section length. */
-        section_length = pmt_si.section_length - 9;             /* 9: section_header[3]-[11] */
-        mpegts_fseek( &(info->file_read), pmt_si.program_info_length, MPEGTS_SEEK_CUR );
-        section_length -= pmt_si.program_info_length;
-        dprintf( LOG_LV4, "[check] section_length:%d\n", section_length );
-        /* check file position. */
-        read_pos = info->file_read.read_position;
-        /* buffering section data. */
-        if( mpegts_get_table_section_data( &(info->file_read), info->pmt_program_id, section_buffer, section_length ) )
-            continue;
-        /* check pid list num. */
-        int32_t pid_list_num = 0, read_count = 0;
-        while( read_count < section_length - TS_PACKET_SECTION_CRC32_SIZE )
+        /* search. */
+        int section_length = 0;
+        int retry_count = info->packet_check_retry_num;
+        while( retry_count )
         {
-            uint8_t *section_data = &(section_buffer[read_count]);
-            uint16_t ES_info_length = ((section_data[3] & 0x0F) << 8) | section_data[4];
-            /* seek next section. */
-            read_count += TS_PACKET_PMT_SECTION_DATA_SIZE + ES_info_length;
-            ++pid_list_num;
+            --retry_count;
+            if( mpegts_search_pmt_packet( info, &pmt_si ) )
+                return -1;
+            /* get section length. */
+            section_length = pmt_si.section_length - 9;         /* 9: section_header[3]-[11] */
+            mpegts_fseek( &(info->file_read), pmt_si.program_info_length, MPEGTS_SEEK_CUR );
+            section_length -= pmt_si.program_info_length;
+            dprintf( LOG_LV4, "[check] section_length:%d\n", section_length );
+            /* check file position. */
+            read_pos = info->file_read.read_position;
+            /* buffering section data. */
+            if( mpegts_get_table_section_data( &(info->file_read), info->pmt_program_id, section_buffers[i], section_length ) )
+                continue;
+            /* check pid list num. */
+            int32_t pid_list_num = 0, read_count = 0;
+            while( read_count < section_length - TS_PACKET_SECTION_CRC32_SIZE )
+            {
+                uint8_t *section_data = &(section_buffers[i][read_count]);
+                uint16_t ES_info_length = ((section_data[3] & 0x0F) << 8) | section_data[4];
+                /* seek next section. */
+                read_count += TS_PACKET_PMT_SECTION_DATA_SIZE + ES_info_length;
+                ++pid_list_num;
+            }
+            if( (section_length - read_count) != TS_PACKET_SECTION_CRC32_SIZE )
+                continue;
+            info->pid_list_num_in_pmt = pid_list_num;
+            break;
         }
-        if( (section_length - read_count) != TS_PACKET_SECTION_CRC32_SIZE )
-            continue;
-        info->pid_list_num_in_pmt = pid_list_num;
-        break;
+        if( !retry_count )
+        {
+            if( i == 0 )
+                return -1;
+            else
+                break;
+        }
+        if( i == 0 )
+            reset_position = read_pos;
+        section_lengths[i] = section_length;
+        /* ready next. */
+        mpegts_fseek( &(info->file_read), read_pos + check_offset, MPEGTS_SEEK_RESET );
     }
-    if( !retry_count )
-        return -1;
+    mpegts_fseek( &(info->file_read), reset_position, MPEGTS_SEEK_RESET );
+    read_pos = reset_position;
+    /* select target pmt. */
+    int target_pmt = 0;
+    struct {
+        uint32_t    crc32;
+        int         count;
+        int         target;
+    } target_candidate[PMT_PARSE_COUNT_NUM] = { { 0 } };
+    for( int i = 0; i < PMT_PARSE_COUNT_NUM && section_lengths[i]; ++i )
+    {
+        int crc_pos = section_lengths[i] - TS_PACKET_SECTION_CRC32_SIZE;
+        uint32_t crc32 = 0;
+        for( int j = 0; j < TS_PACKET_SECTION_CRC32_SIZE; ++j )
+            crc32 = crc32 << 8 | section_buffers[i][crc_pos + j];
+        for( int j = 0; j < PMT_PARSE_COUNT_NUM; ++j )
+        {
+            if( target_candidate[j].crc32 == 0 )
+            {
+                target_candidate[j].crc32  = crc32;
+                target_candidate[j].count  = 1;
+                target_candidate[j].target = i;
+                break;
+            }
+            else if( target_candidate[j].crc32 == crc32 )
+            {
+                ++ target_candidate[j].count;
+                break;
+            }
+        }
+    }
+    int target_count_max = 0;
+    for( int i = 0; i < PMT_PARSE_COUNT_NUM && target_candidate[i].count; ++i )
+    {
+        dprintf( LOG_LV2, "[check] pmt candidate[%d]  crc:%08X  detect_count:%d  target:%d\n"
+                        , i, target_candidate[i].crc32, target_candidate[i].count, target_candidate[i].target );
+        if( target_count_max < target_candidate[i].count )
+        {
+            target_count_max = target_candidate[i].count;
+            target_pmt       = target_candidate[i].target;
+        }
+    }
+    dprintf( LOG_LV2, "[check] target_pmt:%d\n", target_pmt );
+    int section_length      = section_lengths[target_pmt];
+    uint8_t *section_buffer = section_buffers[target_pmt];
     /* listup. */
     info->pid_list_in_pmt = (mpegts_pid_in_pmt_t *)malloc( sizeof(mpegts_pid_in_pmt_t) * info->pid_list_num_in_pmt );
     if( !info->pid_list_in_pmt )
@@ -1907,8 +1973,13 @@ static void *initialize( const char *input_file )
     FILE *input = fopen( input_file, "rb" );
     if( !info || !mpegts || !input )
         goto fail_initialize;
+    /* check file size. */
+    fseeko( input, 0, SEEK_END );
+    int64_t file_size = ftello( input );
+    fseeko( input, 0, SEEK_SET );
     /* initialize. */
     info->mpegts                           = mpegts;
+    info->file_size                        = file_size;
     info->file_read.input                  = input;
     info->file_read.packet_size            = TS_PACKET_SIZE;
     info->file_read.sync_byte_position     = -1;
