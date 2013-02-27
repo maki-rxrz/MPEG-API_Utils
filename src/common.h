@@ -74,7 +74,8 @@ typedef enum {
 } log_mode;
 
 typedef enum {
-    LOG_LV_KEEP     = -3,
+    LOG_LV_KEEP     = -4,
+    LOG_LV_OUTPUT   = -3,
     LOG_LV_PROGRESS = -2,
     LOG_LV_SILENT   = -1,
     LOG_LV0         =  0,

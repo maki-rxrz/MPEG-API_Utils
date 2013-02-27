@@ -204,7 +204,9 @@ extern void dprintf( log_level level, const char *format, ... )
         return;
     /* check mode and output. */
     FILE *msg_out[3] = { debug_ctrl.msg_out, NULL, NULL };
-    if( level == LOG_LV_PROGRESS )
+    if( level == LOG_LV_OUTPUT )
+        msg_out[0] = stdout;
+    else if( level == LOG_LV_PROGRESS )
         msg_out[0] = stderr;
     else
         switch( debug_ctrl.mode )
@@ -1113,7 +1115,7 @@ static void analyze_mpegts( param_t *p )
     delay_info_type delay_info = { 0 };
     parse_reader_offset( p, &delay_info );
     /* display. */
-    dprintf( LOG_LV0,
+    dprintf( LOG_LV_OUTPUT,
         "[analyze_mpegts]  %s.ts\n"
         "[reader's delay]\n"
         "  MPEG-2 VIDEO VFAPI Plug-In: %"PRId64" msec\n"

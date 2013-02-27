@@ -42,7 +42,9 @@ static struct {
 extern void dprintf( log_level level, const char *format, ... )
 {
     FILE *msg_out = debug_ctrl.msg_out;
-    if( level == LOG_LV_PROGRESS )
+    if( level == LOG_LV_OUTPUT )
+        msg_out = stdout;
+    else if( level == LOG_LV_PROGRESS )
         msg_out = stderr;
     if( debug_ctrl.log_lv < level || !msg_out )
         return;
