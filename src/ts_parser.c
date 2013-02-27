@@ -564,7 +564,7 @@ static void parse_mpeg( param_t *p )
                         strcat( dump_name, ".video" );
                     video[i] = fopen( dump_name, "wb" );
                 }
-                if( video_pts < 0 && video[i] && p->delay_type != MPEG_READER_DEALY_NONE )
+                if( video_pts < 0 && p->delay_type != MPEG_READER_DEALY_NONE )
                 {
                     /* get video stream info. */
                     if( !mpeg_api_get_sample_info( info, SAMPLE_TYPE_VIDEO, i, 0, stream_info ) )
