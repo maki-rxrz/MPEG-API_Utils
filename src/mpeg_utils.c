@@ -433,6 +433,22 @@ fail_create_list:
     return -1;
 }
 
+MAPI_EXPORT int64_t mepg_api_get_sample_position( void *ih, mpeg_sample_type sample_type, uint8_t stream_number )
+{
+    mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
+    if( !info || !info->parser_info )
+        return -1;
+    return info->parser->get_sample_position( info->parser_info, sample_type, stream_number );
+}
+
+MAPI_EXPORT int mepg_api_set_sample_position( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, int64_t position )
+{
+    mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
+    if( !info || !info->parser_info )
+        return -1;
+    return info->parser->set_sample_position( info->parser_info, sample_type, stream_number, position );
+}
+
 MAPI_EXPORT uint8_t mpeg_api_get_stream_num( void *ih, mpeg_sample_type sample_type )
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
@@ -667,8 +683,8 @@ MAPI_EXPORT int mpeg_api_get_audio_frame( void *ih, uint8_t stream_number, strea
         return -1;
     mpeg_parser_t *parser = info->parser;
     void *parser_info     = info->parser_info;
-    /* get audio. */
     parser->seek_next_sample_position( parser_info, SAMPLE_TYPE_AUDIO, stream_number );
+    /* get audio. */
     audio_sample_info_t audio_sample_info;
     int result = parser->get_audio_info( parser_info, stream_number, &audio_sample_info );
     if( result )
@@ -701,11 +717,9 @@ MAPI_EXPORT int mpeg_api_get_stream_info( void *ih, stream_info_t *stream_info, 
         return -1;
     mpeg_parser_t *parser = info->parser;
     void *parser_info     = info->parser_info;
-    //int64_t start_position = parser->get_sample_position( parser_info );
     /* parse. */
     if( parser->parse( parser_info ) )
         return -1;
-    //parser->set_sample_position( parser_info, start_position );
     /* check video and audio PTS. */
     enum {
         BOTH_VA_NONE  = 0x11,

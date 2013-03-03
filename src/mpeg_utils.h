@@ -68,6 +68,10 @@ extern "C" {
 
 MAPI_EXPORT int mpeg_api_create_sample_list( void *ih );
 
+MAPI_EXPORT int64_t mepg_api_get_sample_position( void *ih, mpeg_sample_type sample_type, uint8_t stream_number );
+
+MAPI_EXPORT int mepg_api_set_sample_position( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, int64_t position );
+
 MAPI_EXPORT uint8_t mpeg_api_get_stream_num( void *ih, mpeg_sample_type sample_type );
 
 MAPI_EXPORT const char *mpeg_api_get_sample_file_extension( void *ih, mpeg_sample_type sample_type, uint8_t stream_number );

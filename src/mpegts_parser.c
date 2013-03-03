@@ -1441,32 +1441,38 @@ static int get_sample_data( void *ih, mpeg_sample_type sample_type, uint8_t stre
     return 0;
 }
 
-static int64_t get_sample_position( void *ih )
+static int64_t get_sample_position( void *ih, mpeg_sample_type sample_type, uint8_t stream_number )
 {
-#if 0       // FIXME
     mpegts_info_t *info = (mpegts_info_t *)ih;
     if( !info )
         return -1;
-    return ftello( info->file_read.input );
-#else
-    return -1;
-#endif
+    mpegts_file_context_t *file_read = NULL;
+    if( sample_type == SAMPLE_TYPE_VIDEO && stream_number < info->video_stream_num )
+        file_read = &(info->video_stream[stream_number].file_read);
+    else if( sample_type == SAMPLE_TYPE_AUDIO && stream_number < info->audio_stream_num )
+        file_read = &(info->audio_stream[stream_number].file_read);
+    else
+        return -1;
+    //return ftello( file_read->input );
+    return file_read->read_position;
 }
 
-static int set_sample_position( void *ih, int64_t position )
+static int set_sample_position( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, int64_t position )
 {
-#if 0       // FIXME
     mpegts_info_t *info = (mpegts_info_t *)ih;
     if( !info || position < 0 )
         return -1;
-    mpegts_fseek( &(info->file_read), position, MPEGTS_SEEK_SET );
-    info->file_read.sync_byte_position = -1;
-//    info->file_read.read_position    = position;
-//    info->file_read.ts_packet_length = TS_PACKET_SIZE;
+    mpegts_file_context_t *file_read = NULL;
+    if( sample_type == SAMPLE_TYPE_VIDEO && stream_number < info->video_stream_num )
+        file_read = &(info->video_stream[stream_number].file_read);
+    else if( sample_type == SAMPLE_TYPE_AUDIO && stream_number < info->audio_stream_num )
+        file_read = &(info->audio_stream[stream_number].file_read);
+    else
+        return -1;
+    mpegts_fseek( file_read, position, MPEGTS_SEEK_SET );
+    file_read->read_position    = position;
+    file_read->ts_packet_length = TS_PACKET_SIZE;
     return 0;
-#else
-    return -1;
-#endif
 }
 
 static int seek_next_sample_position( void *ih, mpeg_sample_type sample_type, uint8_t stream_number )

@@ -297,18 +297,18 @@ static int get_sample_data( void *ih, mpeg_sample_type sample_type, uint8_t stre
     return 0;
 }
 
-static int64_t get_sample_position( void *ih )
+static int64_t get_sample_position( void *ih, mpeg_sample_type sample_type, uint8_t stream_number )
 {
     mpeges_info_t *info = (mpeges_info_t *)ih;
-    if( !info )
+    if( !info || stream_number || sample_type != SAMPLE_TYPE_VIDEO )
         return -1;
     return ftello( info->input );
 }
 
-static int set_sample_position( void *ih, int64_t position )
+static int set_sample_position( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, int64_t position )
 {
     mpeges_info_t *info = (mpeges_info_t *)ih;
-    if( !info || position < 0 )
+    if( !info || stream_number || sample_type != SAMPLE_TYPE_VIDEO || position < 0 )
         return -1;
     fseeko( info->input, position, SEEK_SET );
     return 0;
@@ -317,9 +317,7 @@ static int set_sample_position( void *ih, int64_t position )
 static int seek_next_sample_position( void *ih, mpeg_sample_type sample_type, uint8_t stream_number )
 {
     mpeges_info_t *info = (mpeges_info_t *)ih;
-    if( !info || stream_number )
-        return -1;
-    if( sample_type != SAMPLE_TYPE_VIDEO )
+    if( !info || stream_number || sample_type != SAMPLE_TYPE_VIDEO )
         return -1;
     int64_t seek_position = info->video_position;
     if( seek_position < 0 )
