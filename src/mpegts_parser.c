@@ -543,7 +543,12 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
         {
             --retry_count;
             if( mpegts_search_pmt_packet( info, &pmt_si ) )
-                return -1;
+            {
+                if( i == 0 )
+                    return -1;
+                retry_count = 0;
+                break;
+            }
             /* get section length. */
             section_length = pmt_si.section_length - 9;         /* 9: section_header[3]-[11] */
             mpegts_fseek( &(info->file_read), pmt_si.program_info_length, MPEGTS_SEEK_CUR );
