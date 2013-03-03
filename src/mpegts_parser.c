@@ -573,8 +573,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
         {
             if( i == 0 )
                 return -1;
-            else
-                break;
+            break;
         }
         if( i == 0 )
             reset_position = read_pos;
@@ -1106,7 +1105,7 @@ static int mpegts_check_sample_raw_frame_length( mpegts_file_context_t *file, ui
 end_check_frame_length:
     mpegts_fseek( file, start_position, MPEGTS_SEEK_SET );
     file->ts_packet_length = start_rest_packet_length;
-    dprintf( LOG_LV4, "[DEBUG]  check_frame_length  result: %d\n", result );
+    dprintf( LOG_LV4, "[debug] check_frame_length  result: %d\n", result );
     return result;
 }
 

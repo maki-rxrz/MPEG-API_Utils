@@ -169,8 +169,7 @@ static thread_func_ret parse_stream( void *args )
             }
             parser->seek_next_sample_position( parser_info, SAMPLE_TYPE_VIDEO, stream_no );
             video_sample_info_t video_sample_info;
-            int result = parser->get_video_info( parser_info, stream_no, &video_sample_info );
-            if( result )
+            if( parser->get_video_info( parser_info, stream_no, &video_sample_info ) )
                 break;
             /* setup GOP list. */
             if( gop_number < video_sample_info.gop_number )
@@ -272,8 +271,7 @@ static thread_func_ret parse_stream( void *args )
             }
             parser->seek_next_sample_position( parser_info, SAMPLE_TYPE_AUDIO, stream_no );
             audio_sample_info_t audio_sample_info;
-            int result = parser->get_audio_info( parser_info, stream_no, &audio_sample_info );
-            if( result )
+            if( parser->get_audio_info( parser_info, stream_no, &audio_sample_info ) )
                 break;
             /* correct check. */
             if( compare_ts > audio_sample_info.pts + info->wrap_around_check_v )
@@ -736,8 +734,7 @@ MAPI_EXPORT int mpeg_api_get_video_frame( void *ih, uint8_t stream_number, strea
     parser->seek_next_sample_position( parser_info, SAMPLE_TYPE_VIDEO, stream_number );
     /* get video. */
     video_sample_info_t video_sample_info;
-    int result = parser->get_video_info( parser_info, stream_number, &video_sample_info );
-    if( result )
+    if( parser->get_video_info( parser_info, stream_number, &video_sample_info ) )
         return -1;
     stream_info->file_position        = video_sample_info.file_position;
     stream_info->sample_size          = video_sample_info.sample_size;
@@ -766,8 +763,7 @@ MAPI_EXPORT int mpeg_api_get_audio_frame( void *ih, uint8_t stream_number, strea
     parser->seek_next_sample_position( parser_info, SAMPLE_TYPE_AUDIO, stream_number );
     /* get audio. */
     audio_sample_info_t audio_sample_info;
-    int result = parser->get_audio_info( parser_info, stream_number, &audio_sample_info );
-    if( result )
+    if( parser->get_audio_info( parser_info, stream_number, &audio_sample_info ) )
         return -1;
     stream_info->file_position      = audio_sample_info.file_position;
     stream_info->sample_size        = audio_sample_info.sample_size;
