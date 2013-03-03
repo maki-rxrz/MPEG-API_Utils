@@ -1070,10 +1070,14 @@ static int mpegts_check_sample_raw_frame_length( mpegts_file_context_t *file, ui
     while( 1 )
     {
         int32_t read_size = 0;
+        int32_t seek_size = 0;
         if( raw_data_size + file->ts_packet_length > frame_length )
         {
             if( raw_data_size < frame_length )
-                mpegts_fseek( file, frame_length - raw_data_size, MPEGTS_SEEK_CUR );
+            {
+                seek_size = frame_length - raw_data_size;
+                mpegts_fseek( file, seek_size, MPEGTS_SEEK_CUR );
+            }
             read_size = stream_header_check_size - buffer_read_size;
             if( read_size > file->ts_packet_length )
                 read_size = file->ts_packet_length;
@@ -1089,7 +1093,7 @@ static int mpegts_check_sample_raw_frame_length( mpegts_file_context_t *file, ui
                 break;
             }
         }
-        raw_data_size += file->ts_packet_length + read_size;
+        raw_data_size += file->ts_packet_length + read_size + seek_size;
         /* ready next. */
         mpegts_fseek( file, 0, MPEGTS_SEEK_NEXT );
         /* seek next packet. */
