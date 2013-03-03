@@ -1498,6 +1498,92 @@ static int seek_next_sample_position( void *ih, mpeg_sample_type sample_type, ui
     return 0;
 }
 
+static int get_stream_data( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, int32_t read_offset, get_sample_data_mode get_mode, get_stream_data_cb_t *cb )
+{
+    mpegts_info_t *info = (mpegts_info_t *)ih;
+    if( !info )
+        return -1;
+    mpegts_packet_header_t h;
+    mpegts_file_context_t *file = NULL;
+    uint16_t program_id = TS_PID_ERR;
+    if( sample_type == SAMPLE_TYPE_VIDEO && stream_number < info->video_stream_num )
+    {
+        file       = &(info->video_stream[stream_number].file_read);
+        program_id =   info->video_stream[stream_number].program_id;
+    }
+    else if( sample_type == SAMPLE_TYPE_AUDIO && stream_number < info->audio_stream_num )
+    {
+        file       = &(info->audio_stream[stream_number].file_read);
+        program_id =   info->audio_stream[stream_number].program_id;
+    }
+    else
+        return -1;
+    /* search. */
+    uint32_t read_size = 0;
+    switch( get_mode )
+    {
+        case GET_SAMPLE_DATA_CONTAINER :
+            /* seek ts packet head. */
+            if( mpegts_search_program_id_packet( file, &h, program_id ) )
+                return -1;
+            mpegts_fseek( file, -(TS_PACKET_HEADER_SIZE), MPEGTS_SEEK_CUR );
+            read_size   = file->ts_packet_length;
+            read_offset = 0;
+            break;
+        case GET_SAMPLE_DATA_PES_PACKET :
+            /* seek payload data. */
+            if( mpegts_seek_packet_payload_data( file, &h, program_id, 0, 1 ) )
+                return -1;
+            read_size   = file->ts_packet_length;
+            read_offset = 0;
+            break;
+        case GET_SAMPLE_DATA_RAW :
+            /* seek PES payload data */
+            if( mpegts_seek_packet_payload_data( file, &h, program_id, 0, 1 ) )
+                return -1;
+            if( h.payload_unit_start_indicator )
+            {
+                mpeg_pes_header_info_t pes_info;
+                GET_PES_PACKET_HEADER( file, pes_info );
+                /* skip PES packet header. */
+                mpegts_fseek( file, pes_info.header_length, MPEGTS_SEEK_CUR );
+            }
+            /* check read start point. */
+            if( read_offset )
+            {
+                if( read_offset > file->ts_packet_length )
+                {
+                    read_offset -= file->ts_packet_length;
+                    mpegts_fseek( file, file->ts_packet_length, MPEGTS_SEEK_CUR );
+                }
+                else
+                {
+                    mpegts_fseek( file, read_offset, MPEGTS_SEEK_CUR );
+                    read_offset = 0;
+                }
+            }
+            read_size = file->ts_packet_length;
+            break;
+        default :
+            read_size   = 0;
+            read_offset = 0;
+            break;
+    }
+    if( cb && cb->func && read_size )
+    {
+        //dprintf( LOG_LV4, "[mpegts_parser] get_stream_data()  read_size:%u\n", read_size );
+        /* read packet data. */
+        //uint8_t buffer[file->packet_size];
+        uint8_t buffer[256];
+        mpegts_fread( buffer, read_size, file );
+        /* output. */
+        cb->func( cb->params, buffer, read_size );
+    }
+    ///* ready next. */
+    //mpegts_fseek( file, 0, MPEGTS_SEEK_NEXT );
+    return read_offset;
+}
+
 static uint8_t get_stream_num( void *ih, mpeg_sample_type sample_type )
 {
     mpegts_info_t *info = (mpegts_info_t *)ih;
@@ -2033,6 +2119,7 @@ mpeg_parser_t mpegts_parser = {
     get_audio_info,
     get_pcr,
     get_stream_num,
+    get_stream_data,
     get_sample_position,
     set_sample_position,
     seek_next_sample_position,

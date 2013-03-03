@@ -449,6 +449,86 @@ MAPI_EXPORT int mepg_api_set_sample_position( void *ih, mpeg_sample_type sample_
     return info->parser->set_sample_position( info->parser_info, sample_type, stream_number, position );
 }
 
+MAPI_EXPORT int mpeg_api_get_stream_all( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, get_sample_data_mode get_mode, get_stream_data_cb_t *cb )
+{
+    mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
+    if( !info || !info->parser_info )
+        return -1;
+    mpeg_parser_t *parser = info->parser;
+    void *parser_info     = info->parser_info;
+    int32_t read_offset   = 0;
+    /* check offset. */
+    if( get_mode == GET_SAMPLE_DATA_RAW )
+    {
+        int64_t file_position = 0;
+        if( sample_type == SAMPLE_TYPE_VIDEO )
+        {
+            video_sample_info_t video_sample_info;
+            if( parser->get_video_info( parser_info, stream_number, &video_sample_info ) )
+                return -1;
+            file_position = video_sample_info.file_position;
+            read_offset   = video_sample_info.raw_data_read_offset;
+        }
+        if( sample_type == SAMPLE_TYPE_AUDIO )
+        {
+            audio_sample_info_t audio_sample_info;
+            if( parser->get_audio_info( parser_info, stream_number, &audio_sample_info ) )
+                return -1;
+            file_position = audio_sample_info.file_position;
+            read_offset   = audio_sample_info.raw_data_read_offset;
+        }
+        parser->set_sample_position( parser_info, sample_type, stream_number, file_position );
+    }
+    /* get data. */
+    while( 1 )
+        if( (read_offset = parser->get_stream_data( parser_info, sample_type, stream_number, read_offset, get_mode, cb )) )
+            break;
+    return 0;
+}
+
+MAPI_EXPORT int mpeg_api_get_stream_data( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, uint8_t **dst_buffer, uint32_t *dst_read_size, get_sample_data_mode get_mode )
+{
+    mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
+    if( !info || !info->parser_info )
+        return -1;
+    mpeg_parser_t *parser = info->parser;
+    void *parser_info     = info->parser_info;
+    parser->seek_next_sample_position( parser_info, sample_type, stream_number );
+    /* get sample data. */
+    int64_t file_position = -1;
+    uint32_t sample_size  = 0;
+    int32_t read_offset   = 0;
+    if( sample_type == SAMPLE_TYPE_VIDEO )
+    {
+        /* get video. */
+        video_sample_info_t video_sample_info;
+        if( parser->get_video_info( parser_info, stream_number, &video_sample_info ) )
+            return -1;
+        file_position   = video_sample_info.file_position;
+        sample_size     = video_sample_info.sample_size;
+        if( get_mode == GET_SAMPLE_DATA_RAW )
+        {
+            sample_size = video_sample_info.raw_data_size;
+            read_offset = video_sample_info.raw_data_read_offset;
+        }
+    }
+    if( sample_type == SAMPLE_TYPE_AUDIO )
+    {
+        /* get audio. */
+        audio_sample_info_t audio_sample_info;
+        if( parser->get_audio_info( parser_info, stream_number, &audio_sample_info ) )
+            return -1;
+        file_position   = audio_sample_info.file_position;
+        sample_size     = audio_sample_info.sample_size;
+        if( get_mode == GET_SAMPLE_DATA_RAW )
+        {
+            sample_size = audio_sample_info.raw_data_size;
+            read_offset = audio_sample_info.raw_data_read_offset;
+        }
+    }
+    return parser->get_sample_data( parser_info, sample_type, stream_number, file_position, sample_size, read_offset, dst_buffer, dst_read_size, get_mode );
+}
+
 MAPI_EXPORT uint8_t mpeg_api_get_stream_num( void *ih, mpeg_sample_type sample_type )
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
