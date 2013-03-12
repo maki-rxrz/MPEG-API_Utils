@@ -529,8 +529,13 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
     int64_t read_pos = -1;
     /* search. */
     mpegts_pmt_section_info_t pmt_si;
+    uint8_t *buffer_data = (uint8_t *)malloc( PMT_PARSE_COUNT_NUM * TS_PACKET_TABLE_SECTION_SIZE_MAX );
+    if( !buffer_data )
+        return -1;
     int section_lengths[PMT_PARSE_COUNT_NUM] = { 0 };
-    uint8_t section_buffers[PMT_PARSE_COUNT_NUM][TS_PACKET_TABLE_SECTION_SIZE_MAX];
+    uint8_t *section_buffers[PMT_PARSE_COUNT_NUM];
+    for( int i = 0; i < PMT_PARSE_COUNT_NUM; i++ )
+        section_buffers[i] = (uint8_t *)(buffer_data + i * TS_PACKET_TABLE_SECTION_SIZE_MAX);
     int64_t reset_position = -1;
     int64_t check_offset = info->file_size / (PMT_PARSE_COUNT_NUM + 1);
     check_offset -= check_offset % info->file_read.packet_size;
@@ -545,7 +550,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
             if( mpegts_search_pmt_packet( info, &pmt_si ) )
             {
                 if( i == 0 )
-                    return -1;
+                    goto fail_parse;
                 retry_count = 0;
                 break;
             }
@@ -577,7 +582,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
         if( !retry_count )
         {
             if( i == 0 )
-                return -1;
+                goto fail_parse;
             break;
         }
         if( i == 0 )
@@ -634,7 +639,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
     /* listup. */
     info->pid_list_in_pmt = (mpegts_pid_in_pmt_t *)malloc( sizeof(mpegts_pid_in_pmt_t) * info->pid_list_num_in_pmt );
     if( !info->pid_list_in_pmt )
-        return -1;
+        goto fail_parse;
     int32_t pid_list_num = 0, read_count = 0;
     while( read_count < section_length - TS_PACKET_SECTION_CRC32_SIZE )
     {
@@ -683,7 +688,12 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
     mpegts_fseek( &(info->file_read), 0, MPEGTS_SEEK_NEXT );
     info->file_read.sync_byte_position = -1;
     info->file_read.read_position      = read_pos;
+    /* release. */
+    free( buffer_data );
     return 0;
+fail_parse:
+    free( buffer_data );
+    return -1;
 }
 
 static int mpegts_get_pcr( mpegts_info_t *info )
