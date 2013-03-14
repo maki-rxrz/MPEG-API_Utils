@@ -352,14 +352,20 @@ static int mpegts_get_table_section_header( mpegts_file_context_t *file, mpegts_
     return 0;
 }
 
-static int mpegts_seek_packet_payload_data( mpegts_file_context_t *file, mpegts_packet_header_t *h, uint16_t search_program_id, int indicator_check, int indicator_status )
+typedef enum {
+    INDICATOR_UNCHECKED = 0x00,
+    INDICATOR_IS_OFF    = 0x01,
+    INDICATOR_IS_ON     = 0x02
+} indicator_check_type;
+
+static int mpegts_seek_packet_payload_data( mpegts_file_context_t *file, mpegts_packet_header_t *h, uint16_t search_program_id, indicator_check_type indicator_check )
 {
     dprintf( LOG_LV4, "[check] mpegts_seek_packet_payload_data()\n" );
     if( mpegts_search_program_id_packet( file, h, search_program_id ) )
         return -1;
     show_packet_header_info( h );
     /* check start indicator. */
-    if( indicator_check && (indicator_status == h->payload_unit_start_indicator) )
+    if( indicator_check != INDICATOR_UNCHECKED && ((indicator_check == INDICATOR_IS_ON) == h->payload_unit_start_indicator) )
         return 1;
     /* check adaptation field. */
     uint8_t adaptation_field_size = 0;
@@ -380,7 +386,7 @@ static int mpegts_get_table_section_data( mpegts_file_context_t *file, uint16_t 
     {
         if( need_ts_packet_payload_data )
             /* seek next packet payload data. */
-            if( mpegts_seek_packet_payload_data( file, &h, search_program_id, 1, 1 ) )
+            if( mpegts_seek_packet_payload_data( file, &h, search_program_id, INDICATOR_IS_ON ) )
                 return -1;
         need_ts_packet_payload_data = 1;
         int32_t read_size = (section_length - read_count > file->ts_packet_length) ? file->ts_packet_length : section_length - read_count;
@@ -809,7 +815,7 @@ static int mpegts_get_stream_timestamp( mpegts_file_context_t *file, uint16_t pr
     do
     {
         /* seek payload data. */
-        int ret = mpegts_seek_packet_payload_data( file, &h, program_id, 1, 0 );
+        int ret = mpegts_seek_packet_payload_data( file, &h, program_id, INDICATOR_IS_OFF );
         if( ret < 0 )
             return -1;
         if( ret > 0 )
@@ -883,7 +889,7 @@ static inline int read_1byte( mpegts_file_context_t *file, mpegts_packet_header_
     if( !file->ts_packet_length )
     {
         mpegts_fseek( file, 0, MPEGTS_SEEK_NEXT );
-        if( mpegts_seek_packet_payload_data( file, h, program_id, 1, 1 ) )
+        if( mpegts_seek_packet_payload_data( file, h, program_id, INDICATOR_IS_ON ) )
             return -1;
     }
     mpegts_fread( buffer, 1, file );
@@ -919,7 +925,7 @@ static int mpegts_read_mpeg_video_picutre_info( mpegts_file_context_t *file, uin
             read_size -= read;
         }
         mpegts_fseek( file, 0, MPEGTS_SEEK_NEXT );
-        if( mpegts_seek_packet_payload_data( file, &h, program_id, 0, 1 ) )
+        if( mpegts_seek_packet_payload_data( file, &h, program_id, INDICATOR_UNCHECKED ) )
             return -1;
     }
     mpegts_fread( buf_p, read_size, file );
@@ -934,7 +940,7 @@ static int mpegts_read_mpeg_video_picutre_info( mpegts_file_context_t *file, uin
         {
             seek_size -= file->ts_packet_length;
             mpegts_fseek( file, 0, MPEGTS_SEEK_NEXT );
-            if( mpegts_seek_packet_payload_data( file, &h, program_id, 0, 1 ) )
+            if( mpegts_seek_packet_payload_data( file, &h, program_id, INDICATOR_UNCHECKED ) )
                 return -1;
         }
         mpegts_fseek( file, seek_size, MPEGTS_SEEK_CUR );
@@ -963,7 +969,7 @@ static int mpegts_get_mpeg_video_picture_info( mpegts_file_context_t *file, uint
     int no_exist_start_indicator = 1;
     do
     {
-        if( mpegts_seek_packet_payload_data( file, &h, program_id, 0, 1 ) )
+        if( mpegts_seek_packet_payload_data( file, &h, program_id, INDICATOR_UNCHECKED ) )
             return -1;
         /* check start indicator. */
         if( no_exist_start_indicator && !h.payload_unit_start_indicator )
@@ -1030,7 +1036,7 @@ static uint32_t mpegts_get_sample_packets_num( mpegts_file_context_t *file, uint
     do
     {
         ++ts_packet_count;
-        if( mpegts_seek_packet_payload_data( file, &h, program_id, 0, 1 ) )
+        if( mpegts_seek_packet_payload_data( file, &h, program_id, INDICATOR_UNCHECKED ) )
             break;
         if( h.continuity_counter != ((old_continuity_counter + 1) & 0x0F) )
             dprintf( LOG_LV3, "[debug] detect Drop!  ts_packet_count:%u  continuity_counter:%u --> %u\n", ts_packet_count, old_continuity_counter, h.continuity_counter );
@@ -1107,7 +1113,7 @@ static int mpegts_check_sample_raw_frame_length( mpegts_file_context_t *file, ui
         /* ready next. */
         mpegts_fseek( file, 0, MPEGTS_SEEK_NEXT );
         /* seek next packet. */
-        if( mpegts_seek_packet_payload_data( file, &h, program_id, 0, 1 ) )
+        if( mpegts_seek_packet_payload_data( file, &h, program_id, INDICATOR_UNCHECKED ) )
         {
             if( raw_data_size >= frame_length )
                 result = 0;
@@ -1153,7 +1159,7 @@ static int mpegts_get_sample_raw_data_info( mpegts_file_context_t *file, uint16_
     mpegts_packet_header_t h;
     while( 1 )
     {
-        if( mpegts_seek_packet_payload_data( file, &h, program_id, 0, 1 ) )
+        if( mpegts_seek_packet_payload_data( file, &h, program_id, INDICATOR_UNCHECKED ) )
         {
             if( start_point >= 0 )
             {
@@ -1271,7 +1277,7 @@ static void mpegts_get_sample_raw_data( mpegts_file_context_t *file, uint16_t pr
     *read_size = 0;
     while( 1 )
     {
-        if( mpegts_seek_packet_payload_data( file, &h, program_id, 0, 1 ) )
+        if( mpegts_seek_packet_payload_data( file, &h, program_id, INDICATOR_UNCHECKED ) )
             break;
         if( h.payload_unit_start_indicator )
         {
@@ -1331,7 +1337,7 @@ static void mpegts_get_sample_pes_packet_data( mpegts_file_context_t *file, uint
     *read_size = 0;
     for( uint32_t i = 0; i < ts_packet_count; ++i )
     {
-        if( mpegts_seek_packet_payload_data( file, &h, program_id, 0, 1 ) )
+        if( mpegts_seek_packet_payload_data( file, &h, program_id, INDICATOR_UNCHECKED ) )
             return;
         /* read packet data. */
         if( file->ts_packet_length > 0 )
@@ -1550,14 +1556,14 @@ static int get_stream_data( void *ih, mpeg_sample_type sample_type, uint8_t stre
             break;
         case GET_SAMPLE_DATA_PES_PACKET :
             /* seek payload data. */
-            if( mpegts_seek_packet_payload_data( file, &h, program_id, 0, 1 ) )
+            if( mpegts_seek_packet_payload_data( file, &h, program_id, INDICATOR_UNCHECKED ) )
                 return -1;
             read_size   = file->ts_packet_length;
             read_offset = 0;
             break;
         case GET_SAMPLE_DATA_RAW :
             /* seek PES payload data */
-            if( mpegts_seek_packet_payload_data( file, &h, program_id, 0, 1 ) )
+            if( mpegts_seek_packet_payload_data( file, &h, program_id, INDICATOR_UNCHECKED ) )
                 return -1;
             if( h.payload_unit_start_indicator )
             {
