@@ -646,6 +646,9 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
     info->pid_list_in_pmt = (mpegts_pid_in_pmt_t *)malloc( sizeof(mpegts_pid_in_pmt_t) * info->pid_list_num_in_pmt );
     if( !info->pid_list_in_pmt )
         goto fail_parse;
+    mpeg_descriptor_info_t *descriptor_info = (mpeg_descriptor_info_t *)malloc( sizeof(mpeg_descriptor_info_t) );
+    if( !descriptor_info )
+        goto fail_parse;
     int32_t pid_list_num = 0, read_count = 0;
     while( read_count < section_length - TS_PACKET_SECTION_CRC32_SIZE )
     {
@@ -663,15 +666,14 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
         uint16_t descriptor_num = 0;
         uint16_t descriptor_read_count = 0;
         uint8_t *descriptor_data = &(section_buffer[read_count]);
-        mpeg_descriptor_info_t descriptor_info;
         while( descriptor_read_count < ES_info_length - 2 )
         {
-            mpeg_stream_get_descriptor_info( stream_type, &(descriptor_data[descriptor_read_count]), &descriptor_info );
-            descriptor_tags[descriptor_num] = descriptor_info.tag;
-            uint8_t descriptor_length       = descriptor_info.length;
+            mpeg_stream_get_descriptor_info( stream_type, &(descriptor_data[descriptor_read_count]), descriptor_info );
+            descriptor_tags[descriptor_num] = descriptor_info->tag;
+            uint8_t descriptor_length       = descriptor_info->length;
             dprintf( LOG_LV2, "[check] descriptor_tag:0x%02X, descriptor_length:%u\n"
                      , descriptor_tags[descriptor_num], descriptor_length );
-            mpeg_stream_debug_descriptor_info( &descriptor_info );     // FIXME
+            mpeg_stream_debug_descriptor_info( descriptor_info );       // FIXME
             /* next descriptor. */
             descriptor_read_count += descriptor_length + 2;
             ++descriptor_num;
@@ -695,6 +697,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
     info->file_read.sync_byte_position = -1;
     info->file_read.read_position      = read_pos;
     /* release. */
+    free( descriptor_info );
     free( buffer_data );
     return 0;
 fail_parse:
