@@ -438,11 +438,11 @@ static uint8_t get_number_of_frame_centre_offsets( mpeg_video_info_t *video_info
     uint8_t repeat_first_field   = video_info->picture_coding_ext.repeat_first_field;
     uint8_t top_field_first      = video_info->picture_coding_ext.top_field_first;
     uint8_t picture_structure    = video_info->picture_coding_ext.picture_structure;
-    typedef enum {
+    enum {
         Top_Field    = 0x01,
         Bottom_Field = 0x02,
         Frame        = 0x03
-    } picture_structure_type;
+    };
     if( progressive_sequence )
     {
         if( repeat_first_field )
