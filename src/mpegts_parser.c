@@ -1795,7 +1795,7 @@ static int set_pmt_stream_info( mpegts_info_t *info )
     mpegts_stream_context_t *video_context = NULL, *audio_context = NULL;
     if( video_stream_num )
         video_context = (mpegts_stream_context_t *)malloc( sizeof(mpegts_stream_context_t) * video_stream_num );
-    if( video_stream_num )
+    if( audio_stream_num )
         audio_context = (mpegts_stream_context_t *)malloc( sizeof(mpegts_stream_context_t) * audio_stream_num );
     if( (video_stream_num && !video_context)
      || (audio_stream_num && !audio_context) )
