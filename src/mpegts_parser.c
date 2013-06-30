@@ -417,7 +417,7 @@ static int mpegts_search_pat_packet( mpegts_file_context_t *file, mpegts_pat_sec
     /* reserved '11'    2 bit        =   (section_header[1] & 0x30) >> 4;       */
     pat_si->section_length           =  ((section_header[1] & 0x0F) << 8) | section_header[2];
     pat_si->transport_stream_id      =   (section_header[3] << 8) | section_header[4];
-    /* reserved '11'    2bit         =   (section_header[5] & 0xC0) >> 6;       */
+    /* reserved '11'    2 bit        =   (section_header[5] & 0xC0) >> 6;       */
     pat_si->version_number           =   (section_header[5] & 0x3E) >> 1;
     pat_si->current_next_indicator   =   (section_header[5] & 0x01);
     pat_si->section_number           =    section_header[6];
@@ -514,7 +514,7 @@ static int mpegts_search_pmt_packet( mpegts_info_t *info, mpegts_pmt_section_inf
     /* reserved '11'    2 bit        =  (section_header[1] & 0x30) >> 4;        */
     pmt_si->section_length           = ((section_header[1] & 0x0F) << 8) | section_header[2];
     pmt_si->program_number           =  (section_header[3] << 8) | section_header[4];
-    /* reserved '11'    2bit         =  (section_header[5] & 0xC0) >> 6;        */
+    /* reserved '11'    2 bit        =  (section_header[5] & 0xC0) >> 6;        */
     pmt_si->version_number           =  (section_header[5] & 0x3E) >> 1;
     pmt_si->current_next_indicator   =  (section_header[5] & 0x01);
     pmt_si->section_number           =  (section_header[6] & 0xC0) >> 6;
@@ -1898,7 +1898,6 @@ fail_allocate_contexts:
             if( stream->stream_parse_info )
                 free( stream->stream_parse_info );
         }
-        free( audio_context );
 fail_set_pmt_stream_info:
     if( video_context )
         free( video_context );
