@@ -1800,6 +1800,17 @@ static int set_pmt_stream_info( mpegts_info_t *info )
     if( (video_stream_num && !video_context)
      || (audio_stream_num && !audio_context) )
         goto fail_set_pmt_stream_info;
+    /* initialize context items. */
+    for( uint8_t i = 0; i < video_stream_num; ++i )
+    {
+        mpegts_stream_context_t *stream = &(video_context[i]);
+        stream->file_read.input = stream->stream_parse_info = NULL;
+    }
+    for( uint8_t i = 0; i < audio_stream_num; ++i )
+    {
+        mpegts_stream_context_t *stream = &(audio_context[i]);
+        stream->file_read.input = stream->stream_parse_info = NULL;
+    }
     /* check exist. */
     video_stream_num = audio_stream_num = 0;
     for( int32_t pid_list_index = 0; pid_list_index < info->pid_list_num_in_pmt; ++pid_list_index )
@@ -1831,8 +1842,6 @@ static int set_pmt_stream_info( mpegts_info_t *info )
                 FILE *input = fopen( info->mpegts, "rb" );
                 if( input )
                 {
-                    /* initialize. */
-                    stream->file_read.input = stream->stream_parse_info = NULL;
                     /* allocate. */
                     void *stream_parse_info;
                     if( mpegts_malloc_stream_parse_context( stream_type, stream_judge, &stream_parse_info ) )
