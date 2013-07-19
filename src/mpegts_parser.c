@@ -106,19 +106,15 @@ static int64_t get_file_size( FILE *fp )
 static int32_t mpegts_check_sync_byte_position( FILE *input, int32_t packet_size, int packet_check_count )
 {
     int32_t position = -1;
-    int check_count = -1;
-    fpos_t start_fpos;
-    fgetpos( input, &start_fpos );
+    int64_t start_position = ftello( input );
     uint8_t c;
     while( fread( &c, 1, 1, input ) == 1 && position < packet_size )
     {
-        check_count = -1;
         ++position;
         if( c != SYNC_BYTE )
             continue;
-        fpos_t fpos;
-        fgetpos( input, &fpos );
-        check_count = packet_check_count;
+        int64_t reset_position = ftello( input );
+        int check_count = packet_check_count;
         while( check_count )
         {
             if( fseeko( input, packet_size - 1, SEEK_CUR ) )
@@ -131,15 +127,15 @@ static int32_t mpegts_check_sync_byte_position( FILE *input, int32_t packet_size
         }
         if( !check_count )
             break;
-        fsetpos( input, &fpos );
+        fseeko( input, reset_position, SEEK_SET );
     }
 detect_sync_byte:
-    fsetpos( input, &start_fpos );
+    fseeko( input, start_position, SEEK_SET );
     if( position >= packet_size )
         return -1;
     return position;
 no_sync_byte:
-    fsetpos( input, &start_fpos );
+    fseeko( input, start_position, SEEK_SET );
     return -1;
 }
 

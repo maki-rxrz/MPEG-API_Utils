@@ -57,8 +57,7 @@ typedef struct {
 static int mpeges_first_check( mpeges_info_t *info )
 {
     int result = -1;
-    fpos_t start_position;
-    fgetpos( info->input, &start_position );
+    int64_t start_position = ftello( info->input );
     uint8_t mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE];
     if( fread( mpeg_video_head_data, 1, MPEG_VIDEO_START_CODE_SIZE, info->input ) != MPEG_VIDEO_START_CODE_SIZE )
         goto end_first_check;
@@ -66,7 +65,7 @@ static int mpeges_first_check( mpeges_info_t *info )
         goto end_first_check;
     result = 0;
 end_first_check:
-    fsetpos( info->input, &start_position );
+    fseeko( info->input, start_position, SEEK_SET );
     return result;
 }
 
@@ -84,8 +83,7 @@ static int mpeges_parse_stream_type( mpeges_info_t *info )
     if( fread( mpeg_video_head_data, 1, MPEG_VIDEO_START_CODE_SIZE - 1, info->input ) != MPEG_VIDEO_START_CODE_SIZE - 1)
         return -1;
     int result = -1;
-    fpos_t start_position;
-    fgetpos( info->input, &start_position );
+    int64_t start_position = ftello( info->input );
     while( 1 )
     {
         if( !fread( &(mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE - 1]), 1, 1, info->input ) )
@@ -132,7 +130,7 @@ static int mpeges_parse_stream_type( mpeges_info_t *info )
         BYTE_DATA_SHIFT( mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE );
     }
 end_parse_stream_type:
-    fsetpos( info->input, &start_position );
+    fseeko( info->input, start_position, SEEK_SET );
     return result;
 }
 
