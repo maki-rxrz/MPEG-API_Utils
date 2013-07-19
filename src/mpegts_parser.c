@@ -94,6 +94,15 @@ typedef struct {
     int64_t                     pcr;
 } mpegts_info_t;
 
+static int64_t get_file_size( FILE *fp )
+{
+    int64_t file_size = 0;
+    fseeko( fp, 0, SEEK_END );
+    file_size = ftello( fp );
+    fseeko( fp, 0, SEEK_SET );
+    return file_size;
+}
+
 static int32_t mpegts_check_sync_byte_position( FILE *input, int32_t packet_size, int packet_check_count )
 {
     int32_t position = -1;
@@ -2101,9 +2110,7 @@ static void *initialize( const char *input_file )
     if( !info || !mpegts || !input )
         goto fail_initialize;
     /* check file size. */
-    fseeko( input, 0, SEEK_END );
-    int64_t file_size = ftello( input );
-    fseeko( input, 0, SEEK_SET );
+    int64_t file_size = get_file_size( input );
     /* initialize. */
     info->mpegts                           = mpegts;
     info->file_size                        = file_size;
