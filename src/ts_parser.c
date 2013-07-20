@@ -894,7 +894,7 @@ static void demux_stream_data( param_t *p, void *info, stream_info_t *stream_inf
                 default :
                     break;
             }
-            mepg_api_set_sample_position( info, SAMPLE_TYPE_VIDEO, i, start_position );
+            mpeg_api_set_sample_position( info, SAMPLE_TYPE_VIDEO, i, start_position );
             dprintf( LOG_LV_PROGRESS, "[log] video_pts: %"PRId64" [%"PRId64"ms]\n", video_pts, video_pts / 90 );
         }
     }
@@ -908,7 +908,7 @@ static void demux_stream_data( param_t *p, void *info, stream_info_t *stream_inf
             {
                 if( mpeg_api_get_audio_frame( info, i, stream_info ) )
                     continue;
-                mepg_api_set_sample_position( info, SAMPLE_TYPE_AUDIO, i, stream_info->file_position );
+                mpeg_api_set_sample_position( info, SAMPLE_TYPE_AUDIO, i, stream_info->file_position );
                 int64_t audio_pts = stream_info->audio_pts;
                 audio_delay = audio_pts - video_pts;
                 if( llabs(audio_delay) > p->wrap_around_check_v )
@@ -972,7 +972,7 @@ static void demux_stream_data( param_t *p, void *info, stream_info_t *stream_inf
                             break;
                         if( stream_info->gop_number >= 0 )
                         {
-                            mepg_api_set_sample_position( info, SAMPLE_TYPE_VIDEO, i, stream_info->file_position );
+                            mpeg_api_set_sample_position( info, SAMPLE_TYPE_VIDEO, i, stream_info->file_position );
                             dprintf( LOG_LV_PROGRESS, "[log] Video POS: %"PRId64"\n", stream_info->file_position );
                             break;
                         }
@@ -1035,7 +1035,7 @@ static void demux_stream_data( param_t *p, void *info, stream_info_t *stream_inf
                         break;
                     if( stream_info->gop_number >= 0 )
                     {
-                        mepg_api_set_sample_position( info, SAMPLE_TYPE_VIDEO, i, stream_info->file_position );
+                        mpeg_api_set_sample_position( info, SAMPLE_TYPE_VIDEO, i, stream_info->file_position );
                         dprintf( LOG_LV_PROGRESS, "[log] Video POS: %"PRId64"\n", stream_info->file_position );
                         break;
                     }
@@ -1205,7 +1205,7 @@ static void demux_stream_all( param_t *p, void *info, stream_info_t *stream_info
                 default :
                     break;
             }
-            mepg_api_set_sample_position( info, SAMPLE_TYPE_VIDEO, i, start_position );
+            mpeg_api_set_sample_position( info, SAMPLE_TYPE_VIDEO, i, start_position );
             dprintf( LOG_LV_PROGRESS, "[log] video_pts: %"PRId64" [%"PRId64"ms]\n", video_pts, video_pts / 90 );
         }
     }
@@ -1219,7 +1219,7 @@ static void demux_stream_all( param_t *p, void *info, stream_info_t *stream_info
             {
                 if( mpeg_api_get_audio_frame( info, i, stream_info ) )
                     continue;
-                mepg_api_set_sample_position( info, SAMPLE_TYPE_AUDIO, i, stream_info->file_position );
+                mpeg_api_set_sample_position( info, SAMPLE_TYPE_AUDIO, i, stream_info->file_position );
                 int64_t audio_pts = stream_info->audio_pts;
                 audio_delay = audio_pts - video_pts;
                 if( llabs(audio_delay) > p->wrap_around_check_v )
@@ -1283,7 +1283,7 @@ static void demux_stream_all( param_t *p, void *info, stream_info_t *stream_info
                             break;
                         if( stream_info->gop_number >= 0 )
                         {
-                            mepg_api_set_sample_position( info, SAMPLE_TYPE_VIDEO, i, stream_info->file_position );
+                            mpeg_api_set_sample_position( info, SAMPLE_TYPE_VIDEO, i, stream_info->file_position );
                             dprintf( LOG_LV_PROGRESS, "[log] Video POS: %"PRId64"\n", stream_info->file_position );
                             break;
                         }
@@ -1345,7 +1345,7 @@ static void demux_stream_all( param_t *p, void *info, stream_info_t *stream_info
                         break;
                     if( stream_info->gop_number >= 0 )
                     {
-                        mepg_api_set_sample_position( info, SAMPLE_TYPE_VIDEO, i, stream_info->file_position );
+                        mpeg_api_set_sample_position( info, SAMPLE_TYPE_VIDEO, i, stream_info->file_position );
                         dprintf( LOG_LV_PROGRESS, "[log] Video POS: %"PRId64"\n", stream_info->file_position );
                         break;
                     }

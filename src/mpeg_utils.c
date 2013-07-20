@@ -431,7 +431,7 @@ fail_create_list:
     return -1;
 }
 
-MAPI_EXPORT int64_t mepg_api_get_sample_position( void *ih, mpeg_sample_type sample_type, uint8_t stream_number )
+MAPI_EXPORT int64_t mpeg_api_get_sample_position( void *ih, mpeg_sample_type sample_type, uint8_t stream_number )
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
@@ -439,7 +439,7 @@ MAPI_EXPORT int64_t mepg_api_get_sample_position( void *ih, mpeg_sample_type sam
     return info->parser->get_sample_position( info->parser_info, sample_type, stream_number );
 }
 
-MAPI_EXPORT int mepg_api_set_sample_position( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, int64_t position )
+MAPI_EXPORT int mpeg_api_set_sample_position( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, int64_t position )
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
