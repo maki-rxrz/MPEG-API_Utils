@@ -309,6 +309,8 @@ static int set_sample_position( void *ih, mpeg_sample_type sample_type, uint8_t 
     if( !info || stream_number || sample_type != SAMPLE_TYPE_VIDEO || position < 0 )
         return -1;
     fseeko( info->input, position, SEEK_SET );
+    info->read_position  = -1;
+    info->video_position = position;
     return 0;
 }
 
