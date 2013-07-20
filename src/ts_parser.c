@@ -549,7 +549,7 @@ static void demux_sample_data( param_t *p, void *info, stream_info_t *stream_inf
             }
             if( get_mode == GET_SAMPLE_DATA_RAW )
             {
-                const char* raw_ext = mpeg_api_get_sample_file_extension( info, SAMPLE_TYPE_VIDEO, i );
+                const char *raw_ext = mpeg_api_get_sample_file_extension( info, SAMPLE_TYPE_VIDEO, i );
                 if( raw_ext )
                     strcat( dump_name, raw_ext );
                 else
@@ -638,7 +638,7 @@ static void demux_sample_data( param_t *p, void *info, stream_info_t *stream_inf
                 strcat( dump_name, delay_string );
             if( get_mode == GET_SAMPLE_DATA_RAW )
             {
-                const char* raw_ext = mpeg_api_get_sample_file_extension( info, SAMPLE_TYPE_AUDIO, i );
+                const char *raw_ext = mpeg_api_get_sample_file_extension( info, SAMPLE_TYPE_AUDIO, i );
                 if( raw_ext )
                     strcat( dump_name, raw_ext );
                 else
@@ -846,7 +846,7 @@ static void demux_stream_data( param_t *p, void *info, stream_info_t *stream_inf
             }
             if( get_mode == GET_SAMPLE_DATA_RAW )
             {
-                const char* raw_ext = mpeg_api_get_sample_file_extension( info, SAMPLE_TYPE_VIDEO, i );
+                const char *raw_ext = mpeg_api_get_sample_file_extension( info, SAMPLE_TYPE_VIDEO, i );
                 if( raw_ext )
                     strcat( dump_name, raw_ext );
                 else
@@ -938,7 +938,7 @@ static void demux_stream_data( param_t *p, void *info, stream_info_t *stream_inf
                 strcat( dump_name, delay_string );
             if( get_mode == GET_SAMPLE_DATA_RAW )
             {
-                const char* raw_ext = mpeg_api_get_sample_file_extension( info, SAMPLE_TYPE_AUDIO, i );
+                const char *raw_ext = mpeg_api_get_sample_file_extension( info, SAMPLE_TYPE_AUDIO, i );
                 if( raw_ext )
                     strcat( dump_name, raw_ext );
                 else
@@ -1157,7 +1157,7 @@ static void demux_stream_all( param_t *p, void *info, stream_info_t *stream_info
             }
             if( get_mode == GET_SAMPLE_DATA_RAW )
             {
-                const char* raw_ext = mpeg_api_get_sample_file_extension( info, SAMPLE_TYPE_VIDEO, i );
+                const char *raw_ext = mpeg_api_get_sample_file_extension( info, SAMPLE_TYPE_VIDEO, i );
                 if( raw_ext )
                     strcat( dump_name, raw_ext );
                 else
@@ -1249,7 +1249,7 @@ static void demux_stream_all( param_t *p, void *info, stream_info_t *stream_info
                 strcat( dump_name, delay_string );
             if( get_mode == GET_SAMPLE_DATA_RAW )
             {
-                const char* raw_ext = mpeg_api_get_sample_file_extension( info, SAMPLE_TYPE_AUDIO, i );
+                const char *raw_ext = mpeg_api_get_sample_file_extension( info, SAMPLE_TYPE_AUDIO, i );
                 if( raw_ext )
                     strcat( dump_name, raw_ext );
                 else
@@ -1405,9 +1405,8 @@ static void parse_mpeg( param_t *p )
             goto end_parse;
         /* output. */
         static const struct {
-            void (*dump)( void *info, stream_info_t *stream_info, uint8_t video_stream_num, uint8_t audio_stream_num );
+            void (*dump )( void *info, stream_info_t *stream_info, uint8_t video_stream_num, uint8_t audio_stream_num );
             void (*demux)( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num, uint8_t audio_stream_num );
-            void (*demux_all)( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num, uint8_t audio_stream_num );
         } output_func[USE_MAPI_TYPE_MAX] =
             {
                 { dump_stream_info, demux_stream_data },

@@ -45,7 +45,7 @@ extern int avs_string_erase_invalid_strings( char *str );
 
 extern char *avs_string_get_fuction_parameters( char **str, const char *search_word );
 
-extern int avs_string_convert_calculate_string_to_result_number( avs_trim_info_t* info );
+extern int avs_string_convert_calculate_string_to_result_number( avs_trim_info_t *info );
 
 #ifdef __cplusplus
 }

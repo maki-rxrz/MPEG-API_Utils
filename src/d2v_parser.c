@@ -170,7 +170,7 @@ static void *parse(const char *input)
     char *tmp = (char *)calloc(sizeof(char), info->header.video_file_num * BUFFER_SIZE);
     if (!tmp)
         goto fail_parse;
-    char **tmp_p = (char **)calloc(sizeof(char*), info->header.video_file_num);
+    char **tmp_p = (char **)calloc(sizeof(char *), info->header.video_file_num);
     if (!tmp_p) {
         free(tmp);
         goto fail_parse;

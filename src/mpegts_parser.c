@@ -1824,7 +1824,7 @@ static int set_pmt_stream_info( mpegts_info_t *info )
         mpeg_stream_type stream_type        = info->pid_list_in_pmt[pid_list_index].stream_type;
         mpeg_stream_group_type stream_judge = info->pid_list_in_pmt[pid_list_index].stream_judge;
         /*  */
-        static const char* stream_name[2] = { "video", "audio" };
+        static const char *stream_name[2] = { "video", "audio" };
         int index;
         mpegts_stream_context_t *stream = NULL;
         uint8_t *stream_num;
