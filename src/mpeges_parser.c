@@ -367,7 +367,9 @@ static int get_video_info( void *ih, uint8_t stream_number, video_sample_info_t 
     mpeges_get_stream_timestamp( info, &pts, &dts );
     /* setup. */
     video_sample_info->file_position        = info->read_position;
-    video_sample_info->sample_size          = read_last_position - info->read_position;
+    video_sample_info->sample_size          = /* raw_data_size */
+    video_sample_info->raw_data_size        = read_last_position - info->read_position;
+    video_sample_info->raw_data_read_offset = 0;
     video_sample_info->pts                  = pts;
     video_sample_info->dts                  = dts;
     video_sample_info->gop_number           = gop_number;
