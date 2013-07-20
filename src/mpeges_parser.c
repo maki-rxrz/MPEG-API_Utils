@@ -38,10 +38,10 @@
 #include "mpeg_stream.h"
 #include "mpeg_video.h"
 #include "mpeg_parser.h"
+#include "file_reader.h"
 
 typedef struct {
     parser_status_type      status;
-    FILE                   *input;
     int64_t                 read_position;
     int64_t                 video_position;
     uint8_t                 video_stream_type;
@@ -52,20 +52,55 @@ typedef struct {
     int32_t                 total_picture_num;
     int32_t                 picture_num;
     mpeg_video_info_t      *video_info;
+    void                   *fr_ctx;
 } mpeges_info_t;
+
+static inline int64_t mpeges_ftell( mpeges_info_t *info )
+{
+    return file_reader.ftell( info->fr_ctx );
+}
+
+static inline int mpeges_fread( mpeges_info_t *info, uint8_t *read_buffer, int64_t read_size, int64_t *dst_size )
+{
+    return file_reader.fread( info->fr_ctx, read_buffer, read_size, dst_size );
+}
+
+static inline int mpeges_fseek( mpeges_info_t *info, int64_t seek_offset, int origin )
+{
+    return file_reader.fseek( info->fr_ctx, seek_offset, origin );
+}
+
+static int mpeges_open( mpeges_info_t *info, char *file_name )
+{
+    void *fr_ctx = NULL;
+    if( file_reader.init( &fr_ctx ) )
+        return -1;
+    if( file_reader.open( fr_ctx, file_name, 0 ) )
+        return -1;
+    info->fr_ctx = fr_ctx;
+    return 0;
+}
+
+static void mpeges_close( mpeges_info_t *info )
+{
+    file_reader.close( info->fr_ctx );
+    file_reader.release( &(info->fr_ctx) );
+}
 
 static int mpeges_first_check( mpeges_info_t *info )
 {
     int result = -1;
-    int64_t start_position = ftello( info->input );
+    int64_t start_position = mpeges_ftell( info );
+    int64_t dst_size       = 0;
     uint8_t mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE];
-    if( fread( mpeg_video_head_data, 1, MPEG_VIDEO_START_CODE_SIZE, info->input ) != MPEG_VIDEO_START_CODE_SIZE )
+    mpeges_fread( info, mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE, &dst_size );
+    if( dst_size != MPEG_VIDEO_START_CODE_SIZE )
         goto end_first_check;
     if( mpeg_video_check_start_code( mpeg_video_head_data, MPEG_VIDEO_START_CODE_SHC ) )
         goto end_first_check;
     result = 0;
 end_first_check:
-    fseeko( info->input, start_position, SEEK_SET );
+    mpeges_fseek( info, start_position, SEEK_SET );
     return result;
 }
 
@@ -78,22 +113,24 @@ do {                                            \
 static int mpeges_parse_stream_type( mpeges_info_t *info )
 {
     dprintf( LOG_LV2, "[check] mpeges_parse_stream_type()\n" );
-    int64_t start_position = ftello( info->input );
+    int64_t start_position = mpeges_ftell( info );
     /* parse raw data. */
+    int64_t dst_size = 0;
     uint8_t mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE];
-    if( fread( mpeg_video_head_data, 1, MPEG_VIDEO_START_CODE_SIZE - 1, info->input ) != MPEG_VIDEO_START_CODE_SIZE - 1)
+    mpeges_fread( info, mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE - 1, &dst_size );
+    if( dst_size != MPEG_VIDEO_START_CODE_SIZE - 1 )
         return -1;
     int result = -1;
     while( 1 )
     {
-        if( !fread( &(mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE - 1]), 1, 1, info->input ) )
+        if( mpeges_fread( info, &(mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE - 1]), 1, NULL ) == MAPI_EOF )
             break;
         if( !mpeg_video_check_start_code_common_head( mpeg_video_head_data ) )
         {
             uint8_t identifier;
-            if( !fread( &identifier, 1, 1, info->input ) )
+            if( mpeges_fread( info, &identifier, 1, NULL ) == MAPI_EOF )
                 goto end_parse_stream_type;
-            fseeko( info->input, -1, SEEK_CUR );
+            mpeges_fseek( info, -1, SEEK_CUR );
             mpeg_video_start_code_info_t start_code_info;
             if( mpeg_video_judge_start_code( mpeg_video_head_data, identifier, &start_code_info ) )
             {
@@ -101,14 +138,15 @@ static int mpeges_parse_stream_type( mpeges_info_t *info )
                 continue;
             }
             uint32_t read_size = start_code_info.read_size;
-            int64_t start_code_position = ftello( info->input ) - MPEG_VIDEO_START_CODE_SIZE;
+            int64_t start_code_position = mpeges_ftell( info ) - MPEG_VIDEO_START_CODE_SIZE;
             /* get header/extension information. */
             uint8_t buf[read_size];
-            if( fread( buf, 1, read_size, info->input ) != read_size )
+            mpeges_fread( info, buf, read_size, &dst_size );
+            if( dst_size != read_size )
                 goto end_parse_stream_type;
             int64_t check_size = mpeg_video_get_header_info( buf, start_code_info.start_code, info->video_info );
             if( check_size < read_size )
-                fseeko( info->input, start_code_position + MPEG_VIDEO_START_CODE_SIZE + check_size, SEEK_SET );
+                mpeges_fseek( info, start_code_position + MPEG_VIDEO_START_CODE_SIZE + check_size, SEEK_SET );
             /* debug. */
             mpeg_video_debug_header_info( info->video_info, start_code_info.searching_status );
             /* check the status detection. */
@@ -130,7 +168,7 @@ static int mpeges_parse_stream_type( mpeges_info_t *info )
         BYTE_DATA_SHIFT( mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE );
     }
 end_parse_stream_type:
-    fseeko( info->input, start_position, SEEK_SET );
+    mpeges_fseek( info, start_position, SEEK_SET );
     return result;
 }
 
@@ -160,21 +198,25 @@ static int mpeges_get_mpeg_video_picture_info( mpeges_info_t *info )
 {
     dprintf( LOG_LV2, "[check] mpeges_get_mpeg_video_picture_info()\n" );
     /* parse raw data. */
+    int64_t dst_size = 0;
     uint8_t mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE];
-    if( fread( mpeg_video_head_data, 1, MPEG_VIDEO_START_CODE_SIZE - 1, info->input ) != MPEG_VIDEO_START_CODE_SIZE - 1)
+    mpeges_fread( info, mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE - 1, &dst_size );
+    if( dst_size != MPEG_VIDEO_START_CODE_SIZE - 1)
         return -1;
     int result = -1;
     int64_t read_position = -1;
     while( 1 )
     {
-        if( !fread( &(mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE - 1]), 1, 1, info->input ) )
+        mpeges_fread( info, &(mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE - 1]), 1, &dst_size );
+        if( dst_size == 0 )
             break;
         if( !mpeg_video_check_start_code_common_head( mpeg_video_head_data ) )
         {
             uint8_t identifier;
-            if( !fread( &identifier, 1, 1, info->input ) )
+            mpeges_fread( info, &identifier, 1, &dst_size );
+            if( dst_size == 0 )
                 goto end_get_video_picture_info;
-            fseeko( info->input, -1, SEEK_CUR );
+            mpeges_fseek( info, -1, SEEK_CUR );
             mpeg_video_start_code_info_t start_code_info;
             if( mpeg_video_judge_start_code( mpeg_video_head_data, identifier, &start_code_info ) )
             {
@@ -182,14 +224,15 @@ static int mpeges_get_mpeg_video_picture_info( mpeges_info_t *info )
                 continue;
             }
             uint32_t read_size = start_code_info.read_size;
-            int64_t start_code_position = ftello( info->input ) - MPEG_VIDEO_START_CODE_SIZE;
+            int64_t start_code_position = mpeges_ftell( info ) - MPEG_VIDEO_START_CODE_SIZE;
             /* get header/extension information. */
             uint8_t buf[read_size];
-            if( fread( buf, 1, read_size, info->input ) != read_size )
+            mpeges_fread( info, buf, read_size, &dst_size );
+            if( dst_size != read_size )
                 goto end_get_video_picture_info;
             int64_t check_size = mpeg_video_get_header_info( buf, start_code_info.start_code, info->video_info );
             if( check_size < read_size )
-                fseeko( info->input, start_code_position + MPEG_VIDEO_START_CODE_SIZE + check_size, SEEK_SET );
+                mpeges_fseek( info, start_code_position + MPEG_VIDEO_START_CODE_SIZE + check_size, SEEK_SET );
             /* debug. */
             mpeg_video_debug_header_info( info->video_info, start_code_info.searching_status );
             /* check the status detection. */
@@ -228,12 +271,15 @@ end_get_video_picture_info:
 
 static int64_t mpeges_seek_next_start_position( mpeges_info_t *info )
 {
+    int64_t dst_size = 0;
     uint8_t mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE];
-    if( fread( mpeg_video_head_data, 1, MPEG_VIDEO_START_CODE_SIZE - 1, info->input ) != MPEG_VIDEO_START_CODE_SIZE - 1 )
+    mpeges_fread( info, mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE - 1, &dst_size );
+    if( dst_size != MPEG_VIDEO_START_CODE_SIZE - 1 )
         return -1;
     while( 1 )
     {
-        if( !fread( &(mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE - 1]), 1, 1, info->input ) )
+        mpeges_fread( info, &(mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE - 1]), 1, &dst_size );
+        if( dst_size == 0 )
             break;
         if( !mpeg_video_check_start_code_common_head( mpeg_video_head_data ) )
         {
@@ -242,14 +288,14 @@ static int64_t mpeges_seek_next_start_position( mpeges_info_t *info )
             else if( !mpeg_video_check_start_code( mpeg_video_head_data, MPEG_VIDEO_START_CODE_SHC )
                   || !mpeg_video_check_start_code( mpeg_video_head_data, MPEG_VIDEO_START_CODE_PSC ) )
             {
-                fseeko( info->input, -(MPEG_VIDEO_START_CODE_SIZE), SEEK_CUR );
+                mpeges_fseek( info, -(MPEG_VIDEO_START_CODE_SIZE), SEEK_CUR );
                 break;
             }
         }
         for( int i = 1; i < MPEG_VIDEO_START_CODE_SIZE; ++i )
             mpeg_video_head_data[i - 1] = mpeg_video_head_data[i];
     }
-    return ftello( info->input );
+    return mpeges_ftell( info );
 }
 
 static mpeg_stream_type get_sample_stream_type( void *ih, mpeg_sample_type sample_type, uint8_t stream_number )
@@ -281,14 +327,16 @@ static int get_sample_data( void *ih, mpeg_sample_type sample_type, uint8_t stre
     if( sample_type != SAMPLE_TYPE_VIDEO )
         return -1;
     /* seek reading start position. */
-    fseeko( info->input, position, SEEK_SET );
+    mpeges_fseek( info, position, SEEK_SET );
     /* allocate buffer. */
     uint8_t *buffer = (uint8_t *)malloc( sample_size );
     if( !buffer )
         return -1;
     dprintf( LOG_LV3, "[debug] buffer_size:%d\n", sample_size );
     /* get data. */
-    uint32_t read_size = fread( buffer, 1, sample_size, info->input );
+    int64_t dst_size = 0;
+    mpeges_fread( info, buffer, sample_size, &dst_size );
+    uint32_t read_size = (uint32_t)dst_size;
     dprintf( LOG_LV3, "[debug] read_size:%d\n", read_size );
     *dst_buffer    = buffer;
     *dst_read_size = read_size;
@@ -300,7 +348,7 @@ static int64_t get_sample_position( void *ih, mpeg_sample_type sample_type, uint
     mpeges_info_t *info = (mpeges_info_t *)ih;
     if( !info || stream_number || sample_type != SAMPLE_TYPE_VIDEO )
         return -1;
-    return ftello( info->input );
+    return mpeges_ftell( info );
 }
 
 static int set_sample_position( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, int64_t position )
@@ -308,7 +356,7 @@ static int set_sample_position( void *ih, mpeg_sample_type sample_type, uint8_t 
     mpeges_info_t *info = (mpeges_info_t *)ih;
     if( !info || stream_number || sample_type != SAMPLE_TYPE_VIDEO || position < 0 )
         return -1;
-    fseeko( info->input, position, SEEK_SET );
+    mpeges_fseek( info, position, SEEK_SET );
     info->read_position  = -1;
     info->video_position = position;
     return 0;
@@ -322,7 +370,7 @@ static int seek_next_sample_position( void *ih, mpeg_sample_type sample_type, ui
     int64_t seek_position = info->video_position;
     if( seek_position < 0 )
         return -1;
-    fseeko( info->input, seek_position, SEEK_SET );
+    mpeges_fseek( info, seek_position, SEEK_SET );
     return 0;
 }
 
@@ -411,7 +459,7 @@ static int parse( void *ih )
 {
     dprintf( LOG_LV2, "[mpeges_parser] parse()\n" );
     mpeges_info_t *info = (mpeges_info_t *)ih;
-    if( !info || !info->input )
+    if( !info || !info->fr_ctx )
         return -1;
     if( mpeges_parse_stream_type( info ) )
         return -1;
@@ -424,11 +472,11 @@ static void *initialize( const char *mpeges )
     dprintf( LOG_LV2, "[mpeges_parser] initialize()\n" );
     mpeges_info_t     *info       = (mpeges_info_t *)calloc( sizeof(mpeges_info_t), 1 );
     mpeg_video_info_t *video_info = (mpeg_video_info_t *)malloc( sizeof(mpeg_video_info_t) );
-    FILE *input = fopen( mpeges, "rb" );
-    if( !info || !video_info || !input )
+    if( !info || !video_info )
+        goto fail_initialize;
+    if( mpeges_open( info, (char *)mpeges ) )
         goto fail_initialize;
     /* initialize. */
-    info->input             = input;
     info->read_position     = -1;
     info->gop_number        = -1;
     info->video_stream_type = STREAM_INVALID;
@@ -442,12 +490,13 @@ static void *initialize( const char *mpeges )
     return info;
 fail_initialize:
     dprintf( LOG_LV2, "[mpeges_parser] failed initialize.\n" );
-    if( input )
-        fclose( input );
     if( video_info )
         free( video_info );
     if( info )
+    {
+        mpeges_close( info );
         free( info );
+    }
     return NULL;
 }
 
@@ -458,7 +507,7 @@ static void release( void *ih )
     if( !info )
         return;
     /*  release. */
-    fclose( info->input );
+    mpeges_close( info );
     free( info->video_info );
     free( info );
 }

@@ -1,5 +1,5 @@
 BIN_DIR  = ../bin
-API_SRCS = mpeg_utils.c mpeges_parser.c mpegts_parser.c mpeg_stream.c mpeg_video.c thread_utils.c
+API_SRCS = mpeg_utils.c mpeges_parser.c mpegts_parser.c mpeg_stream.c mpeg_video.c thread_utils.c file_reader.c
 
 TARGET1 = $(BIN_DIR)/cutcaption.exe
 SRCS1   = cutcaption.c d2v_parser.c text_utils.c avs_utils.c

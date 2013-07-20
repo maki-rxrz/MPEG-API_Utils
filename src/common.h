@@ -66,6 +66,15 @@
   #endif
 #endif
 
+/* common */
+typedef enum {
+    MAPI_FILE_ERROR  = -3,
+    MAPI_PARAM_ERROR = -2,
+    MAPI_FAILURE     = -1,
+    MAPI_SUCCESS     =  0,
+    MAPI_EOF         =  1
+} mapi_return_code_type;
+
 /* log */
 typedef enum {
     LOG_MODE_SILENT = -1,
