@@ -78,12 +78,12 @@ do {                                            \
 static int mpeges_parse_stream_type( mpeges_info_t *info )
 {
     dprintf( LOG_LV2, "[check] mpeges_parse_stream_type()\n" );
+    int64_t start_position = ftello( info->input );
     /* parse raw data. */
     uint8_t mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE];
     if( fread( mpeg_video_head_data, 1, MPEG_VIDEO_START_CODE_SIZE - 1, info->input ) != MPEG_VIDEO_START_CODE_SIZE - 1)
         return -1;
     int result = -1;
-    int64_t start_position = ftello( info->input );
     while( 1 )
     {
         if( !fread( &(mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE - 1]), 1, 1, info->input ) )
