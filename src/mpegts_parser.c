@@ -1603,29 +1603,28 @@ static int get_stream_data( void *ih, mpeg_sample_type sample_type, uint8_t stre
             read_offset = 0;
             break;
         case GET_SAMPLE_DATA_RAW :
-            /* seek PES payload data */
-            if( mpegts_seek_packet_payload_data( file, &h, program_id, INDICATOR_UNCHECKED ) )
-                return -1;
-            if( h.payload_unit_start_indicator )
+            while( 1 )
             {
-                mpeg_pes_header_info_t pes_info;
-                GET_PES_PACKET_HEADER( file, pes_info );
-                /* skip PES packet header. */
-                mpegts_file_seek( file, pes_info.header_length, MPEGTS_SEEK_CUR );
+                /* seek PES payload data */
+                if( mpegts_seek_packet_payload_data( file, &h, program_id, INDICATOR_UNCHECKED ) )
+                    return -1;
+                if( h.payload_unit_start_indicator )
+                {
+                    mpeg_pes_header_info_t pes_info;
+                    GET_PES_PACKET_HEADER( file, pes_info );
+                    /* skip PES packet header. */
+                    mpegts_file_seek( file, pes_info.header_length, MPEGTS_SEEK_CUR );
+                }
+                /* check read start point. */
+                if( read_offset <= file->ts_packet_length )
+                    break;
+                read_offset -= file->ts_packet_length;
+                mpegts_file_seek( file, 0, MPEGTS_SEEK_NEXT );
             }
-            /* check read start point. */
             if( read_offset )
             {
-                if( read_offset > file->ts_packet_length )
-                {
-                    read_offset -= file->ts_packet_length;
-                    mpegts_file_seek( file, file->ts_packet_length, MPEGTS_SEEK_CUR );
-                }
-                else
-                {
-                    mpegts_file_seek( file, read_offset, MPEGTS_SEEK_CUR );
-                    read_offset = 0;
-                }
+                mpegts_file_seek( file, read_offset, MPEGTS_SEEK_CUR );
+                read_offset = 0;
             }
             read_size = file->ts_packet_length;
             break;
