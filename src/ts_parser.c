@@ -856,7 +856,8 @@ static void demux_stream_data( param_t *p, void *info, stream_info_t *stream_inf
                 strcat( dump_name, ".video" );
             video[i] = fopen( dump_name, "wb" );
         }
-        if( video_pts < 0 && p->delay_type != MPEG_READER_DEALY_NONE )
+        if( (p->output_stream & OUTPUT_STREAM_AUDIO) && audio_stream_num
+         && video_pts < 0 && p->delay_type != MPEG_READER_DEALY_NONE )
         {
             /* get video stream info. */
             if( mpeg_api_get_video_frame( info, i, stream_info ) )
@@ -1167,7 +1168,8 @@ static void demux_stream_all( param_t *p, void *info, stream_info_t *stream_info
                 strcat( dump_name, ".video" );
             video[i] = fopen( dump_name, "wb" );
         }
-        if( video_pts < 0 && p->delay_type != MPEG_READER_DEALY_NONE )
+        if( (p->output_stream & OUTPUT_STREAM_AUDIO) && audio_stream_num
+         && video_pts < 0 && p->delay_type != MPEG_READER_DEALY_NONE )
         {
             /* get video stream info. */
             if( mpeg_api_get_video_frame( info, i, stream_info ) )
