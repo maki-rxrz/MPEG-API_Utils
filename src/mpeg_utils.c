@@ -524,7 +524,12 @@ MAPI_EXPORT int mpeg_api_get_stream_data( void *ih, mpeg_sample_type sample_type
             read_offset = audio_sample_info.raw_data_read_offset;
         }
     }
-    return parser->get_sample_data( parser_info, sample_type, stream_number, file_position, sample_size, read_offset, dst_buffer, dst_read_size, get_mode );
+    if( !sample_size )
+        return -1;
+    int64_t reset_position = parser->get_sample_position( parser_info, sample_type, stream_number );
+    int     result         = parser->get_sample_data( parser_info, sample_type, stream_number, file_position, sample_size, read_offset, dst_buffer, dst_read_size, get_mode );
+    parser->set_sample_position( parser_info, sample_type, stream_number, reset_position );
+    return result;
 }
 
 MAPI_EXPORT uint8_t mpeg_api_get_stream_num( void *ih, mpeg_sample_type sample_type )
