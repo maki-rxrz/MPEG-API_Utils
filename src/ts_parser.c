@@ -34,6 +34,7 @@
 #include <string.h>
 #include <inttypes.h>
 #include <stdarg.h>
+#include <ctype.h>
 
 #include "config.h"
 
@@ -121,6 +122,13 @@ static void print_help( void )
         "options:\n"
         "    -o --output <string>       Specify output file name.\n"
         "       --pmt-pid <integer>     Specify Program Map Table ID.\n"
+        "       --mode <string>         Specify together multiple settings.\n"
+        "                                   - p : Parse (--api-type 0 --output-mode 0)\n"
+        "                                   - d : Demux (--api-type 2 --output-mode 1)\n"
+        "                                   - v : video (--output-stream v)\n"
+        "                                   - a : audio (--output-stream a)\n"
+        "                               [ex] --mode pva = Parse v/a streams.\n"
+        "                                    --mode da  = Demux audio only.\n"
         "       --api-type              Specify api type. [0-2]\n"
         "                                   - 0 : Use sequential access.\n"
         "                                   - 1 : Use sample-list access.\n"
@@ -332,6 +340,33 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
             int64_t size = atoi( argv[++i] );
             if( WRITE_BUFFER_SIZE_MIN <= size && size <= WRITE_BUFFER_SIZE_MAX )
                 p->write_buffer_size = size;
+        }
+        else if( !strcasecmp( argv[i], "--mode" ) )
+        {
+            char *mode = argv[++i];
+            output_stream_type output_stream = OUTPUT_STREAM_NONE;
+            for( int j = 0; mode[j] != '\0'; ++j )
+                switch( tolower(mode[j]) )
+                {
+                    case 'p' :
+                        p->api_type    = USE_MAPI_SEQUENTIAL_READ;
+                        p->output_mode = OUTPUT_GET_INFO;
+                        break;
+                    case 'd' :
+                        p->api_type    = USE_MAPI_DEMUX_ALL;
+                        p->output_mode = OUTPUT_GET_SAMPLE_RAW;
+                        break;
+                    case 'v' :
+                        output_stream |= OUTPUT_STREAM_VIDEO;
+                        break;
+                    case 'a' :
+                        output_stream |= OUTPUT_STREAM_AUDIO;
+                        break;
+                    default :
+                        break;
+                }
+            if( output_stream != OUTPUT_STREAM_NONE )
+                p->output_stream = output_stream;
         }
         ++i;
     }
