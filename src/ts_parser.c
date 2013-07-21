@@ -219,7 +219,7 @@ static int init_parameter( param_t *p )
     memset( p, 0, sizeof(param_t) );
     p->output_stream       = OUTPUT_STREAM_BOTH_VA;
     p->wrap_around_check_v = TIMESTAMP_WRAP_AROUND_CHECK_VALUE;
-    p->delay_type          = MPEG_READER_DEALY_VIDEO_GOP_TR_ORDER;
+    p->delay_type          = MPEG_READER_DEALY_FAST_VIDEO_STREAM;
     p->logfile             = stderr;
     return 0;
 }
