@@ -52,6 +52,9 @@
 #define TS_PACKET_SEARCH_CHECK_COUNT_NUM    (50000)
 #define TS_PACKET_SEARCH_RETRY_COUNT_NUM    (5)
 
+//#define NEED_OPCR_VALUE
+#undef NEED_OPCR_VALUE
+
 typedef struct {
     int32_t                     packet_size;
     int32_t                     sync_byte_position;
@@ -93,7 +96,87 @@ typedef struct {
     uint8_t                     video_stream_num;
     uint8_t                     audio_stream_num;
     int64_t                     pcr;
+#ifdef NEED_OPCR_VALUE
+    int64_t                     opcr;
+#endif
 } mpegts_info_t;
+
+/*  */
+#define tsp_header_t        mpegts_packet_header_t
+#define tsp_adpf_header_t   mpegts_adaptation_field_header_t
+#define tsp_pat_si_t        mpegts_pat_section_info_t
+#define tsp_pmt_si_t        mpegts_pmt_section_info_t
+
+static inline void tsp_parse_header( uint8_t *packet, tsp_header_t *h )
+{
+    h->sync_byte                     =    packet[0];
+    h->transport_error_indicator     = !!(packet[1] & 0x80);
+    h->payload_unit_start_indicator  = !!(packet[1] & 0x40);
+    h->transport_priority            = !!(packet[1] & 0x20);
+    h->program_id                    =  ((packet[1] & 0x1F) << 8) | packet[2];
+    h->transport_scrambling_control  =   (packet[3] & 0xC0) >> 6;
+    h->adaptation_field_control      =   (packet[3] & 0x30) >> 4;
+    h->continuity_counter            =   (packet[3] & 0x0F);
+}
+
+static inline void tsp_parse_adpf_header( uint8_t *adpf_data, tsp_adpf_header_t *h )
+{
+    h->discontinuity_indicator              = !!(adpf_data[0] & 0x80);
+    h->random_access_indicator              = !!(adpf_data[0] & 0x40);
+    h->elementary_stream_priority_indicator = !!(adpf_data[0] & 0x20);
+    h->pcr_flag                             = !!(adpf_data[0] & 0x10);
+    h->opcr_flag                            = !!(adpf_data[0] & 0x08);
+    h->splicing_point_flag                  = !!(adpf_data[0] & 0x04);
+    h->transport_private_data_flag          = !!(adpf_data[0] & 0x02);
+    h->adaptation_field_extension_flag      =   (adpf_data[0] & 0x01);
+}
+
+static inline void tsp_get_pcr( uint8_t *pcr_data, int64_t *pcr_value )
+{
+    int64_t pcr_base, pcr_ext;
+
+    pcr_base = (int64_t)pcr_data[0] << 25
+             | (int64_t)pcr_data[1] << 17
+             | (int64_t)pcr_data[2] << 9
+             | (int64_t)pcr_data[3] << 1
+             | (int64_t)pcr_data[4] >> 7;
+    pcr_ext  = (pcr_data[4] & 0x01) << 8 | pcr_data[5];
+    dprintf( LOG_LV3, "[check] pcr_base:%"PRId64" pcr_ext:%"PRId64"\n", pcr_base, pcr_ext );
+
+    *pcr_value = pcr_base + pcr_ext / 300;
+}
+
+static inline void tsp_parse_pat_header( uint8_t *section_header, tsp_pat_si_t *pat_si )
+{
+    pat_si->table_id                 =    section_header[0];
+    pat_si->section_syntax_indicator = !!(section_header[1] & 0x80);
+    /* '0'              1 bit        = !!(section_header[1] & 0x40);            */
+    /* reserved '11'    2 bit        =   (section_header[1] & 0x30) >> 4;       */
+    pat_si->section_length           =  ((section_header[1] & 0x0F) << 8) | section_header[2];
+    pat_si->transport_stream_id      =   (section_header[3] << 8) | section_header[4];
+    /* reserved '11'    2 bit        =   (section_header[5] & 0xC0) >> 6;       */
+    pat_si->version_number           =   (section_header[5] & 0x3E) >> 1;
+    pat_si->current_next_indicator   =   (section_header[5] & 0x01);
+    pat_si->section_number           =    section_header[6];
+    pat_si->last_section_number      =    section_header[7];
+}
+
+static inline void tsp_parse_pmt_header( uint8_t *section_header, tsp_pmt_si_t *pmt_si )
+{
+    pmt_si->table_id                 =   section_header[0];
+    pmt_si->section_syntax_indicator =  (section_header[1] & 0x80) >> 7;
+    /* '0'              1 bit        =  (section_header[1] & 0x40) >> 6;        */
+    /* reserved '11'    2 bit        =  (section_header[1] & 0x30) >> 4;        */
+    pmt_si->section_length           = ((section_header[1] & 0x0F) << 8) | section_header[2];
+    pmt_si->program_number           =  (section_header[3] << 8) | section_header[4];
+    /* reserved '11'    2 bit        =  (section_header[5] & 0xC0) >> 6;        */
+    pmt_si->version_number           =  (section_header[5] & 0x3E) >> 1;
+    pmt_si->current_next_indicator   =  (section_header[5] & 0x01);
+    pmt_si->section_number           =  (section_header[6] & 0xC0) >> 6;
+    pmt_si->last_section_number      =  (section_header[7] & 0xC0) >> 6;
+    pmt_si->pcr_program_id           = ((section_header[8] & 0x1F) << 8) | section_header[9];
+    pmt_si->program_info_length      = ((section_header[10] & 0x0F) << 8) | section_header[11];
+}
 
 static inline int64_t mpegts_get_file_size( mpegts_file_context_t *file )
 {
@@ -285,14 +368,7 @@ static int mpegts_read_packet_header( mpegts_file_context_t *file, mpegts_packet
     uint8_t ts_header[TS_PACKET_HEADER_SIZE];
     mpegts_file_read( file, ts_header, TS_PACKET_HEADER_SIZE );
     /* setup header data. */
-    h->sync_byte                     =    ts_header[0];
-    h->transport_error_indicator     = !!(ts_header[1] & 0x80);
-    h->payload_unit_start_indicator  = !!(ts_header[1] & 0x40);
-    h->transport_priority            = !!(ts_header[1] & 0x20);
-    h->program_id                    =  ((ts_header[1] & 0x1F) << 8) | ts_header[2];
-    h->transport_scrambling_control  =   (ts_header[3] & 0xC0) >> 6;
-    h->adaptation_field_control      =   (ts_header[3] & 0x30) >> 4;
-    h->continuity_counter            =   (ts_header[3] & 0x0F);
+    tsp_parse_header( ts_header, h );
     /* ready next. */
     file->sync_byte_position = -1;
     return 0;
@@ -449,17 +525,7 @@ static int mpegts_search_pat_packet( mpegts_file_context_t *file, mpegts_pat_sec
             return -1;
     while( section_header[0] != PSI_TABLE_ID_PAT );
     /* setup header data. */
-    pat_si->table_id                 =    section_header[0];
-    pat_si->section_syntax_indicator = !!(section_header[1] & 0x80);
-    /* '0'              1 bit        = !!(section_header[1] & 0x40);            */
-    /* reserved '11'    2 bit        =   (section_header[1] & 0x30) >> 4;       */
-    pat_si->section_length           =  ((section_header[1] & 0x0F) << 8) | section_header[2];
-    pat_si->transport_stream_id      =   (section_header[3] << 8) | section_header[4];
-    /* reserved '11'    2 bit        =   (section_header[5] & 0xC0) >> 6;       */
-    pat_si->version_number           =   (section_header[5] & 0x3E) >> 1;
-    pat_si->current_next_indicator   =   (section_header[5] & 0x01);
-    pat_si->section_number           =    section_header[6];
-    pat_si->last_section_number      =    section_header[7];
+    tsp_parse_pat_header( section_header, pat_si );
     show_table_section_info( pat_si );
     return 0;
 }
@@ -546,19 +612,7 @@ static int mpegts_search_pmt_packet( mpegts_info_t *info, mpegts_pmt_section_inf
     /* setup PMT PID. */
     info->pmt_program_id = h.program_id;
     /* setup header data. */
-    pmt_si->table_id                 =   section_header[0];
-    pmt_si->section_syntax_indicator =  (section_header[1] & 0x80) >> 7;
-    /* '0'              1 bit        =  (section_header[1] & 0x40) >> 6;        */
-    /* reserved '11'    2 bit        =  (section_header[1] & 0x30) >> 4;        */
-    pmt_si->section_length           = ((section_header[1] & 0x0F) << 8) | section_header[2];
-    pmt_si->program_number           =  (section_header[3] << 8) | section_header[4];
-    /* reserved '11'    2 bit        =  (section_header[5] & 0xC0) >> 6;        */
-    pmt_si->version_number           =  (section_header[5] & 0x3E) >> 1;
-    pmt_si->current_next_indicator   =  (section_header[5] & 0x01);
-    pmt_si->section_number           =  (section_header[6] & 0xC0) >> 6;
-    pmt_si->last_section_number      =  (section_header[7] & 0xC0) >> 6;
-    pmt_si->pcr_program_id           = ((section_header[8] & 0x1F) << 8) | section_header[9];
-    pmt_si->program_info_length      = ((section_header[10] & 0x0F) << 8) | section_header[11];
+    tsp_parse_pmt_header( section_header, pmt_si );
     show_pmt_section_info( pmt_si );
     /* setup PCR PID. */
     info->pcr_program_id = pmt_si->pcr_program_id;
@@ -773,49 +827,25 @@ static int mpegts_get_pcr( mpegts_info_t *info )
             mpegts_file_read( &(info->file_read), adpf_data, adaptation_field_size );
             /* read header. */
             mpegts_adaptation_field_header_t adpf_header;
-            adpf_header.discontinuity_indicator              = !!(adpf_data[0] & 0x80);
-            adpf_header.random_access_indicator              = !!(adpf_data[0] & 0x40);
-            adpf_header.elementary_stream_priority_indicator = !!(adpf_data[0] & 0x20);
-            adpf_header.pcr_flag                             = !!(adpf_data[0] & 0x10);
-            adpf_header.opcr_flag                            = !!(adpf_data[0] & 0x08);
-            adpf_header.splicing_point_flag                  = !!(adpf_data[0] & 0x04);
-            adpf_header.transport_private_data_flag          = !!(adpf_data[0] & 0x02);
-            adpf_header.adaptation_field_extension_flag      = !!(adpf_data[0] & 0x01);
+            tsp_parse_adpf_header( adpf_data, &adpf_header );
             /* calculate PCR. */
             if( adpf_header.pcr_flag )
             {
-                int64_t pcr_base, pcr_ext;
-                pcr_base = (int64_t)adpf_data[1] << 25
-                                  | adpf_data[2] << 17
-                                  | adpf_data[3] << 9
-                                  | adpf_data[4] << 1
-                                  | adpf_data[5] >> 7;
-                pcr_ext = (adpf_data[5] & 0x01) << 8 | adpf_data[6];
-                dprintf( LOG_LV3, "[check] pcr_base:%"PRId64" pcr_ext:%"PRId64"\n", pcr_base, pcr_ext );
+                int64_t pcr_value;
+                tsp_get_pcr( &(adpf_data[1]), &pcr_value );
+                dprintf( LOG_LV3, "[check] PCR_value:%"PRId64"\n", pcr_value );
                 /* setup. */
-                info->pcr = pcr_base + pcr_ext / 300;
+                info->pcr = pcr_value;
             }
             if( adpf_header.opcr_flag )
             {
-#define NEED_OPCR_VALUE
-#undef NEED_OPCR_VALUE
+                int64_t opcr_value;
+                tsp_get_pcr( &(adpf_data[7]), &opcr_value );
+                dprintf( LOG_LV3, "[check] OPCR_value:%"PRId64"\n", opcr_value );
 #ifdef NEED_OPCR_VALUE
-                int64_t opcr, opcr_base, opcr_ext;
-#else
-                int64_t opcr_base, opcr_ext;
-#endif
-                opcr_base = (int64_t)adpf_data[7]  << 25
-                                   | adpf_data[8]  << 17
-                                   | adpf_data[9]  << 9
-                                   | adpf_data[10] << 1
-                                   | adpf_data[11] >> 7;
-                opcr_ext = (adpf_data[11] & 0x01) << 8 | adpf_data[12];
-                dprintf( LOG_LV3, "[check] opcr_base:%"PRId64" opcr_ext:%"PRId64"\n", opcr_base, opcr_ext );
                 /* setup. */
-#ifdef NEED_OPCR_VALUE
-                opcr = opcr_base + opcr_ext / 300;
+                info->opcr = opcr_value;
 #endif
-#undef NEED_OPCR_VALUE
             }
         }
         /* ready next. */
