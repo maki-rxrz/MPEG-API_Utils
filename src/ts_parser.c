@@ -141,7 +141,7 @@ static void print_help( void )
         "       --log <string>          Specify output file name of log.\n"
         "       --log-silent            Log: Suppress the output to stderr.\n"
         "       --log-output-all        Log: Output all log to both file and stderr.\n"
-        "    -v --version               Display the version information."
+        "    -v --version               Display the version information.\n"
         "\n"
     );
 }
