@@ -39,6 +39,7 @@
 
 #include "mpeg_utils.h"
 #include "thread_utils.h"
+#include "file_writer.h"
 
 #define PROGRAM_VERSION                 "0.0.4"
 
@@ -335,6 +336,42 @@ static int correct_parameter( param_t *p )
     return 0;
 }
 
+/*  */
+static inline int64_t dumper_ftell( void *fw_ctx )
+{
+    return file_writer.ftell( fw_ctx );
+}
+
+static inline int dumper_fwrite( void *fw_ctx, uint8_t *src_buffer, int64_t src_size, int64_t *dst_size )
+{
+    return file_writer.fwrite( fw_ctx, src_buffer, src_size, dst_size );
+}
+
+static inline int dumper_fseek( void *fw_ctx, int64_t seek_offset, int origin )
+{
+    return file_writer.fseek( fw_ctx, seek_offset, origin );
+}
+
+static int dumper_open( void **fw_ctx, char *file_name )
+{
+    void *ctx = NULL;
+    if( file_writer.init( &ctx ) )
+        goto fail;
+    if( file_writer.open( ctx, file_name, 0 ) )
+        goto fail;
+    *fw_ctx = ctx;
+    return 0;
+fail:
+    dprintf( LOG_LV_PROGRESS, "[log] error, failed to open: %s\n", file_name );
+    return -1;
+}
+
+static void dumper_close( void **fw_ctx )
+{
+    file_writer.close( *fw_ctx );
+    file_writer.release( fw_ctx );
+}
+
 static void get_speaker_mapping_info( uint16_t speaker_mapping, char *mapping_info )
 {
     uint8_t f_channels = !!(speaker_mapping & MPEG_AUDIO_SPEAKER_FRONT_CENTER) + !!(speaker_mapping & MPEG_AUDIO_SPEAKER_FRONT_LEFT   ) + !!(speaker_mapping & MPEG_AUDIO_SPEAKER_FRONT_RIGHT);
@@ -474,7 +511,7 @@ typedef struct {
     void                   *api_info;
     mpeg_sample_type        get_type;
     get_sample_data_mode    get_mode;
-    FILE                   *file;
+    void                   *fw_ctx;
     char                   *stream_name;
     uint8_t                 stream_no;
     uint32_t                sample_num;
@@ -486,14 +523,14 @@ static thread_func_ret demux_sample( void *args )
     demux_param_t *param = (demux_param_t *)args;
     if( !param )
         return (thread_func_ret)(-1);
-    void *info                = param->api_info;
-    mpeg_sample_type get_type = param->get_type;
-    get_sample_data_mode mode = param->get_mode;
-    FILE *file                = param->file;
-    char *stream_name         = param->stream_name;
-    uint8_t stream_no         = param->stream_no;
-    uint32_t num              = param->sample_num;
-    uint32_t start            = param->start_number;
+    void                 *info        = param->api_info;
+    mpeg_sample_type      get_type    = param->get_type;
+    get_sample_data_mode  mode        = param->get_mode;
+    void                 *fw_ctx      = param->fw_ctx;
+    char                 *stream_name = param->stream_name;
+    uint8_t               stream_no   = param->stream_no;
+    uint32_t              num         = param->sample_num;
+    uint32_t              start       = param->start_number;
     /* demux */
     uint64_t total_size = 0;
     dprintf( LOG_LV_PROGRESS, " %s Stream[%3u] [demux] start - sample_num:%u  start_num:%u\n", stream_name, stream_no, num, start );
@@ -505,7 +542,7 @@ static thread_func_ret demux_sample( void *args )
             break;
         else if( buffer && data_size )
         {
-            fwrite( buffer, 1, data_size, file );
+            dumper_fwrite( fw_ctx, buffer, data_size, NULL );
             mpeg_api_free_sample_buffer( info, &buffer );
             total_size += data_size;
         }
@@ -523,11 +560,11 @@ static void demux_sample_data( param_t *p, void *info, stream_info_t *stream_inf
     if( mpeg_api_create_sample_list( info ) )
         return;
     /* ready file. */
-    FILE *video[video_stream_num], *audio[audio_stream_num];
+    void *video[video_stream_num], *audio[audio_stream_num];
     if( video_stream_num )
-        memset( video, 0, sizeof(FILE *) * video_stream_num );
+        memset( video, 0, sizeof(void *) * video_stream_num );
     if( audio_stream_num )
-        memset( audio, 0, sizeof(FILE *) * audio_stream_num );
+        memset( audio, 0, sizeof(void *) * audio_stream_num );
     int64_t video_pts = -1;
     for( uint8_t i = 0; i < video_stream_num; ++i )
     {
@@ -557,7 +594,7 @@ static void demux_sample_data( param_t *p, void *info, stream_info_t *stream_inf
             }
             else
                 strcat( dump_name, ".video" );
-            video[i] = fopen( dump_name, "wb" );
+            dumper_open( &(video[i]), dump_name );
         }
         if( video_pts < 0 && p->delay_type != MPEG_READER_DEALY_NONE )
         {
@@ -646,7 +683,7 @@ static void demux_sample_data( param_t *p, void *info, stream_info_t *stream_inf
             }
             else
                 strcat( dump_name, ".audio" );
-            audio[i] = fopen( dump_name, "wb" );
+            dumper_open( &(audio[i]), dump_name );
         }
     }
     /* output. */
@@ -678,7 +715,7 @@ static void demux_sample_data( param_t *p, void *info, stream_info_t *stream_inf
                     param[thread_index].api_info     = info;
                     param[thread_index].get_type     = SAMPLE_TYPE_VIDEO;
                     param[thread_index].get_mode     = get_mode;
-                    param[thread_index].file         = video[i];
+                    param[thread_index].fw_ctx       = video[i];
                     param[thread_index].stream_name  = "Video";
                     param[thread_index].stream_no    = i;
                     param[thread_index].sample_num   = mpeg_api_get_sample_num( info, SAMPLE_TYPE_VIDEO, i );
@@ -695,7 +732,7 @@ static void demux_sample_data( param_t *p, void *info, stream_info_t *stream_inf
                     param[thread_index].api_info     = info;
                     param[thread_index].get_type     = SAMPLE_TYPE_AUDIO;
                     param[thread_index].get_mode     = get_mode;
-                    param[thread_index].file         = audio[i];
+                    param[thread_index].fw_ctx       = audio[i];
                     param[thread_index].stream_name  = "Audio";
                     param[thread_index].stream_no    = i;
                     param[thread_index].sample_num   = mpeg_api_get_sample_num( info, SAMPLE_TYPE_AUDIO, i );
@@ -713,10 +750,10 @@ static void demux_sample_data( param_t *p, void *info, stream_info_t *stream_inf
         /* close output file. */
         for( uint8_t i = 0; i < video_stream_num; ++i )
             if( video[i] )
-                fclose( video[i] );
+                dumper_close( &(video[i]) );
         for( uint8_t i = 0; i < audio_stream_num; ++i )
             if( audio[i] )
-                fclose( audio[i] );
+                dumper_close( &(audio[i]) );
     }
     else
     {
@@ -744,13 +781,13 @@ static void demux_sample_data( param_t *p, void *info, stream_info_t *stream_inf
                         break;
                     if( buffer && data_size )
                     {
-                        fwrite( buffer, 1, data_size, video[i] );
+                        dumper_fwrite( video[i], buffer, data_size, NULL );
                         mpeg_api_free_sample_buffer( info, &buffer );
                         total_size += data_size;
                     }
                     dprintf( LOG_LV_PROGRESS, " [%8u]  size: %10u  total: %"PRIu64"\r", j, data_size, total_size );
                 }
-                fclose( video[i] );
+                dumper_close( &(video[i]) );
                 dprintf( LOG_LV_PROGRESS, "                                                                              \r" );
                 dprintf( LOG_LV_PROGRESS, " Video Stream[%3u] [demux] end - output: %"PRIu64" byte\n", i, total_size );
             }
@@ -770,13 +807,13 @@ static void demux_sample_data( param_t *p, void *info, stream_info_t *stream_inf
                         break;
                     if( buffer && data_size )
                     {
-                        fwrite( buffer, 1, data_size, audio[i] );
+                        dumper_fwrite( audio[i], buffer, data_size, NULL );
                         mpeg_api_free_sample_buffer( info, &buffer );
                         total_size += data_size;
                     }
                     dprintf( LOG_LV_PROGRESS, " [%8u]  size: %10u  total: %-14"PRIu64"\r", j, data_size, total_size );
                 }
-                fclose( audio[i] );
+                dumper_close( &(audio[i]) );
                 dprintf( LOG_LV_PROGRESS, "                                                                              \r" );
                 dprintf( LOG_LV_PROGRESS, " Audio Stream[%3u] [demux] end - output: %"PRIu64" byte\n", i, total_size );
             }
@@ -790,12 +827,12 @@ static thread_func_ret demux_stream( void *args )
     demux_param_t *param = (demux_param_t *)args;
     if( !param )
         return (thread_func_ret)(-1);
-    void *info                = param->api_info;
-    mpeg_sample_type get_type = param->get_type;
-    get_sample_data_mode mode = param->get_mode;
-    FILE *file                = param->file;
-    char *stream_name         = param->stream_name;
-    uint8_t stream_no         = param->stream_no;
+    void                 *info        = param->api_info;
+    mpeg_sample_type      get_type    = param->get_type;
+    get_sample_data_mode  mode        = param->get_mode;
+    void                 *fw_ctx      = param->fw_ctx;
+    char                 *stream_name = param->stream_name;
+    uint8_t               stream_no   = param->stream_no;
     /* demux */
     uint64_t total_size = 0;
     dprintf( LOG_LV_PROGRESS, " %s Stream[%3u] [demux] start\n", stream_name, stream_no );
@@ -807,7 +844,7 @@ static thread_func_ret demux_stream( void *args )
             break;
         else if( buffer && data_size )
         {
-            fwrite( buffer, 1, data_size, file );
+            dumper_fwrite( fw_ctx, buffer, data_size, NULL );
             mpeg_api_free_sample_buffer( info, &buffer );
             total_size += data_size;
         }
@@ -823,11 +860,11 @@ static void demux_stream_data( param_t *p, void *info, stream_info_t *stream_inf
     int get_index = p->output_mode - OUTPUT_GET_SAMPLE_RAW;
     get_sample_data_mode get_mode = get_sample_list[get_index].get_mode;
     /* ready file. */
-    FILE *video[video_stream_num], *audio[audio_stream_num];
+    void *video[video_stream_num], *audio[audio_stream_num];
     if( video_stream_num )
-        memset( video, 0, sizeof(FILE *) * video_stream_num );
+        memset( video, 0, sizeof(void *) * video_stream_num );
     if( audio_stream_num )
-        memset( audio, 0, sizeof(FILE *) * audio_stream_num );
+        memset( audio, 0, sizeof(void *) * audio_stream_num );
     int64_t video_pts = -1;
     for( uint8_t i = 0; i < video_stream_num; ++i )
     {
@@ -854,7 +891,7 @@ static void demux_stream_data( param_t *p, void *info, stream_info_t *stream_inf
             }
             else
                 strcat( dump_name, ".video" );
-            video[i] = fopen( dump_name, "wb" );
+            dumper_open( &(video[i]), dump_name );
         }
         if( (p->output_stream & OUTPUT_STREAM_AUDIO) && audio_stream_num
          && video_pts < 0 && p->delay_type != MPEG_READER_DEALY_NONE )
@@ -947,7 +984,7 @@ static void demux_stream_data( param_t *p, void *info, stream_info_t *stream_inf
             }
             else
                 strcat( dump_name, ".audio" );
-            audio[i] = fopen( dump_name, "wb" );
+            dumper_open( &(audio[i]), dump_name );
         }
     }
     /* output. */
@@ -981,7 +1018,7 @@ static void demux_stream_data( param_t *p, void *info, stream_info_t *stream_inf
                     param[thread_index].api_info     = info;
                     param[thread_index].get_type     = SAMPLE_TYPE_VIDEO;
                     param[thread_index].get_mode     = get_mode;
-                    param[thread_index].file         = video[i];
+                    param[thread_index].fw_ctx       = video[i];
                     param[thread_index].stream_name  = "Video";
                     param[thread_index].stream_no    = i;
                     param[thread_index].sample_num   = 0;
@@ -998,7 +1035,7 @@ static void demux_stream_data( param_t *p, void *info, stream_info_t *stream_inf
                     param[thread_index].api_info     = info;
                     param[thread_index].get_type     = SAMPLE_TYPE_AUDIO;
                     param[thread_index].get_mode     = get_mode;
-                    param[thread_index].file         = audio[i];
+                    param[thread_index].fw_ctx       = audio[i];
                     param[thread_index].stream_name  = "Audio";
                     param[thread_index].stream_no    = i;
                     param[thread_index].sample_num   = 0;
@@ -1016,10 +1053,10 @@ static void demux_stream_data( param_t *p, void *info, stream_info_t *stream_inf
         /* close output file. */
         for( uint8_t i = 0; i < video_stream_num; ++i )
             if( video[i] )
-                fclose( video[i] );
+                dumper_close( &(video[i]) );
         for( uint8_t i = 0; i < audio_stream_num; ++i )
             if( audio[i] )
-                fclose( audio[i] );
+                dumper_close( &(audio[i]) );
     }
     else
     {
@@ -1049,13 +1086,13 @@ static void demux_stream_data( param_t *p, void *info, stream_info_t *stream_inf
                         break;
                     if( buffer && data_size )
                     {
-                        fwrite( buffer, 1, data_size, video[i] );
+                        dumper_fwrite( video[i], buffer, data_size, NULL );
                         mpeg_api_free_sample_buffer( info, &buffer );
                         total_size += data_size;
                     }
                     dprintf( LOG_LV_PROGRESS, " [%8u]  size: %10u  total: %-14"PRIu64"\r", j, data_size, total_size );
                 }
-                fclose( video[i] );
+                dumper_close( &(video[i]) );
                 dprintf( LOG_LV_PROGRESS, "                                                                              \r" );
                 dprintf( LOG_LV_PROGRESS, " Video Stream[%3u] [demux] end - output: %"PRIu64" byte\n", i, total_size );
             }
@@ -1074,13 +1111,13 @@ static void demux_stream_data( param_t *p, void *info, stream_info_t *stream_inf
                         break;
                     if( buffer && data_size )
                     {
-                        fwrite( buffer, 1, data_size, audio[i] );
+                        dumper_fwrite( audio[i], buffer, data_size, NULL );
                         mpeg_api_free_sample_buffer( info, &buffer );
                         total_size += data_size;
                     }
                     dprintf( LOG_LV_PROGRESS, " [%8u]  size: %10u  total: %-14"PRIu64"\r", j, data_size, total_size );
                 }
-                fclose( audio[i] );
+                dumper_close( &(audio[i]) );
                 dprintf( LOG_LV_PROGRESS, "                                                                              \r" );
                 dprintf( LOG_LV_PROGRESS, " Audio Stream[%3u] [demux] end - output: %"PRIu64" byte\n", i, total_size );
             }
@@ -1090,17 +1127,17 @@ static void demux_stream_data( param_t *p, void *info, stream_info_t *stream_inf
 }
 
 typedef struct {
-    FILE        *file;
-    char        *stream_name;
-    uint8_t      stream_no;
-    uint32_t     count;
-    uint64_t     total_size;
+    void           *fw_ctx;
+    char           *stream_name;
+    uint8_t         stream_no;
+    uint32_t        count;
+    uint64_t        total_size;
 } demux_cb_param_t;
 
 static void demux_cb_func( void *cb_params, void *buffer, uint32_t read_size )
 {
     demux_cb_param_t *param = (demux_cb_param_t *)cb_params;
-    fwrite( buffer, 1, read_size, param->file );
+    dumper_fwrite( param->fw_ctx, buffer, read_size, NULL );
     param->total_size += read_size;
     dprintf( LOG_LV_PROGRESS, " %s Stream[%3u] [%8u]  total: %"PRIu64" byte\r", param->stream_name, param->stream_no, param->count, param->total_size );
     ++ param->count;
@@ -1111,16 +1148,16 @@ static thread_func_ret demux_all( void *args )
     demux_param_t *param = (demux_param_t *)args;
     if( !param )
         return (thread_func_ret)(-1);
-    void *info                = param->api_info;
-    mpeg_sample_type get_type = param->get_type;
-    get_sample_data_mode mode = param->get_mode;
-    FILE *file                = param->file;
-    char *stream_name         = param->stream_name;
-    uint8_t stream_no         = param->stream_no;
+    void                 *info        = param->api_info;
+    mpeg_sample_type      get_type    = param->get_type;
+    get_sample_data_mode  mode        = param->get_mode;
+    void                 *fw_ctx      = param->fw_ctx;
+    char                 *stream_name = param->stream_name;
+    uint8_t               stream_no   = param->stream_no;
     /* demux */
     dprintf( LOG_LV_PROGRESS, "                                                                              \r"
                               " %s Stream[%3u] [demux] start\n", stream_name, stream_no );
-    demux_cb_param_t cb_params = { file, stream_name, stream_no, 0, 0 };
+    demux_cb_param_t cb_params = { fw_ctx, stream_name, stream_no, 0, 0 };
     get_stream_data_cb_t cb = { demux_cb_func, &cb_params };
     mpeg_api_get_stream_all( info, get_type, stream_no, mode, &cb );
     /* finish. */
@@ -1135,11 +1172,11 @@ static void demux_stream_all( param_t *p, void *info, stream_info_t *stream_info
     int get_index = p->output_mode - OUTPUT_GET_SAMPLE_RAW;
     get_sample_data_mode get_mode = get_sample_list[get_index].get_mode;
     /* ready file. */
-    FILE *video[video_stream_num], *audio[audio_stream_num];
+    void *video[video_stream_num], *audio[audio_stream_num];
     if( video_stream_num )
-        memset( video, 0, sizeof(FILE *) * video_stream_num );
+        memset( video, 0, sizeof(void *) * video_stream_num );
     if( audio_stream_num )
-        memset( audio, 0, sizeof(FILE *) * audio_stream_num );
+        memset( audio, 0, sizeof(void *) * audio_stream_num );
     int64_t video_pts = -1;
     for( uint8_t i = 0; i < video_stream_num; ++i )
     {
@@ -1166,7 +1203,7 @@ static void demux_stream_all( param_t *p, void *info, stream_info_t *stream_info
             }
             else
                 strcat( dump_name, ".video" );
-            video[i] = fopen( dump_name, "wb" );
+            dumper_open( &(video[i]), dump_name );
         }
         if( (p->output_stream & OUTPUT_STREAM_AUDIO) && audio_stream_num
          && video_pts < 0 && p->delay_type != MPEG_READER_DEALY_NONE )
@@ -1259,7 +1296,7 @@ static void demux_stream_all( param_t *p, void *info, stream_info_t *stream_info
             }
             else
                 strcat( dump_name, ".audio" );
-            audio[i] = fopen( dump_name, "wb" );
+            dumper_open( &(audio[i]), dump_name );
         }
     }
     /* output. */
@@ -1293,7 +1330,7 @@ static void demux_stream_all( param_t *p, void *info, stream_info_t *stream_info
                     param[thread_index].api_info     = info;
                     param[thread_index].get_type     = SAMPLE_TYPE_VIDEO;
                     param[thread_index].get_mode     = get_mode;
-                    param[thread_index].file         = video[i];
+                    param[thread_index].fw_ctx       = video[i];
                     param[thread_index].stream_name  = "Video";
                     param[thread_index].stream_no    = i;
                     param[thread_index].sample_num   = 0;
@@ -1310,7 +1347,7 @@ static void demux_stream_all( param_t *p, void *info, stream_info_t *stream_info
                     param[thread_index].api_info     = info;
                     param[thread_index].get_type     = SAMPLE_TYPE_AUDIO;
                     param[thread_index].get_mode     = get_mode;
-                    param[thread_index].file         = audio[i];
+                    param[thread_index].fw_ctx       = audio[i];
                     param[thread_index].stream_name  = "Audio";
                     param[thread_index].stream_no    = i;
                     param[thread_index].sample_num   = 0;
@@ -1328,10 +1365,10 @@ static void demux_stream_all( param_t *p, void *info, stream_info_t *stream_info
         /* close output file. */
         for( uint8_t i = 0; i < video_stream_num; ++i )
             if( video[i] )
-                fclose( video[i] );
+                dumper_close( &(video[i]) );
         for( uint8_t i = 0; i < audio_stream_num; ++i )
             if( audio[i] )
-                fclose( audio[i] );
+                dumper_close( &(audio[i]) );
     }
     else
     {
@@ -1356,7 +1393,7 @@ static void demux_stream_all( param_t *p, void *info, stream_info_t *stream_info
                 get_stream_data_cb_t cb = { demux_cb_func, &cb_params };
                 mpeg_api_get_stream_all( info, SAMPLE_TYPE_VIDEO, i, get_mode, &cb );
                 uint64_t total_size = cb_params.total_size;
-                fclose( video[i] );
+                dumper_close( &(video[i]) );
                 dprintf( LOG_LV_PROGRESS, "                                                                              \r" );
                 dprintf( LOG_LV_PROGRESS, " Video Stream[%3u] [demux] end - output: %"PRIu64" byte\n", i, total_size );
             }
@@ -1369,7 +1406,7 @@ static void demux_stream_all( param_t *p, void *info, stream_info_t *stream_info
                 get_stream_data_cb_t cb = { demux_cb_func, &cb_params };
                 mpeg_api_get_stream_all( info, SAMPLE_TYPE_AUDIO, i, get_mode, &cb );
                 uint64_t total_size = cb_params.total_size;
-                fclose( audio[i] );
+                dumper_close( &(audio[i]) );
                 dprintf( LOG_LV_PROGRESS, "                                                                              \r" );
                 dprintf( LOG_LV_PROGRESS, " Audio Stream[%3u] [demux] end - output: %"PRIu64" byte\n", i, total_size );
             }
