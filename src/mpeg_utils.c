@@ -37,6 +37,7 @@
 #include "mpeg_parser.h"
 #include "mpeg_utils.h"
 #include "thread_utils.h"
+#include "file_common.h"
 
 typedef struct {
     uint8_t                 progressive_sequence;
@@ -873,10 +874,7 @@ MAPI_EXPORT void *mpeg_api_initialize_info( const char *mpeg )
     if( !parser_info )
         goto fail_initialize;
     /* check file size. */
-    FILE *target = fopen( mpeg, "rb" );
-    fseeko( target, 0, SEEK_END );
-    int64_t file_size = ftello( target );
-    fclose( target );
+    int64_t file_size = get_file_size( (char *)mpeg );
     /* setup. */
     memset( info, 0, sizeof(mpeg_api_info_t) );
     info->parser              = parser;

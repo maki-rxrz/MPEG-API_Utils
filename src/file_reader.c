@@ -34,6 +34,7 @@
 #include <inttypes.h>
 
 #include "mpegts_def.h"
+#include "file_common.h"
 #include "file_reader.h"
 
 /*============================================================================
@@ -53,21 +54,6 @@ typedef struct {
         uint64_t    pos;
     } cache;
 } file_read_context_t;
-
-/*============================================================================
- *  Utility functions
- *==========================================================================*/
-
-static int64_t get_file_size( FILE *fp )
-{
-    int64_t file_size;
-
-    fseeko( fp, 0, SEEK_END );
-    file_size = ftello( fp );
-    fseeko( fp, 0, SEEK_SET );
-
-    return file_size;
-}
 
 /*============================================================================
  *  File Reader functions
@@ -201,7 +187,7 @@ static int fr_open( void *ctx, char *file_name, uint64_t buffer_size )
     if( !fp )
         return MAPI_FILE_ERROR;
 
-    file_size = get_file_size( fp );
+    file_size = get_file_size( file_name );
 
     if( buffer_size == 0 )
         buffer_size = READ_BUFFER_DEFAULT_SIZE;
