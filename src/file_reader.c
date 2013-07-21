@@ -40,7 +40,7 @@
  *  Definition
  *==========================================================================*/
 
-#define READ_BUFFER_SIZE                    (2048)
+#define READ_BUFFER_DEFAULT_SIZE            (2048)
 
 typedef struct {
     FILE       *fp;
@@ -204,7 +204,7 @@ static int fr_open( void *ctx, char *file_name, uint64_t buffer_size )
     file_size = get_file_size( fp );
 
     if( buffer_size == 0 )
-        buffer_size = READ_BUFFER_SIZE;
+        buffer_size = READ_BUFFER_DEFAULT_SIZE;
 
     buffer = (uint8_t *)malloc( buffer_size );
     if( !buffer )

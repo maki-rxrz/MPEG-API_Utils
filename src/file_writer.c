@@ -40,7 +40,7 @@
  *  Definition
  *==========================================================================*/
 
-#define WRITE_BUFFER_SIZE                   (4096)
+#define WRITE_BUFFER_DEFAULT_SIZE           (4096)
 
 typedef struct {
     FILE       *fp;
@@ -171,7 +171,7 @@ static int fw_open( void *ctx, char *file_name, uint64_t buffer_size )
         return MAPI_FILE_ERROR;
 
     if( buffer_size == 0 )
-        buffer_size = WRITE_BUFFER_SIZE;
+        buffer_size = WRITE_BUFFER_DEFAULT_SIZE;
 
     buffer = (uint8_t *)malloc( buffer_size );
     if( !buffer )
