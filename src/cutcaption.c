@@ -995,7 +995,7 @@ static void parse_reader_offset( param_t *p, delay_info_type *delay_info )
     char mpegts[strlen( p->input ) + 4];
     strcpy( mpegts, p->input );
     strcat( mpegts, ".ts" );
-    void *info = mpeg_api_initialize_info( mpegts );
+    void *info = mpeg_api_initialize_info( mpegts, 0 );
     if( !info )
         return;
     stream_info_t *stream_info = malloc( sizeof(*stream_info) );

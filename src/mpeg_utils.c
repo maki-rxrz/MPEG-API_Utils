@@ -852,7 +852,7 @@ MAPI_EXPORT int mpeg_api_set_pmt_program_id( void *ih, uint16_t pmt_program_id )
     return 0;
 }
 
-MAPI_EXPORT void *mpeg_api_initialize_info( const char *mpeg )
+MAPI_EXPORT void *mpeg_api_initialize_info( const char *mpeg, int64_t buffer_size )
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)malloc( sizeof(mpeg_api_info_t) );
     if( !info )
@@ -867,7 +867,7 @@ MAPI_EXPORT void *mpeg_api_initialize_info( const char *mpeg )
     for( int i = 0; i < MPEG_PARSER_NUM; ++i )
     {
         parser = parsers[i];
-        parser_info = parser->initialize( mpeg );
+        parser_info = parser->initialize( mpeg, buffer_size );
         if( parser_info )
             break;
     }

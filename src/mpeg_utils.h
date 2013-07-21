@@ -102,7 +102,7 @@ MAPI_EXPORT int mpeg_api_get_stream_info( void *ih, stream_info_t *stream_info, 
 
 MAPI_EXPORT int mpeg_api_set_pmt_program_id( void *ih, uint16_t pmt_program_id );
 
-MAPI_EXPORT void *mpeg_api_initialize_info( const char *mpeg );
+MAPI_EXPORT void *mpeg_api_initialize_info( const char *mpeg, int64_t buffer_size );
 
 MAPI_EXPORT void mpeg_api_release_info( void *ih );
 

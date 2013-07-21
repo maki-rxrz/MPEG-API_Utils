@@ -70,12 +70,12 @@ static inline int mpeges_fseek( mpeges_info_t *info, int64_t seek_offset, int or
     return file_reader.fseek( info->fr_ctx, seek_offset, origin );
 }
 
-static int mpeges_open( mpeges_info_t *info, char *file_name )
+static int mpeges_open( mpeges_info_t *info, char *file_name, int64_t buffer_size )
 {
     void *fr_ctx = NULL;
     if( file_reader.init( &fr_ctx ) )
         return -1;
-    if( file_reader.open( fr_ctx, file_name, 0 ) )
+    if( file_reader.open( fr_ctx, file_name, buffer_size ) )
         return -1;
     info->fr_ctx = fr_ctx;
     return 0;
@@ -467,14 +467,14 @@ static int parse( void *ih )
     return 0;
 }
 
-static void *initialize( const char *mpeges )
+static void *initialize( const char *mpeges, int64_t buffer_size )
 {
     dprintf( LOG_LV2, "[mpeges_parser] initialize()\n" );
     mpeges_info_t     *info       = (mpeges_info_t *)calloc( sizeof(mpeges_info_t), 1 );
     mpeg_video_info_t *video_info = (mpeg_video_info_t *)malloc( sizeof(mpeg_video_info_t) );
     if( !info || !video_info )
         goto fail_initialize;
-    if( mpeges_open( info, (char *)mpeges ) )
+    if( mpeges_open( info, (char *)mpeges, buffer_size ) )
         goto fail_initialize;
     /* initialize. */
     info->read_position     = -1;

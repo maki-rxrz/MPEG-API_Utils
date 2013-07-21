@@ -83,6 +83,7 @@ typedef struct {
     parser_status_type          status;
     char                       *mpegts;
     int64_t                     file_size;
+    int64_t                     buffer_size;
     mpegts_file_context_t       file_read;
     int32_t                     pid_list_num_in_pat;
     uint16_t                   *pid_list_in_pat;
@@ -198,14 +199,14 @@ static inline int mpegts_fseek( mpegts_file_context_t *file, int64_t seek_offset
     return file_reader.fseek( file->fr_ctx, seek_offset, origin );
 }
 
-static int mpegts_open( mpegts_file_context_t *file, char *file_name )
+static int mpegts_open( mpegts_file_context_t *file, char *file_name, int64_t buffer_size )
 {
     if( !file )
         return -1;
     void *fr_ctx = NULL;
     if( file_reader.init( &fr_ctx ) )
         return -1;
-    if( file_reader.open( fr_ctx, file_name, 0 ) )
+    if( file_reader.open( fr_ctx, file_name, buffer_size ) )
         return -1;
     file->fr_ctx = fr_ctx;
     return 0;
@@ -1906,7 +1907,7 @@ static int set_pmt_stream_info( mpegts_info_t *info )
         {
             if( !mpegts_search_program_id_packet( &(info->file_read), &h, program_id ) )
             {
-                if( !mpegts_open( &(stream->file_read), info->mpegts ) )
+                if( !mpegts_open( &(stream->file_read), info->mpegts, info->buffer_size ) )
                 {
                     /* allocate. */
                     void *stream_parse_info;
@@ -2155,21 +2156,21 @@ end_parse:
     return result;
 }
 
-static void *initialize( const char *input_file )
+static void *initialize( const char *input_file, int64_t buffer_size )
 {
     dprintf( LOG_LV2, "[mpegts_parser] initialize()\n" );
     mpegts_info_t *info = (mpegts_info_t *)calloc( sizeof(mpegts_info_t), 1 );
     char *mpegts = strdup( input_file );
     if( !info || !mpegts )
         goto fail_initialize;
-    if( mpegts_open( &(info->file_read), mpegts ) )
+    if( mpegts_open( &(info->file_read), mpegts, buffer_size ) )
         goto fail_initialize;
     /* check file size. */
     int64_t file_size = mpegts_get_file_size( &(info->file_read) );
     /* initialize. */
     info->mpegts                           = mpegts;
     info->file_size                        = file_size;
-    //info->file_read.input                  = input;
+    info->buffer_size                      = buffer_size;
     info->file_read.packet_size            = TS_PACKET_SIZE;
     info->file_read.sync_byte_position     = -1;
     info->file_read.read_position          = 0;

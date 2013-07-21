@@ -39,6 +39,7 @@
 
 #include "mpeg_utils.h"
 #include "thread_utils.h"
+#include "file_common.h"
 #include "file_writer.h"
 
 #define PROGRAM_VERSION                 "0.0.4"
@@ -85,6 +86,8 @@ typedef struct {
     int64_t                 wrap_around_check_v;
     mpeg_reader_delay_type  delay_type;
     FILE                   *logfile;
+    int64_t                 read_buffer_size;
+    int64_t                 write_buffer_size;
 } param_t;
 
 static const struct {
@@ -142,6 +145,10 @@ static void print_help( void )
         "       --log <string>          Specify output file name of log.\n"
         "       --log-silent            Log: Suppress the output to stderr.\n"
         "       --log-output-all        Log: Output all log to both file and stderr.\n"
+        "       --read-buffer-size <integer>\n"
+        "                               Specify internal buffer size for data reading.\n"
+        "       --write-buffer-size <integer>\n"
+        "                               Specify internal buffer size for data writing.\n"
         "    -v --version               Display the version information.\n"
         "\n"
     );
@@ -312,6 +319,18 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
             debug_setup_mode( LOG_MODE_SILENT );
         else if( !strcasecmp( argv[i], "--log-output-all" ) )
             debug_setup_mode( LOG_MODE_OUTPUT_ALL );
+        else if( !strcasecmp( argv[i], "--read-buffer-size" ) )
+        {
+            int64_t size = atoi( argv[++i] );
+            if( READ_BUFFER_SIZE_MIN <= size && size <= READ_BUFFER_SIZE_MAX )
+                p->read_buffer_size = size;
+        }
+        else if( !strcasecmp( argv[i], "--write-buffer-size" ) )
+        {
+            int64_t size = atoi( argv[++i] );
+            if( WRITE_BUFFER_SIZE_MIN <= size && size <= WRITE_BUFFER_SIZE_MAX )
+                p->write_buffer_size = size;
+        }
         ++i;
     }
     if( i < argc )
@@ -352,12 +371,12 @@ static inline int dumper_fseek( void *fw_ctx, int64_t seek_offset, int origin )
     return file_writer.fseek( fw_ctx, seek_offset, origin );
 }
 
-static int dumper_open( void **fw_ctx, char *file_name )
+static int dumper_open( void **fw_ctx, char *file_name, int64_t buffer_size )
 {
     void *ctx = NULL;
     if( file_writer.init( &ctx ) )
         goto fail;
-    if( file_writer.open( ctx, file_name, 0 ) )
+    if( file_writer.open( ctx, file_name, buffer_size ) )
         goto fail;
     *fw_ctx = ctx;
     return 0;
@@ -594,7 +613,7 @@ static void demux_sample_data( param_t *p, void *info, stream_info_t *stream_inf
             }
             else
                 strcat( dump_name, ".video" );
-            dumper_open( &(video[i]), dump_name );
+            dumper_open( &(video[i]), dump_name, p->write_buffer_size );
         }
         if( video_pts < 0 && p->delay_type != MPEG_READER_DEALY_NONE )
         {
@@ -683,7 +702,7 @@ static void demux_sample_data( param_t *p, void *info, stream_info_t *stream_inf
             }
             else
                 strcat( dump_name, ".audio" );
-            dumper_open( &(audio[i]), dump_name );
+            dumper_open( &(audio[i]), dump_name, p->write_buffer_size );
         }
     }
     /* output. */
@@ -891,7 +910,7 @@ static void demux_stream_data( param_t *p, void *info, stream_info_t *stream_inf
             }
             else
                 strcat( dump_name, ".video" );
-            dumper_open( &(video[i]), dump_name );
+            dumper_open( &(video[i]), dump_name, p->write_buffer_size );
         }
         if( (p->output_stream & OUTPUT_STREAM_AUDIO) && audio_stream_num
          && video_pts < 0 && p->delay_type != MPEG_READER_DEALY_NONE )
@@ -984,7 +1003,7 @@ static void demux_stream_data( param_t *p, void *info, stream_info_t *stream_inf
             }
             else
                 strcat( dump_name, ".audio" );
-            dumper_open( &(audio[i]), dump_name );
+            dumper_open( &(audio[i]), dump_name, p->write_buffer_size );
         }
     }
     /* output. */
@@ -1203,7 +1222,7 @@ static void demux_stream_all( param_t *p, void *info, stream_info_t *stream_info
             }
             else
                 strcat( dump_name, ".video" );
-            dumper_open( &(video[i]), dump_name );
+            dumper_open( &(video[i]), dump_name, p->write_buffer_size );
         }
         if( (p->output_stream & OUTPUT_STREAM_AUDIO) && audio_stream_num
          && video_pts < 0 && p->delay_type != MPEG_READER_DEALY_NONE )
@@ -1296,7 +1315,7 @@ static void demux_stream_all( param_t *p, void *info, stream_info_t *stream_info
             }
             else
                 strcat( dump_name, ".audio" );
-            dumper_open( &(audio[i]), dump_name );
+            dumper_open( &(audio[i]), dump_name, p->write_buffer_size );
         }
     }
     /* output. */
@@ -1420,7 +1439,7 @@ static void parse_mpeg( param_t *p )
     if( !p || !p->input )
         return;
     /* parse. */
-    void *info = mpeg_api_initialize_info( p->input );
+    void *info = mpeg_api_initialize_info( p->input, p->read_buffer_size );
     if( !info )
         return;
     stream_info_t *stream_info = malloc( sizeof(*stream_info) );
