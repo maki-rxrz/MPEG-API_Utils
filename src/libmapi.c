@@ -29,7 +29,6 @@
 
 #include "common.h"
 
-#include <stdio.h>
 #include <stdarg.h>
 
 #include "mpeg_utils.h"

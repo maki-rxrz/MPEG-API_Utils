@@ -857,8 +857,8 @@ MAPI_EXPORT void *mpeg_api_initialize_info( const char *mpeg, int64_t buffer_siz
     mpeg_api_info_t *info = (mpeg_api_info_t *)malloc( sizeof(mpeg_api_info_t) );
     if( !info )
         return NULL;
-    mpeg_parser_t *parser;
-    void *parser_info;
+    mpeg_parser_t *parser      = NULL;
+    void          *parser_info = NULL;
     static mpeg_parser_t *parsers[MPEG_PARSER_NUM] =
         {
             &mpegts_parser,

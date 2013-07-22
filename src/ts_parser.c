@@ -145,7 +145,7 @@ static void print_help( void )
         "                                   - va : video/audio\n"
         "       --demux-mode <integer>  Specify output demux mode. [0-1]\n"
         "                                   - 0 : Sequential read\n"
-        "                                   - 1 : Multithread read\n"
+        "                                   - 1 : Multi-thread read\n"
         "       --delay-type <integer>  Specify audio delay type. [0-3]\n"
         "                                   - 0 : None\n"
         "                                   - 1 : GOP Key frame\n"
