@@ -127,6 +127,7 @@ static void print_help( void )
         "                                   - d : Demux (--api-type 2 --output-mode 1)\n"
         "                                   - v : video (--output-stream v)\n"
         "                                   - a : audio (--output-stream a)\n"
+        "                                   - m : Multi-thread (--demux-mode 1)\n"
         "                               [ex] --mode pva = Parse v/a streams.\n"
         "                                    --mode da  = Demux audio only.\n"
         "       --api-type              Specify api type. [0-2]\n"
@@ -361,6 +362,9 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
                         break;
                     case 'a' :
                         output_stream |= OUTPUT_STREAM_AUDIO;
+                        break;
+                    case 'm' :
+                        p->demux_mode = OUTPUT_DEMUX_MULTITHREAD_READ;
                         break;
                     default :
                         break;
