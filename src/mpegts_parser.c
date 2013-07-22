@@ -49,7 +49,7 @@
 
 #define TS_PACKET_TYPE_NUM                  (3)
 #define TS_PACKET_FIRST_CHECK_COUNT_NUM     (4)
-#define TS_PACKET_SEARCH_CHECK_COUNT_NUM    (50000)
+#define TS_PACKET_SEARCH_CHECK_COUNT_NUM    (1000000)
 #define TS_PACKET_SEARCH_RETRY_COUNT_NUM    (5)
 
 //#define NEED_OPCR_VALUE
@@ -1938,6 +1938,8 @@ static int set_pmt_stream_info( mpegts_info_t *info )
                     ++(*stream_num);
                 }
             }
+            else
+                dprintf( LOG_LV2, "[check] Undetected - %s PID:0x%04X  stream_type:0x%02X\n", stream_name[index], program_id, stream_type );
             mpegts_file_seek( &(info->file_read), start_position, MPEGTS_SEEK_RESET );
         }
     }
