@@ -34,7 +34,7 @@
 #include <inttypes.h>
 
 #include "mpegts_def.h"
-#include "file_common.h"
+#include "file_utils.h"
 #include "file_reader.h"
 
 /*============================================================================

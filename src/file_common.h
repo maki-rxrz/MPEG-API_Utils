@@ -39,10 +39,4 @@
 #define WRITE_BUFFER_SIZE_MIN               (0x0000800)
 #define WRITE_BUFFER_SIZE_MAX               (0x1000000)
 
-/*============================================================================
- *  External reference items
- *==========================================================================*/
-
-extern int64_t get_file_size( char *file_name );
-
 #endif /* __FILE_COMMON_H__ */

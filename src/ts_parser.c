@@ -40,7 +40,7 @@
 
 #include "mpeg_utils.h"
 #include "thread_utils.h"
-#include "file_common.h"
+#include "file_utils.h"
 #include "file_writer.h"
 
 #define PROGRAM_VERSION                 "0.0.5"

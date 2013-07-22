@@ -37,7 +37,7 @@
 #include "mpeg_parser.h"
 #include "mpeg_utils.h"
 #include "thread_utils.h"
-#include "file_common.h"
+#include "file_utils.h"
 
 typedef struct {
     uint8_t                 progressive_sequence;

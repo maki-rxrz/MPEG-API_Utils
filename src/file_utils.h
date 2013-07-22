@@ -1,5 +1,5 @@
 /*****************************************************************************
- * file_utils.c
+ * file_utils.h
  *****************************************************************************
  *
  * Authors: Masaki Tanaka <maki.rxrz@gmail.com>
@@ -26,29 +26,17 @@
  *   form of this software.
  *
  ****************************************************************************/
+#ifndef __FILE_UTILS_H__
+#define __FILE_UTILS_H__
 
-#include "common.h"
+#include <inttypes.h>
 
-#include <stdlib.h>
-
-#include "file_utils.h"
+#include "file_common.h"
 
 /*============================================================================
- *  Utility functions
+ *  External reference items
  *==========================================================================*/
 
-extern int64_t get_file_size( char *file_name )
-{
-    int64_t file_size;
+extern int64_t get_file_size( char *file_name );
 
-    FILE *fp = fopen( file_name, "rb" );
-    if( !fp )
-        return -1;
-
-    fseeko( fp, 0, SEEK_END );
-    file_size = ftello( fp );
-
-    fclose( fp );
-
-    return file_size;
-}
+#endif /* __FILE_UTILS_H__ */
