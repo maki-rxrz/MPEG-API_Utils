@@ -83,6 +83,8 @@ static int mpeges_open( mpeges_info_t *info, char *file_name, int64_t buffer_siz
 
 static void mpeges_close( mpeges_info_t *info )
 {
+    if( !info || !(info->fr_ctx) )
+        return;
     file_reader.close( info->fr_ctx );
     file_reader.release( &(info->fr_ctx) );
 }
