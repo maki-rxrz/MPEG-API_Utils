@@ -631,8 +631,9 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
     uint8_t *buffer_data = (uint8_t *)malloc( PMT_PARSE_COUNT_NUM * TS_PACKET_TABLE_SECTION_SIZE_MAX );
     if( !buffer_data )
         return -1;
-    int section_lengths[PMT_PARSE_COUNT_NUM] = { 0 };
+    int      section_lengths[PMT_PARSE_COUNT_NUM] = { 0 };
     uint8_t *section_buffers[PMT_PARSE_COUNT_NUM];
+    int32_t  section_pid_num[PMT_PARSE_COUNT_NUM] = { 0 };
     for( int i = 0; i < PMT_PARSE_COUNT_NUM; i++ )
         section_buffers[i] = (uint8_t *)(buffer_data + i * TS_PACKET_TABLE_SECTION_SIZE_MAX);
     int64_t reset_position = -1;
@@ -675,7 +676,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
             }
             if( (section_length - read_count) != TS_PACKET_SECTION_CRC32_SIZE )
                 continue;
-            info->pid_list_num_in_pmt = pid_list_num;
+            section_pid_num[i] = pid_list_num;
             break;
         }
         if( !retry_count )
@@ -733,10 +734,12 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
         }
     }
     dprintf( LOG_LV2, "[check] target_pmt:%d\n", target_pmt );
-    int section_length      = section_lengths[target_pmt];
+    int      section_length = section_lengths[target_pmt];
     uint8_t *section_buffer = section_buffers[target_pmt];
+    int      pid_num_in_pmt = section_pid_num[target_pmt];
     /* listup. */
-    info->pid_list_in_pmt = (mpegts_pid_in_pmt_t *)malloc( sizeof(mpegts_pid_in_pmt_t) * info->pid_list_num_in_pmt );
+    info->pid_list_num_in_pmt = pid_num_in_pmt;
+    info->pid_list_in_pmt     = (mpegts_pid_in_pmt_t *)malloc( sizeof(mpegts_pid_in_pmt_t) * pid_num_in_pmt );
     if( !info->pid_list_in_pmt )
         goto fail_parse;
     mpeg_descriptor_info_t *descriptor_info = (mpeg_descriptor_info_t *)malloc( sizeof(mpeg_descriptor_info_t) );
