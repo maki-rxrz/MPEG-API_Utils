@@ -76,9 +76,12 @@ static int mpeges_open( mpeges_info_t *info, char *file_name, int64_t buffer_siz
     if( file_reader.init( &fr_ctx ) )
         return -1;
     if( file_reader.open( fr_ctx, file_name, buffer_size ) )
-        return -1;
+        goto fail;
     info->fr_ctx = fr_ctx;
     return 0;
+fail:
+    file_reader.release( &fr_ctx );
+    return -1;
 }
 
 static void mpeges_close( mpeges_info_t *info )

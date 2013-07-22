@@ -207,9 +207,12 @@ static int mpegts_open( mpegts_file_context_t *file, char *file_name, int64_t bu
     if( file_reader.init( &fr_ctx ) )
         return -1;
     if( file_reader.open( fr_ctx, file_name, buffer_size ) )
-        return -1;
+        goto fail;
     file->fr_ctx = fr_ctx;
     return 0;
+fail:
+    file_reader.release( &fr_ctx );
+    return -1;
 }
 
 static void mpegts_close( mpegts_file_context_t *file )
