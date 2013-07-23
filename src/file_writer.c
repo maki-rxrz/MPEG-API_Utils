@@ -55,7 +55,7 @@ typedef struct {
 } file_write_context_t;
 
 /*============================================================================
- *  File Reader functions
+ *  File Writer functions
  *==========================================================================*/
 
 static void inline fw_flush_buffer( file_write_context_t *fw_ctx )
