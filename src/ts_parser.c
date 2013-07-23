@@ -422,13 +422,19 @@ static int dumper_open( void **fw_ctx, char *file_name, int64_t buffer_size )
 {
     void *ctx = NULL;
     if( file_writer.init( &ctx ) )
-        goto fail;
+    {
+        dprintf( LOG_LV_PROGRESS, "[log] error, failed to allocate context.\n" );
+        return -1;
+    }
     if( file_writer.open( ctx, file_name, buffer_size ) )
+    {
+        dprintf( LOG_LV_PROGRESS, "[log] error, failed to open: %s\n", file_name );
         goto fail;
+    }
     *fw_ctx = ctx;
     return 0;
 fail:
-    dprintf( LOG_LV_PROGRESS, "[log] error, failed to open: %s\n", file_name );
+    file_writer.release( &ctx );
     return -1;
 }
 
