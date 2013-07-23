@@ -396,6 +396,12 @@ static int correct_parameter( param_t *p )
     return 0;
 }
 
+static inline uint16_t get_output_stream_nums( output_stream_type output, uint8_t v_num, uint8_t a_num )
+{
+    return ((output & OUTPUT_STREAM_VIDEO) ? v_num : 0)
+         + ((output & OUTPUT_STREAM_AUDIO) ? a_num : 0);
+}
+
 /*  */
 static inline int64_t dumper_ftell( void *fw_ctx )
 {
@@ -752,7 +758,7 @@ static void demux_sample_data( param_t *p, void *info, stream_info_t *stream_inf
     }
     /* output. */
     dprintf( LOG_LV_PROGRESS, "[log] Demux - START\n" );
-    uint16_t total_stream_num = video_stream_num + audio_stream_num;
+    uint16_t total_stream_num = get_output_stream_nums( p->output_stream, video_stream_num, audio_stream_num );
     if( p->demux_mode == OUTPUT_DEMUX_MULTITHREAD_READ && total_stream_num > 1 )
     {
         dprintf( LOG_LV_PROGRESS, "[log] Demux - Multi thread\n" );
@@ -1062,7 +1068,7 @@ static void demux_stream_data( param_t *p, void *info, stream_info_t *stream_inf
     }
     /* output. */
     dprintf( LOG_LV_PROGRESS, "[log] Demux - START\n" );
-    uint16_t total_stream_num = video_stream_num + audio_stream_num;
+    uint16_t total_stream_num = get_output_stream_nums( p->output_stream, video_stream_num, audio_stream_num );
     if( p->demux_mode == OUTPUT_DEMUX_MULTITHREAD_READ && total_stream_num > 1 )
     {
         dprintf( LOG_LV_PROGRESS, "[log] Demux - Multi thread\n" );
@@ -1384,7 +1390,7 @@ static void demux_stream_all( param_t *p, void *info, stream_info_t *stream_info
     }
     /* output. */
     dprintf( LOG_LV_PROGRESS, "[log] Demux - START\n" );
-    uint16_t total_stream_num = video_stream_num + audio_stream_num;
+    uint16_t total_stream_num = get_output_stream_nums( p->output_stream, video_stream_num, audio_stream_num );
     if( p->demux_mode == OUTPUT_DEMUX_MULTITHREAD_READ && total_stream_num > 1 )
     {
         dprintf( LOG_LV_PROGRESS, "[log] Demux - Multi thread\n" );
