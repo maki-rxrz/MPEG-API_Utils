@@ -440,6 +440,8 @@ fail:
 
 static void dumper_close( void **fw_ctx )
 {
+    if( !fw_ctx || !(*fw_ctx) )
+        return;
     file_writer.close( *fw_ctx );
     file_writer.release( fw_ctx );
 }
