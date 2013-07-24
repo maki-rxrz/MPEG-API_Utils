@@ -1501,6 +1501,7 @@ static void demux_stream_all( param_t *p, void *info, stream_info_t *stream_info
         {
             if( audio[i] )
             {
+                dprintf( LOG_LV_PROGRESS, " Audio Stream[%3u] [demux] start\n", i );
                 demux_cb_param_t cb_params = { audio[i], "Audio", i, 0, 0, p->file_size };
                 get_stream_data_cb_t cb = { demux_cb_func, &cb_params };
                 mpeg_api_get_stream_all( info, SAMPLE_TYPE_AUDIO, i, get_mode, &cb );
