@@ -618,7 +618,7 @@ static double frame_to_time( double frame_num, frame_rate_t frame_rate )
 static int get_output_times( param_t *p, int64_t *start, int64_t *end )
 {
     int64_t cut_frames = 0;
-    int64_t cut_start = 0;
+    int64_t cut_start  = 0;
     double s = time_to_frame( *start, p->frame_rate );
     double e = time_to_frame( *end  , p->frame_rate );
     int is_output = 0;
@@ -861,7 +861,7 @@ static void cut_srt( param_t *p, FILE *input, FILE *output )
         fprintf( output, UTF8_BOM );
     fseeko( input, UTF8_BOM_SIZE, SEEK_SET );
     /* parse data. */
-    int cut_count = 0;
+    int cut_count       = 0;
     int subtitle_number = 0;
     while( fgets( line, p->line_max, input ) )
     {

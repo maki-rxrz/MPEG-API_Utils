@@ -527,7 +527,7 @@ static void dump_sample_info( void *info, stream_info_t *stream_info, uint8_t vi
     {
         dprintf( LOG_LV_OUTPUT, "[log] Video Stream[%3u]\n", i );
         uint32_t no_gop_picture_num = 0;
-        int64_t gop_number = -1;
+        int64_t  gop_number         = -1;
         for( uint32_t j = 0; ; ++j )
         {
             if( mpeg_api_get_sample_info( info, SAMPLE_TYPE_VIDEO, i, j, stream_info ) )
@@ -612,8 +612,8 @@ static thread_func_ret demux_sample( void *args )
     dprintf( LOG_LV_PROGRESS, " %s Stream[%3u] [demux] start - sample_num:%u  start_num:%u\n", stream_name, stream_no, num, start );
     for( uint32_t i = start; i < num; ++i )
     {
-        uint8_t *buffer = NULL;
-        uint32_t data_size = 0;
+        uint8_t  *buffer    = NULL;
+        uint32_t  data_size = 0;
         if( mpeg_api_get_sample_data( info, get_type, stream_no, i, &buffer, &data_size, mode ) )
             break;
         else if( buffer && data_size )
@@ -633,8 +633,8 @@ static thread_func_ret demux_sample( void *args )
 
 static void demux_sample_data( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num, uint8_t audio_stream_num )
 {
-    int get_index = p->output_mode - OUTPUT_GET_SAMPLE_RAW;
-    get_sample_data_mode get_mode = get_sample_list[get_index].get_mode;
+    int                  get_index = p->output_mode - OUTPUT_GET_SAMPLE_RAW;
+    get_sample_data_mode get_mode  = get_sample_list[get_index].get_mode;
     if( mpeg_api_create_sample_list( info ) )
         return;
     /* ready file. */
@@ -855,8 +855,8 @@ static void demux_sample_data( param_t *p, void *info, stream_info_t *stream_inf
                             break;
                         ++j;
                     }
-                    uint8_t *buffer = NULL;
-                    uint32_t data_size = 0;
+                    uint8_t  *buffer    = NULL;
+                    uint32_t  data_size = 0;
                     if( mpeg_api_get_sample_data( info, SAMPLE_TYPE_VIDEO, i, j, &buffer, &data_size, get_mode ) )
                         break;
                     if( buffer && data_size )
@@ -883,8 +883,8 @@ static void demux_sample_data( param_t *p, void *info, stream_info_t *stream_inf
                 dprintf( LOG_LV_PROGRESS, " Audio Stream[%3u] [demux] start - sample_num:%u\n", i, sample_num );
                 for( uint32_t j = 0; j < sample_num; ++j )
                 {
-                    uint8_t *buffer = NULL;
-                    uint32_t data_size = 0;
+                    uint8_t  *buffer    = NULL;
+                    uint32_t  data_size = 0;
                     if( mpeg_api_get_sample_data( info, SAMPLE_TYPE_AUDIO, i, j, &buffer, &data_size, get_mode ) )
                         break;
                     if( buffer && data_size )
@@ -923,8 +923,8 @@ static thread_func_ret demux_stream( void *args )
     dprintf( LOG_LV_PROGRESS, " %s Stream[%3u] [demux] start\n", stream_name, stream_no );
     for( uint32_t i = 0; ; ++i )
     {
-        uint8_t *buffer = NULL;
-        uint32_t data_size = 0;
+        uint8_t  *buffer    = NULL;
+        uint32_t  data_size = 0;
         if( mpeg_api_get_stream_data( info, get_type, stream_no, &buffer, &data_size, mode ) )
             break;
         else if( buffer && data_size )
@@ -944,8 +944,8 @@ static thread_func_ret demux_stream( void *args )
 
 static void demux_stream_data( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num, uint8_t audio_stream_num )
 {
-    int get_index = p->output_mode - OUTPUT_GET_SAMPLE_RAW;
-    get_sample_data_mode get_mode = get_sample_list[get_index].get_mode;
+    int                  get_index = p->output_mode - OUTPUT_GET_SAMPLE_RAW;
+    get_sample_data_mode get_mode  = get_sample_list[get_index].get_mode;
     /* ready file. */
     void *video[video_stream_num], *audio[audio_stream_num];
     if( video_stream_num )
@@ -1169,8 +1169,8 @@ static void demux_stream_data( param_t *p, void *info, stream_info_t *stream_inf
                 }
                 for( uint32_t j = 0; ; ++j )
                 {
-                    uint8_t *buffer = NULL;
-                    uint32_t data_size = 0;
+                    uint8_t  *buffer    = NULL;
+                    uint32_t  data_size = 0;
                     if( mpeg_api_get_stream_data( info, SAMPLE_TYPE_VIDEO, i, &buffer, &data_size, get_mode ) )
                         break;
                     if( buffer && data_size )
@@ -1196,8 +1196,8 @@ static void demux_stream_data( param_t *p, void *info, stream_info_t *stream_inf
                 dprintf( LOG_LV_PROGRESS, " Audio Stream[%3u] [demux] start\n", i );
                 for( uint32_t j = 0; ; ++j )
                 {
-                    uint8_t *buffer = NULL;
-                    uint32_t data_size = 0;
+                    uint8_t  *buffer    = NULL;
+                    uint32_t  data_size = 0;
                     if( mpeg_api_get_stream_data( info, SAMPLE_TYPE_AUDIO, i, &buffer, &data_size, get_mode ) )
                         break;
                     if( buffer && data_size )
@@ -1254,8 +1254,8 @@ static thread_func_ret demux_all( void *args )
     /* demux */
     dprintf( LOG_LV_PROGRESS, "                                                                              \r"
                               " %s Stream[%3u] [demux] start\n", stream_name, stream_no );
-    demux_cb_param_t cb_params = { fw_ctx, stream_name, stream_no, 0, 0, file_size };
-    get_stream_data_cb_t cb = { demux_cb_func, &cb_params };
+    demux_cb_param_t     cb_params = { fw_ctx, stream_name, stream_no, 0, 0, file_size };
+    get_stream_data_cb_t cb        = { demux_cb_func, &cb_params };
     mpeg_api_get_stream_all( info, get_type, stream_no, mode, &cb );
     /* finish. */
     uint64_t total_size = cb_params.total_size;
@@ -1266,8 +1266,8 @@ static thread_func_ret demux_all( void *args )
 
 static void demux_stream_all( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num, uint8_t audio_stream_num )
 {
-    int get_index = p->output_mode - OUTPUT_GET_SAMPLE_RAW;
-    get_sample_data_mode get_mode = get_sample_list[get_index].get_mode;
+    int                  get_index = p->output_mode - OUTPUT_GET_SAMPLE_RAW;
+    get_sample_data_mode get_mode  = get_sample_list[get_index].get_mode;
     /* ready file. */
     void *video[video_stream_num], *audio[audio_stream_num];
     if( video_stream_num )
@@ -1488,8 +1488,8 @@ static void demux_stream_all( param_t *p, void *info, stream_info_t *stream_info
                         break;
                     }
                 }
-                demux_cb_param_t cb_params = { video[i], "Video", i, 0, 0, p->file_size };
-                get_stream_data_cb_t cb = { demux_cb_func, &cb_params };
+                demux_cb_param_t     cb_params = { video[i], "Video", i, 0, 0, p->file_size };
+                get_stream_data_cb_t cb        = { demux_cb_func, &cb_params };
                 mpeg_api_get_stream_all( info, SAMPLE_TYPE_VIDEO, i, get_mode, &cb );
                 uint64_t total_size = cb_params.total_size;
                 dumper_close( &(video[i]) );
@@ -1502,8 +1502,8 @@ static void demux_stream_all( param_t *p, void *info, stream_info_t *stream_info
             if( audio[i] )
             {
                 dprintf( LOG_LV_PROGRESS, " Audio Stream[%3u] [demux] start\n", i );
-                demux_cb_param_t cb_params = { audio[i], "Audio", i, 0, 0, p->file_size };
-                get_stream_data_cb_t cb = { demux_cb_func, &cb_params };
+                demux_cb_param_t     cb_params = { audio[i], "Audio", i, 0, 0, p->file_size };
+                get_stream_data_cb_t cb        = { demux_cb_func, &cb_params };
                 mpeg_api_get_stream_all( info, SAMPLE_TYPE_AUDIO, i, get_mode, &cb );
                 uint64_t total_size = cb_params.total_size;
                 dumper_close( &(audio[i]) );

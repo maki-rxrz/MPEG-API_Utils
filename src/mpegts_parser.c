@@ -225,7 +225,7 @@ static void mpegts_close( mpegts_file_context_t *file )
 
 static int32_t mpegts_check_sync_byte_position( mpegts_file_context_t *file, int32_t packet_size, int packet_check_count )
 {
-    int32_t position = -1;
+    int32_t position       = -1;
     int64_t start_position = mpegts_ftell( file );
     uint8_t c;
     while( mpegts_fread( file, &c, 1, NULL ) == MAPI_SUCCESS && position < packet_size )
@@ -234,7 +234,7 @@ static int32_t mpegts_check_sync_byte_position( mpegts_file_context_t *file, int
         if( c != SYNC_BYTE )
             continue;
         int64_t reset_position = mpegts_ftell( file );
-        int check_count = packet_check_count;
+        int     check_count    = packet_check_count;
         while( check_count )
         {
             if( mpegts_fseek( file, packet_size - 1, SEEK_CUR ) )
@@ -495,7 +495,7 @@ static int mpegts_seek_packet_payload_data( mpegts_file_context_t *file, mpegts_
 static int mpegts_get_table_section_data( mpegts_file_context_t *file, uint16_t search_program_id, uint8_t *section_buffer, uint16_t section_length )
 {
     mpegts_packet_header_t h;
-    int64_t start_position = mpegts_ftell( file );
+    int64_t start_position        = mpegts_ftell( file );
     int32_t rest_ts_packet_length = file->ts_packet_length;
     /* buffering payload data. */
     int read_count = 0;
@@ -540,9 +540,9 @@ static int mpegts_parse_pat( mpegts_info_t *info )
     int64_t read_pos = -1;
     /* search. */
     mpegts_pat_section_info_t pat_si;
-    int section_length;
+    int     section_length;
     uint8_t section_buffer[TS_PACKET_TABLE_SECTION_SIZE_MAX];
-    int retry_count = info->packet_check_retry_num;
+    int     retry_count = info->packet_check_retry_num;
     while( retry_count )
     {
         --retry_count;
@@ -601,7 +601,7 @@ static int mpegts_search_pmt_packet( mpegts_info_t *info, mpegts_pmt_section_inf
     /* search. */
     mpegts_packet_header_t h;
     uint8_t section_header[TS_PID_PMT_SECTION_HEADER_SIZE];
-    int pid_list_index = -1;
+    int     pid_list_index = -1;
     int64_t start_position = mpegts_ftell( &(info->file_read) );
     do
     {
@@ -640,7 +640,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
     for( int i = 0; i < PMT_PARSE_COUNT_NUM; i++ )
         section_buffers[i] = (uint8_t *)(buffer_data + i * TS_PACKET_TABLE_SECTION_SIZE_MAX);
     int64_t reset_position = -1;
-    int64_t check_offset = info->file_size / (PMT_PARSE_COUNT_NUM + 1);
+    int64_t check_offset   = info->file_size / (PMT_PARSE_COUNT_NUM + 1);
     check_offset -= check_offset % info->file_read.packet_size;
     for( int i = 0; i < PMT_PARSE_COUNT_NUM; ++i )
     {
@@ -762,9 +762,9 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
         read_count += TS_PACKET_PMT_SECTION_DATA_SIZE;
         /* check descriptor. */
         uint8_t descriptor_tags[(ES_info_length + 1) / 2];
-        uint16_t descriptor_num = 0;
-        uint16_t descriptor_read_count = 0;
-        uint8_t *descriptor_data = &(section_buffer[read_count]);
+        uint16_t  descriptor_num        = 0;
+        uint16_t  descriptor_read_count = 0;
+        uint8_t  *descriptor_data       = &(section_buffer[read_count]);
         while( descriptor_read_count < ES_info_length - 2 )
         {
             mpeg_stream_get_descriptor_info( stream_type, &(descriptor_data[descriptor_read_count]), descriptor_info );
@@ -1109,8 +1109,8 @@ static uint32_t mpegts_get_sample_packets_num( mpegts_file_context_t *file, uint
         return 0;
     mpegts_file_seek( file, 0, MPEGTS_SEEK_NEXT );
     /* count. */
-    uint32_t ts_packet_count = 0;
-    int8_t old_continuity_counter = h.continuity_counter;
+    uint32_t ts_packet_count        = 0;
+    int8_t   old_continuity_counter = h.continuity_counter;
     do
     {
         ++ts_packet_count;
@@ -1152,7 +1152,7 @@ static int mpegts_check_sample_raw_frame_length( mpegts_file_context_t *file, ui
     int32_t stream_header_check_size = mpeg_stream_get_header_check_size( stream_type, stream_judge );
     uint8_t check_buffer[stream_header_check_size];
     int32_t buffer_read_size = 0;
-    int32_t raw_data_size = cache_read_size;
+    int32_t raw_data_size    = cache_read_size;
     if( raw_data_size >= frame_length )
     {
         buffer_read_size = raw_data_size - frame_length;
@@ -1222,17 +1222,17 @@ static int mpegts_get_sample_raw_data_info( mpegts_file_context_t *file, uint16_
 {
     dprintf( LOG_LV3, "[debug] mpegts_get_sample_raw_data_info()\n" );
     uint32_t raw_data_size = 0;
-    int32_t start_point = -1;
+    int32_t  start_point   = -1;
     /* ready. */
     int64_t start_position = mpegts_ftell( file );
     /* search. */
     int check_start_point = 0;
     int32_t stream_header_check_size = mpeg_stream_get_header_check_size( stream_type, stream_judge );
     uint8_t check_buffer[TS_PACKET_SIZE + stream_header_check_size];
-    uint8_t *buffer_p = check_buffer;
-    int32_t buffer_read_offset = 0;
-    int32_t buffer_read_size = 0;
-    uint32_t frame_length = 0;
+    uint8_t *buffer_p           = check_buffer;
+    int32_t  buffer_read_offset = 0;
+    int32_t  buffer_read_size   = 0;
+    uint32_t frame_length       = 0;
     mpeg_stream_raw_info_t stream_raw_info;
     mpegts_packet_header_t h;
     while( 1 )
@@ -1495,10 +1495,10 @@ static int get_sample_data( void *ih, mpeg_sample_type sample_type, uint8_t stre
     if( !info || position < 0 )
         return -1;
     /* check program id. */
-    mpegts_file_context_t *file_read = NULL;
-    uint16_t program_id = TS_PID_ERR;
-    mpeg_stream_type stream_type = STREAM_INVALID;
-    mpeg_stream_group_type stream_judge = STREAM_IS_UNKNOWN;
+    mpegts_file_context_t  *file_read    = NULL;
+    uint16_t                program_id   = TS_PID_ERR;
+    mpeg_stream_type        stream_type  = STREAM_INVALID;
+    mpeg_stream_group_type  stream_judge = STREAM_IS_UNKNOWN;
     if( sample_type == SAMPLE_TYPE_VIDEO && stream_number < info->video_stream_num )
     {
         file_read    = &(info->video_stream[stream_number].file_read);
@@ -1519,9 +1519,9 @@ static int get_sample_data( void *ih, mpeg_sample_type sample_type, uint8_t stre
     mpegts_file_seek( file_read, position, MPEGTS_SEEK_RESET );
     file_read->sync_byte_position = 0;
     /* get data. */
-    uint32_t ts_packet_count = sample_size / TS_PACKET_SIZE;
-    uint8_t *buffer = NULL;
-    uint32_t read_size = 0;
+    uint32_t  ts_packet_count = sample_size / TS_PACKET_SIZE;
+    uint8_t  *buffer          = NULL;
+    uint32_t  read_size       = 0;
     switch( get_mode )
     {
         case GET_SAMPLE_DATA_CONTAINER :
@@ -1582,8 +1582,8 @@ static int seek_next_sample_position( void *ih, mpeg_sample_type sample_type, ui
     mpegts_info_t *info = (mpegts_info_t *)ih;
     if( !info )
         return -1;
-    int64_t seek_position = -1;
-    mpegts_file_context_t *file_read = NULL;
+    int64_t                seek_position = -1;
+    mpegts_file_context_t *file_read     = NULL;
     if( sample_type == SAMPLE_TYPE_VIDEO && stream_number < info->video_stream_num )
     {
         file_read     = &(info->video_stream[stream_number].file_read);
@@ -1606,8 +1606,8 @@ static int get_stream_data( void *ih, mpeg_sample_type sample_type, uint8_t stre
     if( !info )
         return -1;
     mpegts_packet_header_t h;
-    mpegts_file_context_t *file = NULL;
-    uint16_t program_id = TS_PID_ERR;
+    mpegts_file_context_t *file       = NULL;
+    uint16_t               program_id = TS_PID_ERR;
     if( sample_type == SAMPLE_TYPE_VIDEO && stream_number < info->video_stream_num )
     {
         file       = &(info->video_stream[stream_number].file_read);
@@ -1720,12 +1720,12 @@ static int get_video_info( void *ih, uint8_t stream_number, video_sample_info_t 
     mpegts_info_t *info = (mpegts_info_t *)ih;
     if( !info || stream_number >= info->video_stream_num )
         return -1;
-    mpegts_file_context_t *file_read    = &(info->video_stream[stream_number].file_read);
-    uint16_t program_id                 =   info->video_stream[stream_number].program_id;
-    mpeg_stream_type stream_type        =   info->video_stream[stream_number].stream_type;
-    mpeg_stream_group_type stream_judge =   info->video_stream[stream_number].stream_judge;
-    void *stream_parse_info             =   info->video_stream[stream_number].stream_parse_info;
-    int64_t *video_stream_gop_number    = &(info->video_stream[stream_number].gop_number);
+    mpegts_file_context_t  *file_read               = &(info->video_stream[stream_number].file_read);
+    uint16_t                program_id              =   info->video_stream[stream_number].program_id;
+    mpeg_stream_type        stream_type             =   info->video_stream[stream_number].stream_type;
+    mpeg_stream_group_type  stream_judge            =   info->video_stream[stream_number].stream_judge;
+    void                   *stream_parse_info       =   info->video_stream[stream_number].stream_parse_info;
+    int64_t                *video_stream_gop_number = &(info->video_stream[stream_number].gop_number);
     /* check PES start code. */
     mpeg_pes_packet_start_code_type start_code = mpeg_pes_get_stream_start_code( stream_judge );
     /* get timestamp. */
@@ -1739,15 +1739,15 @@ static int get_video_info( void *ih, uint8_t stream_number, video_sample_info_t 
         return -1;
     dprintf( LOG_LV4, "[debug] raw_data  size:%u  read_offset:%d\n", raw_data_info.data_size, raw_data_info.read_offset );
     /* parse payload data. */
-    int64_t gop_number = -1;
+    int64_t gop_number           = -1;
     uint8_t progressive_sequence = 0;
-    uint8_t closed_gop = 0;
-    uint8_t picture_coding_type = MPEG_VIDEO_UNKNOWN_FRAME;
-    int16_t temporal_reference = -1;
-    uint8_t picture_structure = 0;
-    uint8_t progressive_frame = 0;
-    uint8_t repeat_first_field = 0;
-    uint8_t top_field_first = 0;
+    uint8_t closed_gop           = 0;
+    uint8_t picture_coding_type  = MPEG_VIDEO_UNKNOWN_FRAME;
+    int16_t temporal_reference   = -1;
+    uint8_t picture_structure    = 0;
+    uint8_t progressive_frame    = 0;
+    uint8_t repeat_first_field   = 0;
+    uint8_t top_field_first      = 0;
     if( (stream_judge & STREAM_IS_MPEG_VIDEO) == STREAM_IS_MPEG_VIDEO )
     {
         mpeg_video_info_t *video_info = (mpeg_video_info_t *)stream_parse_info;
@@ -1806,10 +1806,10 @@ static int get_audio_info( void *ih, uint8_t stream_number, audio_sample_info_t 
     mpegts_info_t *info = (mpegts_info_t *)ih;
     if( !info || stream_number >= info->audio_stream_num )
         return -1;
-    mpegts_file_context_t *file_read    = &(info->audio_stream[stream_number].file_read);
-    uint16_t program_id                 =   info->audio_stream[stream_number].program_id;
-    mpeg_stream_type stream_type        =   info->audio_stream[stream_number].stream_type;
-    mpeg_stream_group_type stream_judge =   info->audio_stream[stream_number].stream_judge;
+    mpegts_file_context_t  *file_read    = &(info->audio_stream[stream_number].file_read);
+    uint16_t                program_id   =   info->audio_stream[stream_number].program_id;
+    mpeg_stream_type        stream_type  =   info->audio_stream[stream_number].stream_type;
+    mpeg_stream_group_type  stream_judge =   info->audio_stream[stream_number].stream_judge;
     /* check PES start code. */
     mpeg_pes_packet_start_code_type start_code = mpeg_pes_get_stream_start_code( stream_judge );
     /* get timestamp. */
@@ -1889,14 +1889,14 @@ static int set_pmt_stream_info( mpegts_info_t *info )
     video_stream_num = audio_stream_num = 0;
     for( int32_t pid_list_index = 0; pid_list_index < info->pid_list_num_in_pmt; ++pid_list_index )
     {
-        uint16_t program_id                 = info->pid_list_in_pmt[pid_list_index].program_id;
-        mpeg_stream_type stream_type        = info->pid_list_in_pmt[pid_list_index].stream_type;
+        uint16_t               program_id   = info->pid_list_in_pmt[pid_list_index].program_id;
+        mpeg_stream_type       stream_type  = info->pid_list_in_pmt[pid_list_index].stream_type;
         mpeg_stream_group_type stream_judge = info->pid_list_in_pmt[pid_list_index].stream_judge;
         /*  */
         static const char *stream_name[2] = { "video", "audio" };
-        int index;
-        mpegts_stream_context_t *stream = NULL;
-        uint8_t *stream_num;
+        mpegts_stream_context_t *stream     = NULL;
+        uint8_t                 *stream_num = NULL;
+        int                      index      = 0;
         if( stream_judge & STREAM_IS_VIDEO )
         {
             stream     = &(video_context[video_stream_num]);
@@ -2167,8 +2167,8 @@ end_parse:
 static void *initialize( const char *input_file, int64_t buffer_size )
 {
     dprintf( LOG_LV2, "[mpegts_parser] initialize()\n" );
-    mpegts_info_t *info = (mpegts_info_t *)calloc( sizeof(mpegts_info_t), 1 );
-    char *mpegts = strdup( input_file );
+    mpegts_info_t *info   = (mpegts_info_t *)calloc( sizeof(mpegts_info_t), 1 );
+    char          *mpegts = strdup( input_file );
     if( !info || !mpegts )
         goto fail_initialize;
     if( mpegts_open( &(info->file_read), mpegts, buffer_size ) )

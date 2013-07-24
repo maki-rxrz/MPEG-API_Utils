@@ -665,14 +665,14 @@ static int mpa_header_check( uint8_t *header, mpeg_stream_raw_info_t *stream_raw
 {
     if( header[0] != 0xFF || (header[1] & 0xE0) != 0xE0 )
         return -1;
-    int version_id = (header[1] & 0x18) >> 3;
+    int version_id    = (header[1] & 0x18) >> 3;
     if( version_id == 0x01 )                    /* MPEG Audio version ID : '01' reserved            */
         return -1;
     int layer = (header[1] & 0x06) >> 1;
     if( !layer )                                /* layer : '00' reserved                            */
         return -1;
-    /* protection_bit = header[1] & 0x01);              */
-    int bitrate_index = header[2] >> 4;
+    /* protection_bit            =  header[1] & 0x01);              */
+    int bitrate_index            =  header[2] >> 4;
     if( bitrate_index == 0x0F )                 /* bitrate index : '1111' bad                       */
         return -1;
     int sampling_frequency_index = (header[2] & 0x0C) >> 2;
@@ -712,8 +712,8 @@ static int mpa_header_check( uint8_t *header, mpeg_stream_raw_info_t *stream_raw
             {   0,   32,  48,  56,  64,  80,  96, 112, 128, 144, 160, 176, 192, 224, 256 },
             {   0,    8,  16,  24,  32,  40,  48,  56,  64,  80,  96, 112, 128, 144, 160 }
         };
-    int vl_index = version_layer_matrix[version_id - 1][layer - 1];
-    uint16_t bitrate = bitrate_matrix[vl_index][bitrate_index];
+    int      vl_index = version_layer_matrix[version_id - 1][layer - 1];
+    uint16_t bitrate  = bitrate_matrix[vl_index][bitrate_index];
     static const uint16_t ng_matrix[2][4] =
         {
             {  32,  48,  56,  80 },             /* stereo / joint stereo / dual channel */
@@ -756,11 +756,11 @@ static int aac_header_check( uint8_t *header, mpeg_stream_raw_info_t *stream_raw
     int sampling_frequency_index = (header[2] & 0x3C) >> 2;
     if( sampling_frequency_index > 11 )         /* sampling_frequency_index : 0xc-0xf reserved              */
         return -1;
-    uint32_t frame_length = ((header[3] & 0x03) << 11) | (header[4] << 3) | (header[5] >> 5);
+    uint32_t frame_length          = ((header[3] & 0x03) << 11) | (header[4] << 3) | (header[5] >> 5);
     if( !frame_length )                         /* aac frame length                             */
         return -1;
-    /* protection absent          =   header[1] & 0x01;             */
-    uint8_t channel_configuration = ((header[2] & 0x01) << 2) | (header[3] >> 6);
+    /* protection absent           =   header[1] & 0x01;            */
+    uint8_t  channel_configuration = ((header[2] & 0x01) << 2) | (header[3] >> 6);
     /* detect header. */
     dprintf( LOG_LV4, "[debug] [ADTS-AAC] detect header. frame_len:%d\n", frame_length );
     /* setup. */
@@ -790,11 +790,11 @@ static int lpcm_header_check( uint8_t *header, mpeg_stream_raw_info_t *stream_ra
 {
     /* MPEG-2 Program Stream   : 2byte  (no support)    */          // FIXME
     /* MPEG-2 Transport Stream : 4byte                  */          // FIXME
-    uint32_t frame_length      =   (header[0] << 8) | header[1];
-    uint8_t channel_assignment =   (header[2] & 0xF0) >> 4;
-    uint8_t sampling_frequency =    header[2] & 0x0F;
-    uint8_t bits_per_sample    =   (header[3] & 0xC0) >> 6;
-    /* start_flag              = !!(header[3] & 0x20);              */
+    uint32_t frame_length       =   (header[0] << 8) | header[1];
+    uint8_t  channel_assignment =   (header[2] & 0xF0) >> 4;
+    uint8_t  sampling_frequency =    header[2] & 0x0F;
+    uint8_t  bits_per_sample    =   (header[3] & 0xC0) >> 6;
+    /* start_flag               = !!(header[3] & 0x20);             */
     /* reserved     5bit                                            */
     /* check. */
     if( !frame_length )
@@ -853,22 +853,22 @@ static int ac3_header_check( uint8_t *header, mpeg_stream_raw_info_t *stream_raw
     /* check Synchronization Information. */
     if( header[0] != 0x0B || header[1] != 0x77 )
         return -1;
-    /* crc1  16bit           = (header[2] << 8) | header[3];        */
-    uint8_t sample_rate_code =  header[4] >> 6;
+    /* crc1  16bit               =  (header[2] << 8) | header[3];   */
+    uint8_t  sample_rate_code    =   header[4] >> 6;
     if( sample_rate_code == 0x03 )
         return -1;
-    uint8_t frame_size_code  =  header[4] & 0x3F;
+    uint8_t  frame_size_code     =   header[4] & 0x3F;
     if( frame_size_code > 37 )
         return -1;
     /* check Bit Stream Information. */
-    /* bit_stream_identification = header[5] >> 3;                  */
-    /* bit_stream_mode           = header[5] & 0x07;                */
-    uint8_t audio_coding_mode    = header[6] >> 5;
-    uint16_t bsi_data = ((header[6] & 0x1F) << 8) | header[7];
-    uint8_t lfe_bit_offset = 2 * ( ((audio_coding_mode & 0x01) && audio_coding_mode != 0x01)
-                                  + (audio_coding_mode & 0x04)
-                                  + (audio_coding_mode == 0x02) );
-    uint8_t lfe_channel_on = !!(bsi_data & (0x0100 >> lfe_bit_offset));
+    /* bit_stream_identification =   header[5] >> 3;                */
+    /* bit_stream_mode           =   header[5] & 0x07;              */
+    uint8_t  audio_coding_mode   =   header[6] >> 5;
+    uint16_t bsi_data            = ((header[6] & 0x1F) << 8) | header[7];
+    uint8_t  lfe_bit_offset      = 2 * ( ((audio_coding_mode & 0x01) && audio_coding_mode != 0x01)
+                                       + (audio_coding_mode & 0x04)
+                                       + (audio_coding_mode == 0x02) );
+    uint8_t  lfe_channel_on      = !!(bsi_data & (0x0100 >> lfe_bit_offset));
     /* detect header. */
     dprintf( LOG_LV4, "[debug] [AC-3] detect header.\n" );
     /* setup. */
@@ -917,8 +917,8 @@ static int eac3_header_check( uint8_t *header, mpeg_stream_raw_info_t *stream_ra
         /* compression_gain_word    =  ((header[6] & 0x1F) << 3) | (header[7] >> 5);    */
         ++header_idx;
     }
-    uint8_t custom_channel_map_exists = 0;
-    uint16_t custom_channel_map       = 0;
+    uint8_t  custom_channel_map_exists = 0;
+    uint16_t custom_channel_map        = 0;
     if( stream_type == 1 )
     {
         if( audio_coding_mode == 0 )
@@ -968,16 +968,16 @@ static int dts_header_check( uint8_t *header, mpeg_stream_raw_info_t *stream_raw
         return -1;
     /* frame_type                           = !!(header[4] & 0x80);         */
     /* deficit_sample_count                 =   (header[4] & 0x7C) >> 2;    */
-    uint8_t crc_present_flag                = !!(header[4] & 0x02);
+    uint8_t  crc_present_flag               = !!(header[4] & 0x02);
     /* number_of_pcm_sample_blocks          =  ((header[4] & 0x01) <<  6) | (header[5] >> 2);   */
     uint16_t primary_frame_byte_size        =  ((header[5] & 0x03) << 12) | (header[6] << 4) | (header[7] >> 4);
     if( primary_frame_byte_size < 95 )
         return -1;
-    uint8_t audio_channel_arangement        =  ((header[7] & 0x0F) <<  2) | (header[8] >> 6);
-    uint8_t core_audio_sampling_frequency   =   (header[8] & 0x3C) >> 2;
+    uint8_t  audio_channel_arangement       =  ((header[7] & 0x0F) <<  2) | (header[8] >> 6);
+    uint8_t  core_audio_sampling_frequency  =   (header[8] & 0x3C) >> 2;
     if( (core_audio_sampling_frequency % 5) == 0 || (core_audio_sampling_frequency % 5) == 4 )
         return -1;
-    uint8_t transmission_bit_rate           =  ((header[8] & 0x03) <<  3) | (header[9] >> 5);
+    uint8_t  transmission_bit_rate          =  ((header[8] & 0x03) <<  3) | (header[9] >> 5);
     if( transmission_bit_rate == 29 )       /* 0b11101      open            */
         /* correct table index. */
         transmission_bit_rate = 25;
@@ -993,7 +993,7 @@ static int dts_header_check( uint8_t *header, mpeg_stream_raw_info_t *stream_raw
     /* extension_audio_descriptor_flag      =    header[10] >> 5;           */
     /* extended_coding_flag                 = !!(header[10] & 0x10);        */
     /* audio_sync_word_insertion_flag       = !!(header[10] & 0x08);        */
-    uint8_t low_frequency_effects_flag      =   (header[10] & 0x06) >> 1;
+    uint8_t  low_frequency_effects_flag     =   (header[10] & 0x06) >> 1;
     /* predictor_history_flag_switch        =    header[10] & 0x01;         */
     int header_idx = 11;
     if( crc_present_flag )
@@ -1004,7 +1004,7 @@ static int dts_header_check( uint8_t *header, mpeg_stream_raw_info_t *stream_raw
     /* multirate_interpolator_switch        = !!(header[header_idx] & 0x80);        */
     /* encoder_software_revision            =   (header[header_idx] & 0x78) >> 3;   */
     /* copy_history                         =   (header[header_idx] & 0x06) >> 1;   */
-    uint8_t source_pcm_resolution           =  ((header[header_idx+0] & 0x01) << 2) | (header[header_idx+1] >> 6);
+    uint8_t  source_pcm_resolution          =  ((header[header_idx+0] & 0x01) << 2) | (header[header_idx+1] >> 6);
     if( source_pcm_resolution == 4 || source_pcm_resolution == 7 )
         return -1;
     /* detect header. */
@@ -1070,7 +1070,7 @@ extern int32_t mpeg_stream_check_header( mpeg_stream_type stream_type, mpeg_stre
                         { mpa_header_check, STREAM_MPA_HEADER_CHECK_SIZE },
                         { aac_header_check, STREAM_AAC_HEADER_CHECK_SIZE }
                     };
-                int index = (stream_judge == STREAM_IS_AAC_AUDIO);
+                int index   = (stream_judge == STREAM_IS_AAC_AUDIO);
                 int idx_max = buffer_size - header_check[index].size;
                 for( int i = 0; i <= idx_max; ++i )
                 {

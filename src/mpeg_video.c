@@ -868,8 +868,8 @@ extern int mpeg_video_judge_start_code( uint8_t *start_code_data, uint8_t identi
     {
         if( !code_list[i].read_size || mpeg_video_check_start_code( start_code_data, code_list[i].start_code ) )
             continue;
-        mpeg_video_start_code_type start_code                   = code_list[i].start_code;
-        uint32_t read_size                                      = code_list[i].read_size;
+        mpeg_video_start_code_type             start_code       = code_list[i].start_code;
+        uint32_t                               read_size        = code_list[i].read_size;
         mpeg_video_start_code_searching_status searching_status = code_list[i].status;
         if( start_code == MPEG_VIDEO_START_CODE_ESC )
         {

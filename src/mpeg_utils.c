@@ -134,12 +134,12 @@ static thread_func_ret parse_stream( void *args )
     parse_param_t *param = (parse_param_t *)args;
     if( !param )
         return (thread_func_ret)(-1);
-    mpeg_api_info_t *info        = param->api_info;
-    mpeg_sample_type sample_type = param->sample_type;
-    uint8_t stream_no            = param->stream_no;
-    void *list_data              = param->list_data;
-    mpeg_parser_t *parser = info->parser;
-    void *parser_info     = info->parser_info;
+    mpeg_api_info_t  *info        = param->api_info;
+    mpeg_sample_type  sample_type = param->sample_type;
+    uint8_t           stream_no   = param->stream_no;
+    void             *list_data   = param->list_data;
+    mpeg_parser_t    *parser      = info->parser;
+    void             *parser_info = info->parser_info;
     /* parse */
     gop_list_data_t    *gop_list   = NULL;
     sample_list_data_t *video_list = NULL;
@@ -155,9 +155,9 @@ static thread_func_ret parse_stream( void *args )
             goto fail_parse_stream;
         /* create video lists. */
         uint32_t wrap_around_count = 0;
-        int64_t compare_ts = 0;
+        int64_t  compare_ts        = 0;
+        int64_t  gop_number        = -1;
         int64_t i;
-        int64_t gop_number = -1;
         for( i = 0; ; ++i )
         {
             if( i >= video_list_size )
@@ -258,7 +258,7 @@ static thread_func_ret parse_stream( void *args )
             goto fail_parse_stream;
         /* create audio sample list. */
         uint32_t wrap_around_count = 0;
-        int64_t compare_ts = 0;
+        int64_t  compare_ts        = 0;
         int64_t i;
         for( i = 0; ; ++i )
         {
@@ -324,13 +324,13 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
         return -1;
-    mpeg_parser_t *parser = info->parser;
-    void *parser_info     = info->parser_info;
+    mpeg_parser_t *parser      = info->parser;
+    void          *parser_info = info->parser_info;
     /* check stream num. */
-    int8_t video_stream_num = parser->get_stream_num( parser_info, SAMPLE_TYPE_VIDEO );
-    int8_t audio_stream_num = parser->get_stream_num( parser_info, SAMPLE_TYPE_AUDIO );
-    video_stream_data_t *video_stream = NULL;
-    audio_stream_data_t *audio_stream = NULL;
+    int8_t               video_stream_num = parser->get_stream_num( parser_info, SAMPLE_TYPE_VIDEO );
+    int8_t               audio_stream_num = parser->get_stream_num( parser_info, SAMPLE_TYPE_AUDIO );
+    video_stream_data_t *video_stream     = NULL;
+    audio_stream_data_t *audio_stream     = NULL;
     if( video_stream_num )
         video_stream = (video_stream_data_t *)calloc( sizeof(video_stream_data_t), video_stream_num );
     if( audio_stream_num )
@@ -453,9 +453,9 @@ MAPI_EXPORT int mpeg_api_get_stream_all( void *ih, mpeg_sample_type sample_type,
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
         return -1;
-    mpeg_parser_t *parser = info->parser;
-    void *parser_info     = info->parser_info;
-    int32_t read_offset   = 0;
+    mpeg_parser_t *parser      = info->parser;
+    void          *parser_info = info->parser_info;
+    int32_t        read_offset = 0;
     /* check offset. */
     if( get_mode == GET_SAMPLE_DATA_RAW )
     {
@@ -490,13 +490,13 @@ MAPI_EXPORT int mpeg_api_get_stream_data( void *ih, mpeg_sample_type sample_type
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
         return -1;
-    mpeg_parser_t *parser = info->parser;
-    void *parser_info     = info->parser_info;
+    mpeg_parser_t *parser      = info->parser;
+    void          *parser_info = info->parser_info;
     parser->seek_next_sample_position( parser_info, sample_type, stream_number );
     /* get sample data. */
-    int64_t file_position = -1;
-    uint32_t sample_size  = 0;
-    int32_t read_offset   = 0;
+    int64_t  file_position = -1;
+    uint32_t sample_size   = 0;
+    int32_t  read_offset   = 0;
     if( sample_type == SAMPLE_TYPE_VIDEO )
     {
         /* get video. */
@@ -632,8 +632,8 @@ MAPI_EXPORT int mpeg_api_get_sample_info( void *ih, mpeg_sample_type sample_type
         return -1;
     if( sample_type == SAMPLE_TYPE_VIDEO && stream_number < info->sample_list.video_stream_num )
     {
-        sample_list_data_t *list = info->sample_list.video_stream[stream_number].video;
-        int64_t list_num         = info->sample_list.video_stream[stream_number].video_num;
+        sample_list_data_t *list     = info->sample_list.video_stream[stream_number].video;
+        int64_t             list_num = info->sample_list.video_stream[stream_number].video_num;
         if( !list || sample_number >= list_num )
             return -1;
         gop_list_data_t *gop = &(info->sample_list.video_stream[stream_number].video_gop[list[sample_number].gop_number]);
@@ -654,8 +654,8 @@ MAPI_EXPORT int mpeg_api_get_sample_info( void *ih, mpeg_sample_type sample_type
     }
     else if( sample_type == SAMPLE_TYPE_AUDIO && stream_number < info->sample_list.audio_stream_num )
     {
-        sample_list_data_t *list = info->sample_list.audio_stream[stream_number].audio;
-        int64_t list_num         = info->sample_list.audio_stream[stream_number].audio_num;
+        sample_list_data_t *list     = info->sample_list.audio_stream[stream_number].audio;
+        int64_t             list_num = info->sample_list.audio_stream[stream_number].audio_num;
         if( !list || sample_number >= list_num )
             return -1;
         stream_info->file_position      = list[sample_number].file_position;
@@ -679,8 +679,8 @@ MAPI_EXPORT int mpeg_api_get_sample_data( void *ih, mpeg_sample_type sample_type
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info || !dst_buffer || !dst_read_size )
         return -1;
-    mpeg_parser_t *parser = info->parser;
-    void *parser_info     = info->parser_info;
+    mpeg_parser_t *parser      = info->parser;
+    void          *parser_info = info->parser_info;
     sample_list_data_t *list;
     int64_t list_num;
     if( sample_type == SAMPLE_TYPE_VIDEO )
@@ -700,9 +700,9 @@ MAPI_EXPORT int mpeg_api_get_sample_data( void *ih, mpeg_sample_type sample_type
     else
         return -1;
     /* get sample data. */
-    int64_t file_position  = list[sample_number].file_position;
+    int64_t  file_position = list[sample_number].file_position;
     uint32_t sample_size   = list[sample_number].sample_size;
-    int32_t read_offset    = 0;
+    int32_t  read_offset   = 0;
     if( get_mode == GET_SAMPLE_DATA_RAW )
     {
         sample_size        = list[sample_number].raw_data_size;
@@ -735,8 +735,8 @@ MAPI_EXPORT int mpeg_api_get_video_frame( void *ih, uint8_t stream_number, strea
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
         return -1;
-    mpeg_parser_t *parser = info->parser;
-    void *parser_info     = info->parser_info;
+    mpeg_parser_t *parser      = info->parser;
+    void          *parser_info = info->parser_info;
     parser->seek_next_sample_position( parser_info, SAMPLE_TYPE_VIDEO, stream_number );
     /* get video. */
     video_sample_info_t video_sample_info;
@@ -764,8 +764,8 @@ MAPI_EXPORT int mpeg_api_get_audio_frame( void *ih, uint8_t stream_number, strea
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
         return -1;
-    mpeg_parser_t *parser = info->parser;
-    void *parser_info     = info->parser_info;
+    mpeg_parser_t *parser      = info->parser;
+    void          *parser_info = info->parser_info;
     parser->seek_next_sample_position( parser_info, SAMPLE_TYPE_AUDIO, stream_number );
     /* get audio. */
     audio_sample_info_t audio_sample_info;
@@ -797,8 +797,8 @@ MAPI_EXPORT int mpeg_api_get_stream_info( void *ih, stream_info_t *stream_info, 
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
         return -1;
-    mpeg_parser_t *parser = info->parser;
-    void *parser_info     = info->parser_info;
+    mpeg_parser_t *parser      = info->parser;
+    void          *parser_info = info->parser_info;
     /* parse. */
     if( parser->parse( parser_info ) )
         return -1;

@@ -142,8 +142,8 @@ static int mpeges_parse_stream_type( mpeges_info_t *info )
                 BYTE_DATA_SHIFT( mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE );
                 continue;
             }
-            uint32_t read_size = start_code_info.read_size;
-            int64_t start_code_position = mpeges_ftell( info ) - MPEG_VIDEO_START_CODE_SIZE;
+            uint32_t read_size           = start_code_info.read_size;
+            int64_t  start_code_position = mpeges_ftell( info ) - MPEG_VIDEO_START_CODE_SIZE;
             /* get header/extension information. */
             uint8_t buf[read_size];
             mpeges_fread( info, buf, read_size, &dst_size );
@@ -475,7 +475,7 @@ static int parse( void *ih )
 static void *initialize( const char *mpeges, int64_t buffer_size )
 {
     dprintf( LOG_LV2, "[mpeges_parser] initialize()\n" );
-    mpeges_info_t     *info       = (mpeges_info_t *)calloc( sizeof(mpeges_info_t), 1 );
+    mpeges_info_t     *info       = (mpeges_info_t     *)calloc( sizeof(mpeges_info_t), 1 );
     mpeg_video_info_t *video_info = (mpeg_video_info_t *)malloc( sizeof(mpeg_video_info_t) );
     if( !info || !video_info )
         goto fail_initialize;
