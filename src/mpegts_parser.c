@@ -1678,7 +1678,12 @@ static int get_stream_data( void *ih, mpeg_sample_type sample_type, uint8_t stre
         uint8_t buffer[256];
         mpegts_file_read( file, buffer, read_size );
         /* output. */
-        cb->func( cb->params, buffer, read_size, mpegts_ftell( file ) );
+        get_stream_data_cb_ret_t cb_ret = {
+            .buffer    = buffer,
+            .read_size = read_size,
+            .progress  = mpegts_ftell( file )
+        };
+        cb->func( cb->params, (void *)&cb_ret );
     }
     ///* ready next. */
     //mpegts_file_seek( file, 0, MPEGTS_SEEK_NEXT );

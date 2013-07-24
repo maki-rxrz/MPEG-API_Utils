@@ -1186,9 +1186,15 @@ typedef struct {
     int64_t         file_size;
 } demux_cb_param_t;
 
-static void demux_cb_func( void *cb_params, void *buffer, uint32_t read_size, int64_t progress )
+static void demux_cb_func( void *cb_params, void *cb_ret )
 {
-    demux_cb_param_t *param = (demux_cb_param_t *)cb_params;
+    demux_cb_param_t         *param = (demux_cb_param_t         *)cb_params;
+    get_stream_data_cb_ret_t *ret   = (get_stream_data_cb_ret_t *)cb_ret;
+    /* get return values. */
+    void     *buffer    = ret->buffer;
+    uint32_t  read_size = ret->read_size;
+    int64_t   progress  = ret->progress;
+    /* output. */
     dumper_fwrite( param->fw_ctx, buffer, read_size, NULL );
     param->total_size += read_size;
     dprintf( LOG_LV_PROGRESS, " %s Stream[%3u] [%8u]  total: %14"PRIu64" byte ...[%5.2f%%]\r"
