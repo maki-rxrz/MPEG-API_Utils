@@ -638,11 +638,9 @@ static void demux_sample_data( param_t *p, void *info, stream_info_t *stream_inf
     if( mpeg_api_create_sample_list( info ) )
         return;
     /* ready file. */
-    void *video[video_stream_num], *audio[audio_stream_num];
-    if( video_stream_num )
-        memset( video, 0, sizeof(void *) * video_stream_num );
-    if( audio_stream_num )
-        memset( audio, 0, sizeof(void *) * audio_stream_num );
+    void *video[video_stream_num + 1], *audio[audio_stream_num + 1];
+    memset( video, 0, sizeof(void *) * (video_stream_num + 1) );
+    memset( audio, 0, sizeof(void *) * (audio_stream_num + 1) );
     int64_t video_pts = -1;
     for( uint8_t i = 0; i < video_stream_num; ++i )
     {
@@ -947,11 +945,9 @@ static void demux_stream_data( param_t *p, void *info, stream_info_t *stream_inf
     int                  get_index = p->output_mode - OUTPUT_GET_SAMPLE_RAW;
     get_sample_data_mode get_mode  = get_sample_list[get_index].get_mode;
     /* ready file. */
-    void *video[video_stream_num], *audio[audio_stream_num];
-    if( video_stream_num )
-        memset( video, 0, sizeof(void *) * video_stream_num );
-    if( audio_stream_num )
-        memset( audio, 0, sizeof(void *) * audio_stream_num );
+    void *video[video_stream_num + 1], *audio[audio_stream_num + 1];
+    memset( video, 0, sizeof(void *) * (video_stream_num + 1) );
+    memset( audio, 0, sizeof(void *) * (audio_stream_num + 1) );
     int64_t video_pts = -1;
     for( uint8_t i = 0; i < video_stream_num; ++i )
     {
@@ -1269,11 +1265,9 @@ static void demux_stream_all( param_t *p, void *info, stream_info_t *stream_info
     int                  get_index = p->output_mode - OUTPUT_GET_SAMPLE_RAW;
     get_sample_data_mode get_mode  = get_sample_list[get_index].get_mode;
     /* ready file. */
-    void *video[video_stream_num], *audio[audio_stream_num];
-    if( video_stream_num )
-        memset( video, 0, sizeof(void *) * video_stream_num );
-    if( audio_stream_num )
-        memset( audio, 0, sizeof(void *) * audio_stream_num );
+    void *video[video_stream_num + 1], *audio[audio_stream_num + 1];
+    memset( video, 0, sizeof(void *) * (video_stream_num + 1) );
+    memset( audio, 0, sizeof(void *) * (audio_stream_num + 1) );
     int64_t video_pts = -1;
     for( uint8_t i = 0; i < video_stream_num; ++i )
     {
