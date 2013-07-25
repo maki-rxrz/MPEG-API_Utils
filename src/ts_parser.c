@@ -118,7 +118,7 @@ static void print_help( void )
         "       --pmt-pid <integer>     Specify Program Map Table ID.\n"
         "       --mode <string>         Specify together multiple settings.\n"
         "                                   - p : Parse (--api-type 0 --output-mode 0)\n"
-        "                                   - d : Demux (--api-type 2 --output-mode 1)\n"
+        "                                   - d : Demux (--api-type 3 --output-mode 1)\n"
         "                                   - v : video (--output-stream v)\n"
         "                                   - a : audio (--output-stream a)\n"
         "                                   - m : Multi-thread (--demux-mode 1)\n"
@@ -350,7 +350,7 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
                         p->output_mode = OUTPUT_GET_INFO;
                         break;
                     case 'd' :
-                        p->api_type    = USE_MAPI_DEMUX_ALL;
+                        p->api_type    = USE_MAPI_DEMUX_ALL_ST;
                         p->output_mode = OUTPUT_GET_SAMPLE_RAW;
                         break;
                     case 'v' :
@@ -360,6 +360,7 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
                         output_stream |= OUTPUT_STREAM_AUDIO;
                         break;
                     case 'm' :
+                        p->api_type   = USE_MAPI_DEMUX_ALL;
                         p->demux_mode = OUTPUT_DEMUX_MULTITHREAD_READ;
                         break;
                     default :
