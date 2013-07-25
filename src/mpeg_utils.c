@@ -107,7 +107,7 @@ typedef struct {
 typedef struct {
     mpeg_api_info_t  *api_info;
     mpeg_sample_type  sample_type;
-    uint8_t           stream_no;
+    uint8_t           stream_number;
     void             *list_data;
     uint16_t          thread_index;
     uint16_t          thread_num;
@@ -134,12 +134,12 @@ static thread_func_ret parse_stream( void *args )
     parse_param_t *param = (parse_param_t *)args;
     if( !param )
         return (thread_func_ret)(-1);
-    mpeg_api_info_t  *info        = param->api_info;
-    mpeg_sample_type  sample_type = param->sample_type;
-    uint8_t           stream_no   = param->stream_no;
-    void             *list_data   = param->list_data;
-    mpeg_parser_t    *parser      = info->parser;
-    void             *parser_info = info->parser_info;
+    mpeg_api_info_t  *info          = param->api_info;
+    mpeg_sample_type  sample_type   = param->sample_type;
+    uint8_t           stream_number = param->stream_number;
+    void             *list_data     = param->list_data;
+    mpeg_parser_t    *parser        = info->parser;
+    void             *parser_info   = info->parser_info;
     /* parse */
     gop_list_data_t    *gop_list   = NULL;
     sample_list_data_t *video_list = NULL;
@@ -168,9 +168,9 @@ static thread_func_ret parse_stream( void *args )
                     goto fail_parse_stream;
                 video_list = tmp;
             }
-            parser->seek_next_sample_position( parser_info, SAMPLE_TYPE_VIDEO, stream_no );
+            parser->seek_next_sample_position( parser_info, SAMPLE_TYPE_VIDEO, stream_number );
             video_sample_info_t video_sample_info;
-            if( parser->get_video_info( parser_info, stream_no, &video_sample_info ) )
+            if( parser->get_video_info( parser_info, stream_number, &video_sample_info ) )
                 break;
             /* setup GOP list. */
             if( gop_number < video_sample_info.gop_number )
@@ -270,9 +270,9 @@ static thread_func_ret parse_stream( void *args )
                     goto fail_parse_stream;
                 audio_list = tmp;
             }
-            parser->seek_next_sample_position( parser_info, SAMPLE_TYPE_AUDIO, stream_no );
+            parser->seek_next_sample_position( parser_info, SAMPLE_TYPE_AUDIO, stream_number );
             audio_sample_info_t audio_sample_info;
-            if( parser->get_audio_info( parser_info, stream_no, &audio_sample_info ) )
+            if( parser->get_audio_info( parser_info, stream_number, &audio_sample_info ) )
                 break;
             /* correct check. */
             if( compare_ts > audio_sample_info.pts + info->wrap_around_check_v )
@@ -358,26 +358,26 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
         /* video. */
         for( uint8_t i = 0; i < video_stream_num; ++i )
         {
-            param[thread_index].api_info     = info;
-            param[thread_index].sample_type  = SAMPLE_TYPE_VIDEO;
-            param[thread_index].stream_no    = i;
-            param[thread_index].list_data    = &(video_stream[i]);
-            param[thread_index].thread_index = thread_index;
-            param[thread_index].thread_num   = thread_num;
-            param[thread_index].progress     = progress;
+            param[thread_index].api_info      = info;
+            param[thread_index].sample_type   = SAMPLE_TYPE_VIDEO;
+            param[thread_index].stream_number = i;
+            param[thread_index].list_data     = &(video_stream[i]);
+            param[thread_index].thread_index  = thread_index;
+            param[thread_index].thread_num    = thread_num;
+            param[thread_index].progress      = progress;
             parse_thread[thread_index] = thread_create( parse_stream, &param[thread_index] );
             ++thread_index;
         }
         /* audio. */
         for( uint8_t i = 0; i < audio_stream_num; ++i )
         {
-            param[thread_index].api_info     = info;
-            param[thread_index].sample_type  = SAMPLE_TYPE_AUDIO;
-            param[thread_index].stream_no    = i;
-            param[thread_index].list_data    = &(audio_stream[i]);
-            param[thread_index].thread_index = thread_index;
-            param[thread_index].thread_num   = thread_num;
-            param[thread_index].progress     = progress;
+            param[thread_index].api_info      = info;
+            param[thread_index].sample_type   = SAMPLE_TYPE_AUDIO;
+            param[thread_index].stream_number = i;
+            param[thread_index].list_data     = &(audio_stream[i]);
+            param[thread_index].thread_index  = thread_index;
+            param[thread_index].thread_num    = thread_num;
+            param[thread_index].progress      = progress;
             parse_thread[thread_index] = thread_create( parse_stream, &param[thread_index] );
             ++thread_index;
         }
@@ -386,7 +386,7 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
         {
             for( uint16_t i = 0; i < thread_index; ++i )
             {
-                //dprintf( LOG_LV_PROGRESS, "[log] wait %s Stream[%3u]...\n", param[i].stream_name, param[i].stream_no );
+                //dprintf( LOG_LV_PROGRESS, "[log] wait %s Stream[%3u]...\n", param[i].stream_name, param[i].stream_number );
                 thread_wait_end( parse_thread[i], NULL );
             }
         }
@@ -810,17 +810,17 @@ MAPI_EXPORT int mpeg_api_get_stream_info( void *ih, stream_info_t *stream_info, 
         BOTH_VA_EXIST = 0x00
     };
     int check_stream_exist = BOTH_VA_EXIST;
-    uint8_t stream_no = 0;     // FIXME
+    uint8_t stream_number = 0;      // FIXME
     /* get video. */
     video_sample_info_t video_sample_info;
-    check_stream_exist |= parser->get_video_info( parser_info, stream_no, &video_sample_info ) ? VIDEO_NONE : 0;
+    check_stream_exist |= parser->get_video_info( parser_info, stream_number, &video_sample_info ) ? VIDEO_NONE : 0;
     if( !(check_stream_exist & VIDEO_NONE) )
     {
         *video_1st_pts = video_sample_info.pts;
         *video_key_pts = (video_sample_info.picture_coding_type == MPEG_VIDEO_I_FRAME) ? video_sample_info.pts : -1;
         while( video_sample_info.temporal_reference || *video_key_pts < 0 )
         {
-            if( parser->get_video_info( parser_info, stream_no, &video_sample_info ) )
+            if( parser->get_video_info( parser_info, stream_number, &video_sample_info ) )
                 break;
             if( *video_1st_pts > video_sample_info.pts && *video_1st_pts < video_sample_info.pts + info->wrap_around_check_v )
                 *video_1st_pts = video_sample_info.pts;
@@ -830,7 +830,7 @@ MAPI_EXPORT int mpeg_api_get_stream_info( void *ih, stream_info_t *stream_info, 
     }
     /* get audio. */
     audio_sample_info_t audio_sample_info;
-    check_stream_exist |= parser->get_audio_info( parser_info, stream_no, &audio_sample_info ) ? AUDIO_NONE : 0;
+    check_stream_exist |= parser->get_audio_info( parser_info, stream_number, &audio_sample_info ) ? AUDIO_NONE : 0;
     /* setup. */
     stream_info->pcr                = parser->get_pcr( info->parser_info );
     stream_info->video_pts          = video_sample_info.pts;
