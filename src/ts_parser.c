@@ -43,7 +43,7 @@
 #include "file_utils.h"
 #include "file_writer.h"
 
-#define PROGRAM_VERSION                 "0.0.6"
+#define PROGRAM_VERSION                 "0.0.7"
 
 #ifndef REVISION_NUMBER
 #define REVISION_NUMBER                 "0"
