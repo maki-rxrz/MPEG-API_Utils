@@ -88,6 +88,7 @@ typedef struct {
     int64_t             (*get_pcr)( void *ih );
     uint8_t             (*get_stream_num)( void *ih, mpeg_sample_type sample_type );
     int                 (*get_stream_data)( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, int32_t read_offset, get_sample_data_mode get_mode, get_stream_data_cb_t *cb );
+    int                 (*get_specific_stream_data)( void *ih, get_sample_data_mode get_mode, output_stream_type output_stream, get_stream_data_cb_t *cb );
     int64_t             (*get_sample_position)( void *ih, mpeg_sample_type sample_type, uint8_t stream_number );
     int                 (*set_sample_position)( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, int64_t position );
     int                 (*seek_next_sample_position)( void *ih, mpeg_sample_type sample_type, uint8_t stream_number );

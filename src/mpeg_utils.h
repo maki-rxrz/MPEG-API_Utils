@@ -74,6 +74,8 @@ MAPI_EXPORT int mpeg_api_set_sample_position( void *ih, mpeg_sample_type sample_
 
 MAPI_EXPORT int mpeg_api_get_stream_data( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, uint8_t **dst_buffer, uint32_t *dst_read_size, get_sample_data_mode get_mode );
 
+MAPI_EXPORT int mpeg_api_get_all_stream_data( void *ih, get_sample_data_mode get_mode, output_stream_type output_stream, get_stream_data_cb_t *cb );
+
 MAPI_EXPORT int mpeg_api_get_stream_all( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, get_sample_data_mode get_mode, get_stream_data_cb_t *cb );
 
 MAPI_EXPORT uint8_t mpeg_api_get_stream_num( void *ih, mpeg_sample_type sample_type );

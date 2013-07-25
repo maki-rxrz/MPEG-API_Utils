@@ -379,6 +379,11 @@ static int seek_next_sample_position( void *ih, mpeg_sample_type sample_type, ui
     return 0;
 }
 
+static int get_specific_stream_data( void *ih, get_sample_data_mode get_mode, output_stream_type output_stream, get_stream_data_cb_t *cb )
+{
+    return -1;
+}
+
 static int get_stream_data( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, int32_t read_offset, get_sample_data_mode get_mode, get_stream_data_cb_t *cb )
 {
     return -1;
@@ -528,6 +533,7 @@ mpeg_parser_t mpeges_parser = {
     get_pcr,
     get_stream_num,
     get_stream_data,
+    get_specific_stream_data,
     get_sample_position,
     set_sample_position,
     seek_next_sample_position,

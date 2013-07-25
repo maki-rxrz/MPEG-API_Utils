@@ -46,6 +46,13 @@ typedef enum {
 } get_sample_data_mode;
 
 typedef enum {
+    OUTPUT_STREAM_NONE    = 0x00,
+    OUTPUT_STREAM_VIDEO   = 0x01,
+    OUTPUT_STREAM_AUDIO   = 0x02,
+    OUTPUT_STREAM_BOTH_VA = 0x03
+} output_stream_type;
+
+typedef enum {
     MPEG_READER_DEALY_NONE               = 0,
     MPEG_READER_DEALY_VIDEO_GOP_KEYFRAME = 1,
     MPEG_READER_DEALY_VIDEO_GOP_TR_ORDER = 2,
@@ -143,8 +150,11 @@ typedef struct {
 } get_stream_data_cb_t;
 
 typedef struct {
+    mpeg_sample_type  sample_type;
+    uint8_t           stream_number;
     uint8_t          *buffer;
     uint32_t          read_size;
+    int32_t           read_offset;
     int64_t           progress;
 } get_stream_data_cb_ret_t;
 
