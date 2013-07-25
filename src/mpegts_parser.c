@@ -1674,7 +1674,6 @@ static int get_stream_data( void *ih, mpeg_sample_type sample_type, uint8_t stre
     {
         //dprintf( LOG_LV4, "[mpegts_parser] get_stream_data()  read_size:%u\n", read_size );
         /* read packet data. */
-        //uint8_t buffer[file->packet_size];
         uint8_t buffer[256];
         mpegts_file_read( file, buffer, read_size );
         /* output. */
