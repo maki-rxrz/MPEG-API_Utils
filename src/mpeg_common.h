@@ -143,7 +143,7 @@ typedef struct {
 } get_stream_data_cb_t;
 
 typedef struct {
-    void             *buffer;
+    uint8_t          *buffer;
     uint32_t          read_size;
     int64_t           progress;
 } get_stream_data_cb_ret_t;

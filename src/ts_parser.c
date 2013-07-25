@@ -1191,7 +1191,7 @@ static void demux_cb_func( void *cb_params, void *cb_ret )
     demux_cb_param_t         *param = (demux_cb_param_t         *)cb_params;
     get_stream_data_cb_ret_t *ret   = (get_stream_data_cb_ret_t *)cb_ret;
     /* get return values. */
-    void     *buffer    = ret->buffer;
+    uint8_t  *buffer    = ret->buffer;
     uint32_t  read_size = ret->read_size;
     int64_t   progress  = ret->progress;
     /* output. */
