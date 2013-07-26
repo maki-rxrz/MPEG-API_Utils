@@ -355,6 +355,7 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
                         break;
                     case 'v' :
                         output_stream |= OUTPUT_STREAM_VIDEO;
+                        p->delay_type  = MPEG_READER_DEALY_VIDEO_GOP_TR_ORDER;
                         break;
                     case 'a' :
                         output_stream |= OUTPUT_STREAM_AUDIO;
