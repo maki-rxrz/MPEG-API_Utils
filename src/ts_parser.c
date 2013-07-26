@@ -1371,18 +1371,38 @@ static void demux_all_cb_func( void *cb_params, void *cb_ret )
     uint32_t          read_offset   = ret->read_offset;
     int64_t           progress      = ret->progress;
     /* check the target stream. */
-    demux_cb_param_t *cb_p        = (sample_type == SAMPLE_TYPE_VIDEO) ? &(param->v_cb_param[stream_number]) : &(param->a_cb_param[stream_number]);
-    char             *stream_name = (sample_type == SAMPLE_TYPE_VIDEO) ? "Video" : "Audio";
+    demux_cb_param_t *cb_p        = NULL;
+    char             *stream_name = NULL;
+    if( sample_type == SAMPLE_TYPE_VIDEO )
+    {
+        cb_p        = &(param->v_cb_param[stream_number]);
+        stream_name = "Video";
+    }
+    else if( sample_type == SAMPLE_TYPE_AUDIO )
+    {
+        cb_p        = &(param->a_cb_param[stream_number]);
+        stream_name = "Audio";
+    }
+    else
+    {
+        ++ param->count;
+        return;
+    }
     /* output. */
     int64_t total_size = cb_p->total_size;
     int32_t valid_size = read_size - read_offset;
     if( total_size + valid_size > 0 )
     {
-        if( total_size < 0 )
-            dumper_fwrite( cb_p->fw_ctx, &(buffer[-total_size]), total_size + valid_size, NULL );
+        if( cb_p->fw_ctx )
+        {
+            if( total_size < 0 )
+                dumper_fwrite( cb_p->fw_ctx, &(buffer[-total_size]), total_size + valid_size, NULL );
+            else
+                dumper_fwrite( cb_p->fw_ctx, buffer, valid_size, NULL );
+            total_size += valid_size;
+        }
         else
-            dumper_fwrite( cb_p->fw_ctx, buffer, valid_size, NULL );
-        total_size += valid_size;
+            total_size = 0;
     }
     else
     {
