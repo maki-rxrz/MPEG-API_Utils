@@ -1239,6 +1239,13 @@ typedef struct {
     mpeg_stream_raw_info_t  stream_raw_info;
 } sample_raw_data_info_t;
 
+#define RESET_BUFFER_STATUS()                   \
+do {                                            \
+    int32_t offset = header_offset + 1;         \
+    buffer_read_size += offset;                 \
+    buffer_p         += offset;                 \
+    buffer_read_offset = cache_read_size - 1;   \
+} while( 0 )
 static int mpegts_get_sample_raw_data_info( mpegts_file_context_t *file, uint16_t program_id, mpeg_stream_type stream_type, mpeg_stream_group_type stream_judge, sample_raw_data_info_t *raw_data_info )
 {
     dprintf( LOG_LV3, "[debug] mpegts_get_sample_raw_data_info()\n" );
@@ -1314,10 +1321,7 @@ static int mpegts_get_sample_raw_data_info( mpegts_file_context_t *file, uint16_
                     if( frame_length && mpegts_check_sample_raw_frame_length( file, program_id, stream_type, stream_judge, frame_length, buffer_p + header_offset + data_offset, cache_read_size ) )
                     {
                         /* retry. */
-                        int32_t offset = header_offset + 1;
-                        buffer_read_size += offset;
-                        buffer_p += offset;
-                        buffer_read_offset = cache_read_size - 1;
+                        RESET_BUFFER_STATUS();
                         start_point = -1;
                         goto retry_check_start_point;
                     }
@@ -1333,10 +1337,7 @@ static int mpegts_get_sample_raw_data_info( mpegts_file_context_t *file, uint16_
                     if( frame_length && mpegts_check_sample_raw_frame_length( file, program_id, stream_type, stream_judge, frame_length, buffer_p + header_offset + data_offset, cache_read_size ) )
                     {
                         /* retry. */
-                        int32_t offset = header_offset + 1;
-                        buffer_read_size += offset;
-                        buffer_p += offset;
-                        buffer_read_offset = cache_read_size - 1;
+                        RESET_BUFFER_STATUS();
                         goto retry_check_start_point;
                     }
                     raw_data_size += buffer_read_size + header_offset;
@@ -1360,6 +1361,7 @@ end_get_info:
     raw_data_info->read_offset = start_point;
     return 0;
 }
+#undef RESET_BUFFER_STATUS
 
 static void mpegts_get_sample_raw_data( mpegts_file_context_t *file, uint16_t program_id, mpeg_stream_type stream_type, mpeg_stream_group_type stream_judge, uint32_t raw_data_size, int32_t read_offset, uint8_t **buffer, uint32_t *read_size )
 {
