@@ -519,7 +519,7 @@ static int mpegts_get_table_section_data( mpegts_file_context_t *file, uint16_t 
     int64_t start_position        = mpegts_ftell( file );
     int32_t rest_ts_packet_length = file->ts_packet_length;
     /* buffering payload data. */
-    int read_count = 0;
+    int read_count                  = 0;
     int need_ts_packet_payload_data = 0;
     while( read_count < section_length )
     {
@@ -998,7 +998,7 @@ static inline int read_1byte( mpegts_file_context_t *file, mpegts_packet_header_
 static int mpegts_read_mpeg_video_picutre_info( mpegts_file_context_t *file, uint16_t program_id, mpeg_video_info_t *video_info, int64_t *gop_number, uint8_t *mpeg_video_head_data )
 {
     mpegts_packet_header_t h;
-    int64_t reset_position = mpegts_ftell( file );
+    int64_t reset_position        = mpegts_ftell( file );
     int32_t rest_ts_packet_length = file->ts_packet_length;
     /* check identifier. */
     uint8_t identifier;
@@ -1247,13 +1247,13 @@ static int mpegts_get_sample_raw_data_info( mpegts_file_context_t *file, uint16_
     /* ready. */
     int64_t start_position = mpegts_ftell( file );
     /* search. */
-    int check_start_point = 0;
+    int     check_start_point        = 0;
     int32_t stream_header_check_size = mpeg_stream_get_header_check_size( stream_type, stream_judge );
     uint8_t check_buffer[TS_PACKET_SIZE + stream_header_check_size];
-    uint8_t *buffer_p           = check_buffer;
-    int32_t  buffer_read_offset = 0;
-    int32_t  buffer_read_size   = 0;
-    uint32_t frame_length       = 0;
+    uint8_t  *buffer_p           = check_buffer;
+    int32_t   buffer_read_offset = 0;
+    int32_t   buffer_read_size   = 0;
+    uint32_t  frame_length       = 0;
     mpeg_stream_raw_info_t stream_raw_info;
     mpegts_packet_header_t h;
     while( 1 )
