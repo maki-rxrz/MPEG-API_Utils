@@ -78,23 +78,23 @@ typedef struct {
 } audio_sample_info_t;
 
 typedef struct {
-    void *              (*initialize)( const char *input, int64_t buffer_size );
-    void                (*release)( void *ih );
-    int                 (*parse)( void *ih );
-    int                 (*set_program_id)( void *ih, mpegts_select_pid_type pid_type, uint16_t program_id );
-    uint16_t            (*get_program_id)( void *ih, mpeg_stream_type stream_type );
-    int                 (*get_video_info)( void *ih, uint8_t stream_number, video_sample_info_t *video_info );
-    int                 (*get_audio_info)( void *ih, uint8_t stream_number, audio_sample_info_t *audio_info );
-    int64_t             (*get_pcr)( void *ih );
-    uint8_t             (*get_stream_num)( void *ih, mpeg_sample_type sample_type );
-    int                 (*get_stream_data)( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, int32_t read_offset, get_sample_data_mode get_mode, get_stream_data_cb_t *cb );
-    int                 (*get_specific_stream_data)( void *ih, get_sample_data_mode get_mode, output_stream_type output_stream, get_stream_data_cb_t *cb );
-    int64_t             (*get_sample_position)( void *ih, mpeg_sample_type sample_type, uint8_t stream_number );
-    int                 (*set_sample_position)( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, int64_t position );
-    int                 (*seek_next_sample_position)( void *ih, mpeg_sample_type sample_type, uint8_t stream_number );
-    int                 (*get_sample_data)( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, int64_t position, uint32_t sample_size, int32_t read_offset, uint8_t **dst_buffer, uint32_t *dst_read_size, get_sample_data_mode get_mode );
-    void                (*free_sample_buffer)( uint8_t **buffer );
-    mpeg_stream_type    (*get_sample_stream_type)( void *ih, mpeg_sample_type sample_type, uint8_t stream_number );
+    void *              (* initialize               )( const char *input, int64_t buffer_size );
+    void                (* release                  )( void *ih );
+    int                 (* parse                    )( void *ih );
+    int                 (* set_program_id           )( void *ih, mpegts_select_pid_type pid_type, uint16_t program_id );
+    uint16_t            (* get_program_id           )( void *ih, mpeg_stream_type stream_type );
+    int                 (* get_video_info           )( void *ih, uint8_t stream_number, video_sample_info_t *video_info );
+    int                 (* get_audio_info           )( void *ih, uint8_t stream_number, audio_sample_info_t *audio_info );
+    int64_t             (* get_pcr                  )( void *ih );
+    uint8_t             (* get_stream_num           )( void *ih, mpeg_sample_type sample_type );
+    int                 (* get_stream_data          )( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, int32_t read_offset, get_sample_data_mode get_mode, get_stream_data_cb_t *cb );
+    int                 (* get_specific_stream_data )( void *ih, get_sample_data_mode get_mode, output_stream_type output_stream, get_stream_data_cb_t *cb );
+    int64_t             (* get_sample_position      )( void *ih, mpeg_sample_type sample_type, uint8_t stream_number );
+    int                 (* set_sample_position      )( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, int64_t position );
+    int                 (* seek_next_sample_position)( void *ih, mpeg_sample_type sample_type, uint8_t stream_number );
+    int                 (* get_sample_data          )( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, int64_t position, uint32_t sample_size, int32_t read_offset, uint8_t **dst_buffer, uint32_t *dst_read_size, get_sample_data_mode get_mode );
+    void                (* free_sample_buffer       )( uint8_t **buffer );
+    mpeg_stream_type    (* get_sample_stream_type   )( void *ih, mpeg_sample_type sample_type, uint8_t stream_number );
 } mpeg_parser_t;
 
 extern mpeg_parser_t mpeges_parser;
