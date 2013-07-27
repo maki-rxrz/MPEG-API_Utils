@@ -1182,6 +1182,7 @@ typedef struct {
     uint32_t        count;
     uint64_t        total_size;
     int64_t         file_size;
+    int             percent;
 } demux_cb_param_t;
 
 static void demux_cb_func( void *cb_params, void *cb_ret )
@@ -1195,9 +1196,13 @@ static void demux_cb_func( void *cb_params, void *cb_ret )
     /* output. */
     dumper_fwrite( param->fw_ctx, buffer, read_size, NULL );
     param->total_size += read_size;
-    dprintf( LOG_LV_PROGRESS, " %s Stream[%3u] [%8u]  total: %14"PRIu64" byte ...[%5.2f%%]\r"
-                            , param->stream_name, param->stream_number, param->count, param->total_size
-                            , (progress * 100.0 / param->file_size) );
+    int percent = progress * 10000 / param->file_size;
+    if( (percent - param->percent) > 0 )
+    {
+        dprintf( LOG_LV_PROGRESS, " %s Stream[%3u] [%8u]  total: %14"PRIu64" byte ...[%5.2f%%]\r"
+                                , param->stream_name, param->stream_number, param->count, param->total_size, percent / 100.0 );
+        param->percent = percent;
+    }
     ++ param->count;
 }
 
@@ -1411,9 +1416,13 @@ static void demux_all_cb_func( void *cb_params, void *cb_ret )
                                     , stream_name, stream_number, cb_p->count, -valid_size );
         total_size = 0;
     }
-    dprintf( LOG_LV_PROGRESS, " %s Stream[%3u] [%8u]  total: %14"PRIu64" byte ...[%5.2f%%]\r"
-                            , stream_name, stream_number, cb_p->count, total_size
-                            , (progress * 100.0 / param->file_size) );
+    int percent = progress * 10000 / param->file_size;
+    if( (percent - cb_p->percent) > 0 )
+    {
+        dprintf( LOG_LV_PROGRESS, " %s Stream[%3u] [%8u]  total: %14"PRIu64" byte ...[%5.2f%%]\r"
+                                , stream_name, stream_number, cb_p->count, total_size, percent / 100.0 );
+        cb_p->percent = percent;
+    }
     cb_p->total_size += valid_size;
     ++ cb_p->count;
     ++ param->count;
