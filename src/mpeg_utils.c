@@ -893,17 +893,20 @@ MAPI_EXPORT void *mpeg_api_initialize_info( const char *mpeg, int64_t buffer_siz
         return NULL;
     mpeg_parser_t *parser      = NULL;
     void          *parser_info = NULL;
-    static mpeg_parser_t *parsers[MPEG_PARSER_NUM] =
+    static mpeg_parser_t *parsers[MPEG_PARSER_NUM + 1] =
         {
             &mpegts_parser,
-            &mpeges_parser
+            &mpeges_parser,
+            NULL
         };
-    for( int i = 0; i < MPEG_PARSER_NUM; ++i )
+    for( int i = 0; parsers[i]; ++i )
     {
-        parser = parsers[i];
-        parser_info = parser->initialize( mpeg, buffer_size );
+        parser_info = parsers[i]->initialize( mpeg, buffer_size );
         if( parser_info )
+        {
+            parser = parsers[i];
             break;
+        }
     }
     if( !parser_info )
         goto fail_initialize;
