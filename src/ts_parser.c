@@ -152,9 +152,9 @@ static void print_help( void )
         "       --log <string>          Specify output file name of log.\n"
         "       --log-silent            Log: Suppress the output to stderr.\n"
         "       --log-output-all        Log: Output all log to both file and stderr.\n"
-        "       --read-buffer-size <integer>\n"
+        "       --rb-size, --read-buffer-size <integer>\n"
         "                               Specify internal buffer size for data reading.\n"
-        "       --write-buffer-size <integer>\n"
+        "       --wb-size, --write-buffer-size <integer>\n"
         "                               Specify internal buffer size for data writing.\n"
         "    -v --version               Display the version information.\n"
         "\n"
@@ -326,13 +326,13 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
             debug_setup_mode( LOG_MODE_SILENT );
         else if( !strcasecmp( argv[i], "--log-output-all" ) )
             debug_setup_mode( LOG_MODE_OUTPUT_ALL );
-        else if( !strcasecmp( argv[i], "--read-buffer-size" ) )
+        else if( !strcasecmp( argv[i], "--read-buffer-size" ) || !strcasecmp( argv[i], "--rb-size" ) )
         {
             int64_t size = atoi( argv[++i] );
             if( READ_BUFFER_SIZE_MIN <= size && size <= READ_BUFFER_SIZE_MAX )
                 p->read_buffer_size = size;
         }
-        else if( !strcasecmp( argv[i], "--write-buffer-size" ) )
+        else if( !strcasecmp( argv[i], "--write-buffer-size" ) || !strcasecmp( argv[i], "--wb-size" ) )
         {
             int64_t size = atoi( argv[++i] );
             if( WRITE_BUFFER_SIZE_MIN <= size && size <= WRITE_BUFFER_SIZE_MAX )
