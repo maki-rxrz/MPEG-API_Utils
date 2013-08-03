@@ -665,10 +665,10 @@ static int mpa_header_check( uint8_t *header, mpeg_stream_raw_info_t *stream_raw
 {
     if( header[0] != 0xFF || (header[1] & 0xE0) != 0xE0 )
         return -1;
-    int version_id    = (header[1] & 0x18) >> 3;
+    int version_id               = (header[1] & 0x18) >> 3;
     if( version_id == 0x01 )                    /* MPEG Audio version ID : '01' reserved            */
         return -1;
-    int layer = (header[1] & 0x06) >> 1;
+    int layer                    = (header[1] & 0x06) >> 1;
     if( !layer )                                /* layer : '00' reserved                            */
         return -1;
     /* protection_bit            =  header[1] & 0x01);              */
@@ -678,7 +678,7 @@ static int mpa_header_check( uint8_t *header, mpeg_stream_raw_info_t *stream_raw
     int sampling_frequency_index = (header[2] & 0x0C) >> 2;
     if( sampling_frequency_index == 0x03 )      /* Sampling rate frequency index : '11' reserved    */
         return -1;
-    uint8_t channel_mode = (header[3] & 0x60) >> 5;
+    uint8_t channel_mode         = (header[3] & 0x60) >> 5;
     /* check bitrate & channel_mode matrix. */
 #if 0
     enum {
@@ -753,7 +753,7 @@ static int aac_header_check( uint8_t *header, mpeg_stream_raw_info_t *stream_raw
         return -1;
     if( (header[2] & 0xC0) == 0xC0 )            /* profile : '11' reserved                                  */
         return -1;
-    int sampling_frequency_index = (header[2] & 0x3C) >> 2;
+    int sampling_frequency_index   = (header[2] & 0x3C) >> 2;
     if( sampling_frequency_index > 11 )         /* sampling_frequency_index : 0xc-0xf reserved              */
         return -1;
     uint32_t frame_length          = ((header[3] & 0x03) << 11) | (header[4] << 3) | (header[5] >> 5);

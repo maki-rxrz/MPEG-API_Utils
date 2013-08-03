@@ -228,8 +228,8 @@ static int mpeges_get_mpeg_video_picture_info( mpeges_info_t *info )
                 BYTE_DATA_SHIFT( mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE );
                 continue;
             }
-            uint32_t read_size = start_code_info.read_size;
-            int64_t start_code_position = mpeges_ftell( info ) - MPEG_VIDEO_START_CODE_SIZE;
+            uint32_t read_size           = start_code_info.read_size;
+            int64_t  start_code_position = mpeges_ftell( info ) - MPEG_VIDEO_START_CODE_SIZE;
             /* get header/extension information. */
             uint8_t buf[read_size];
             mpeges_fread( info, buf, read_size, &dst_size );
