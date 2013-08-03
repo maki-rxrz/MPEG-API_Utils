@@ -975,12 +975,6 @@ do {                                                                            
     mpeg_pes_get_header_info( pes_header_check_buffer, &pes );                          \
 } while( 0 )
 
-#define BYTE_DATA_SHIFT( data, size )           \
-do {                                            \
-    for( int i = 1; i < size; ++i )             \
-        data[i - 1] = data[i];                  \
-} while( 0 )
-
 static inline int read_1byte( mpegts_file_context_t *file, mpegts_packet_header_t *h, uint16_t program_id, uint8_t *buffer )
 {
     if( !file->ts_packet_length )
@@ -1089,25 +1083,26 @@ static int mpegts_get_mpeg_video_picture_info( mpegts_file_context_t *file, uint
         {
             mpegts_file_read( file, &(mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE - 1]), 1 );
             /* check Start Code. */
-            if( !mpeg_video_check_start_code_common_head( mpeg_video_head_data ) )
+            if( mpeg_video_check_start_code_common_head( mpeg_video_head_data ) )
             {
-                /* get header information. */
-                int read_reslut = mpegts_read_mpeg_video_picutre_info( file, program_id, video_info, gop_number, mpeg_video_head_data );
-                if( read_reslut == -2 )
-                {
-                    BYTE_DATA_SHIFT( mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE );
-                    continue;
-                }
-                else if( read_reslut == 2 )
-                    result = 0;
-                else if( read_reslut < 0 )
-                    return -1;
-                else if( read_reslut )
-                    goto end_get_video_picture_info;
-                /* cleanup buffer. */
-                memset( mpeg_video_head_data, MPEG_VIDEO_START_CODE_ALL_CLEAR_VALUE, MPEG_VIDEO_START_CODE_SIZE );
+                BYTE_DATA_SHIFT( mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE );
+                continue;
             }
-            BYTE_DATA_SHIFT( mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE );
+            /* get header information. */
+            int read_reslut = mpegts_read_mpeg_video_picutre_info( file, program_id, video_info, gop_number, mpeg_video_head_data );
+            if( read_reslut == -2 )
+            {
+                BYTE_DATA_SHIFT( mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE );
+                continue;
+            }
+            else if( read_reslut == 2 )
+                result = 0;
+            else if( read_reslut < 0 )
+                return -1;
+            else if( read_reslut )
+                goto end_get_video_picture_info;
+            /* cleanup buffer. */
+            memset( mpeg_video_head_data, MPEG_VIDEO_START_CODE_ALL_CLEAR_VALUE, MPEG_VIDEO_START_CODE_SIZE );
         }
         dprintf( LOG_LV4, "[debug] continue next packet. buf:0x%02X 0x%02X 0x%02X 0x--\n"
                         , mpeg_video_head_data[0], mpeg_video_head_data[1], mpeg_video_head_data[2] );

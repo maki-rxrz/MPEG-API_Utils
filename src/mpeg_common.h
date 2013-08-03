@@ -162,4 +162,10 @@ typedef struct {
     int64_t           progress;
 } get_stream_data_cb_ret_t;
 
+#define BYTE_DATA_SHIFT( data, size )           \
+do {                                            \
+    for( int i = 1; i < size; ++i )             \
+        data[i - 1] = data[i];                  \
+} while( 0 )
+
 #endif /* __MPEG_COMMON_H__ */
