@@ -29,8 +29,6 @@
 #ifndef __MPEG_PARSER_H__
 #define __MPEG_PARSER_H__
 
-#include <inttypes.h>
-
 #include "mpeg_common.h"
 
 typedef enum {

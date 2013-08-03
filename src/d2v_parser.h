@@ -29,7 +29,7 @@
 #ifndef __D2V_PARSER_H__
 #define __D2V_PARSER_H__
 
-#include <inttypes.h>
+#include <stdint.h>
 
 typedef struct {
     void *          (*parse)(const char *input);

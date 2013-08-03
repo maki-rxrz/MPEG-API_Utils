@@ -29,8 +29,6 @@
 #ifndef __MPEG_VIDEO_H__
 #define __MPEG_VIDEO_H__
 
-#include <inttypes.h>
-
 #include "mpeg_common.h"
 
 #define MPEG_VIDEO_START_CODE_SIZE                      (4)

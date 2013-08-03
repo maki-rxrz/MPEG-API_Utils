@@ -31,8 +31,6 @@
 
 #include "common.h"
 
-#include <inttypes.h>
-
 #include "mpeg_common.h"
 
 typedef struct {

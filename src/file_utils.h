@@ -29,7 +29,7 @@
 #ifndef __FILE_UTILS_H__
 #define __FILE_UTILS_H__
 
-#include <inttypes.h>
+#include <stdint.h>
 
 #include "file_common.h"
 

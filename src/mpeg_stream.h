@@ -29,8 +29,6 @@
 #ifndef __MPEG_STREAM_H__
 #define __MPEG_STREAM_H__
 
-#include <inttypes.h>
-
 #include "mpeg_common.h"
 
 #define PES_PACKET_START_CODE_SIZE                  (4)

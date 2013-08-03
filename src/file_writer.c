@@ -31,7 +31,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <inttypes.h>
 
 #include "mpegts_def.h"
 #include "file_writer.h"

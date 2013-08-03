@@ -29,8 +29,6 @@
 #ifndef __TEXT_UTILS_H__
 #define __TEXT_UTILS_H__
 
-#include <stdint.h>
-
 #include "utils_def.h"
 
 #define PUSH_LIST_DATA( p, a, b )                       \

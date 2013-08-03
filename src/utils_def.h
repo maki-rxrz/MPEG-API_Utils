@@ -29,6 +29,8 @@
 #ifndef __UTILS_DEF_H__
 #define __UTILS_DEF_H__
 
+#include <stdint.h>
+
 typedef enum {
     MPEG_READER_M2VVFAPI = 0,       /* default */
     MPEG_READER_DGDECODE = 1,

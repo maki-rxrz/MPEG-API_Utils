@@ -29,7 +29,7 @@
 #ifndef __AVS_UTILS_H__
 #define __AVS_UTILS_H__
 
-#include <inttypes.h>
+#include <stdint.h>
 
 typedef struct {
     char *string;
