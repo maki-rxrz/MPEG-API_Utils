@@ -380,7 +380,6 @@ static int mpegts_read_packet_header( mpegts_file_context_t *file, mpegts_packet
 
 #define TS_PID_PAT_SECTION_HEADER_SIZE          (8)
 #define TS_PID_PMT_SECTION_HEADER_SIZE          (12)
-#define TS_PACKET_SECTION_CRC32_SIZE            (4)
 #define TS_PACKET_PAT_SECTION_DATA_SIZE         (4)
 #define TS_PACKET_PMT_SECTION_DATA_SIZE         (5)
 #define TS_PACKET_TABLE_SECTION_SIZE_MAX        (1024)      /* 10bits: size is 12bits, first 2bits = '00' */
@@ -571,7 +570,7 @@ static int mpegts_parse_pat( mpegts_info_t *info )
             return -1;
         /* get section length. */
         section_length = pat_si.section_length - 5;     /* 5: section_header[3]-[7] */
-        if( (section_length - TS_PACKET_SECTION_CRC32_SIZE) % TS_PACKET_PAT_SECTION_DATA_SIZE )
+        if( (section_length - CRC32_SIZE) % TS_PACKET_PAT_SECTION_DATA_SIZE )
             continue;
         /* check file position. */
         read_pos = info->file_read.read_position;
@@ -583,11 +582,11 @@ static int mpegts_parse_pat( mpegts_info_t *info )
     if( !retry_count )
         return -1;
     /* listup. */
-    info->pid_list_in_pat = (uint16_t *)malloc( sizeof(uint16_t) * ((section_length - TS_PACKET_SECTION_CRC32_SIZE) / TS_PACKET_PAT_SECTION_DATA_SIZE) );
+    info->pid_list_in_pat = (uint16_t *)malloc( sizeof(uint16_t) * ((section_length - CRC32_SIZE) / TS_PACKET_PAT_SECTION_DATA_SIZE) );
     if( !info->pid_list_in_pat )
         return -1;
     int32_t pid_list_num = 0, read_count = 0;
-    while( read_count < section_length - TS_PACKET_SECTION_CRC32_SIZE )
+    while( read_count < section_length - CRC32_SIZE )
     {
         uint8_t *section_data = &(section_buffer[read_count]);
         read_count += TS_PACKET_PAT_SECTION_DATA_SIZE;
@@ -598,7 +597,7 @@ static int mpegts_parse_pat( mpegts_info_t *info )
         if( program_number )
             info->pid_list_in_pat[pid_list_num++] = pmt_program_id;
     }
-    if( (section_length - read_count) != TS_PACKET_SECTION_CRC32_SIZE )
+    if( (section_length - read_count) != CRC32_SIZE )
     {
         free( info->pid_list_in_pat );
         return -1;
@@ -606,7 +605,7 @@ static int mpegts_parse_pat( mpegts_info_t *info )
     info->pid_list_num_in_pat = pid_list_num;
     uint8_t *crc_32 = &(section_buffer[read_count]);
     dprintf( LOG_LV2, "[check] CRC32:" );
-    for( int i = 0; i < TS_PACKET_SECTION_CRC32_SIZE; ++i )
+    for( int i = 0; i < CRC32_SIZE; ++i )
         dprintf( LOG_LV2, " %02X", crc_32[i] );
     dprintf( LOG_LV2, "\n" );
     dprintf( LOG_LV2, "[check] file position:%"PRId64"\n", read_pos );
@@ -690,7 +689,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
                 continue;
             /* check pid list num. */
             int32_t pid_list_num = 0, read_count = 0;
-            while( read_count < section_length - TS_PACKET_SECTION_CRC32_SIZE )
+            while( read_count < section_length - CRC32_SIZE )
             {
                 uint8_t *section_data = &(section_buffers[i][read_count]);
                 uint16_t ES_info_length = ((section_data[3] & 0x0F) << 8) | section_data[4];
@@ -698,7 +697,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
                 read_count += TS_PACKET_PMT_SECTION_DATA_SIZE + ES_info_length;
                 ++pid_list_num;
             }
-            if( (section_length - read_count) != TS_PACKET_SECTION_CRC32_SIZE )
+            if( (section_length - read_count) != CRC32_SIZE )
                 continue;
             section_pid_num[i] = pid_list_num;
             break;
@@ -726,9 +725,9 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
     } target_candidate[PMT_PARSE_COUNT_NUM] = { { 0 } };
     for( int i = 0; i < PMT_PARSE_COUNT_NUM && section_lengths[i]; ++i )
     {
-        int crc_pos = section_lengths[i] - TS_PACKET_SECTION_CRC32_SIZE;
+        int crc_pos = section_lengths[i] - CRC32_SIZE;
         uint32_t crc32 = 0;
-        for( int j = 0; j < TS_PACKET_SECTION_CRC32_SIZE; ++j )
+        for( int j = 0; j < CRC32_SIZE; ++j )
             crc32 = crc32 << 8 | section_buffers[i][crc_pos + j];
         for( int j = 0; j < PMT_PARSE_COUNT_NUM; ++j )
         {
@@ -770,7 +769,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
     if( !descriptor_info )
         goto fail_parse;
     int32_t pid_list_num = 0, read_count = 0;
-    while( read_count < section_length - TS_PACKET_SECTION_CRC32_SIZE )
+    while( read_count < section_length - CRC32_SIZE )
     {
         uint8_t *section_data        = &(section_buffer[read_count]);
         mpeg_stream_type stream_type =   section_data[0];
@@ -808,7 +807,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
     }
     uint8_t *crc_32 = &(section_buffer[read_count]);
     dprintf( LOG_LV2, "[check] CRC32:" );
-    for( int i = 0; i < TS_PACKET_SECTION_CRC32_SIZE; ++i )
+    for( int i = 0; i < CRC32_SIZE; ++i )
         dprintf( LOG_LV2, " %02X", crc_32[i] );
     dprintf( LOG_LV2, "\n" );
     dprintf( LOG_LV2, "[check] file position:%"PRId64"\n", read_pos );
