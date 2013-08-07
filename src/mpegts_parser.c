@@ -172,8 +172,8 @@ static inline void tsp_parse_pmt_header( uint8_t *section_header, tsp_pmt_si_t *
     /* reserved '11'    2 bit        =  (section_header[5] & 0xC0) >> 6;        */
     pmt_si->version_number           =  (section_header[5] & 0x3E) >> 1;
     pmt_si->current_next_indicator   =   section_header[5] & 0x01;
-    pmt_si->section_number           =  (section_header[6] & 0xC0) >> 6;
-    pmt_si->last_section_number      =  (section_header[7] & 0xC0) >> 6;
+    pmt_si->section_number           =   section_header[6];
+    pmt_si->last_section_number      =   section_header[7];
     pmt_si->pcr_program_id           = ((section_header[8] & 0x1F) << 8) | section_header[9];
     pmt_si->program_info_length      = ((section_header[10] & 0x0F) << 8) | section_header[11];
 }
