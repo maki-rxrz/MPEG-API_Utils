@@ -113,9 +113,12 @@ extern void dprintf( log_level level, const char *format, ... );
 #if defined(__MINGW32__) && defined(__i386__)
 #define fseeko fseeko64
 #define ftello ftello64
-#elif _MSC_VER
+#elif defined(_MSC_VER)
 #define fseeko _fseeki64
 #define ftello _ftelli64
+#else
+#define fseeko fseek
+#define ftello ftell
 #endif
 
 #endif
