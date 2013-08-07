@@ -113,8 +113,9 @@ static inline void tsp_parse_header( uint8_t *packet, tsp_header_t *h )
     h->transport_error_indicator     = !!(packet[1] & 0x80);
     h->payload_unit_start_indicator  = !!(packet[1] & 0x40);
     h->transport_priority            = !!(packet[1] & 0x20);
-    h->program_id                    =  ((packet[1] & 0x1F) << 8) | packet[2];
-    h->transport_scrambling_control  =   (packet[3] & 0xC0) >> 6;
+    h->program_id                    =   (packet[1] & 0x1F) << 8
+                                     |    packet[2];
+    h->transport_scrambling_control  =    packet[3]         >> 6;
     h->adaptation_field_control      =   (packet[3] & 0x30) >> 4;
     h->continuity_counter            =    packet[3] & 0x0F;
 }
@@ -152,9 +153,11 @@ static inline void tsp_parse_pat_header( uint8_t *section_header, tsp_pat_si_t *
     pat_si->section_syntax_indicator = !!(section_header[1] & 0x80);
     /* '0'              1 bit        = !!(section_header[1] & 0x40);            */
     /* reserved '11'    2 bit        =   (section_header[1] & 0x30) >> 4;       */
-    pat_si->section_length           =  ((section_header[1] & 0x0F) << 8) | section_header[2];
-    pat_si->transport_stream_id      =   (section_header[3] << 8) | section_header[4];
-    /* reserved '11'    2 bit        =   (section_header[5] & 0xC0) >> 6;       */
+    pat_si->section_length           =   (section_header[1] & 0x0F) << 8
+                                     |    section_header[2];
+    pat_si->transport_stream_id      =    section_header[3]         << 8
+                                     |    section_header[4];
+    /* reserved '11'    2 bit        =    section_header[5]         >> 6;       */
     pat_si->version_number           =   (section_header[5] & 0x3E) >> 1;
     pat_si->current_next_indicator   =    section_header[5] & 0x01;
     pat_si->section_number           =    section_header[6];
@@ -163,19 +166,23 @@ static inline void tsp_parse_pat_header( uint8_t *section_header, tsp_pat_si_t *
 
 static inline void tsp_parse_pmt_header( uint8_t *section_header, tsp_pmt_si_t *pmt_si )
 {
-    pmt_si->table_id                 =   section_header[0];
-    pmt_si->section_syntax_indicator =  (section_header[1] & 0x80) >> 7;
-    /* '0'              1 bit        =  (section_header[1] & 0x40) >> 6;        */
-    /* reserved '11'    2 bit        =  (section_header[1] & 0x30) >> 4;        */
-    pmt_si->section_length           = ((section_header[1] & 0x0F) << 8) | section_header[2];
-    pmt_si->program_number           =  (section_header[3] << 8) | section_header[4];
-    /* reserved '11'    2 bit        =  (section_header[5] & 0xC0) >> 6;        */
-    pmt_si->version_number           =  (section_header[5] & 0x3E) >> 1;
-    pmt_si->current_next_indicator   =   section_header[5] & 0x01;
-    pmt_si->section_number           =   section_header[6];
-    pmt_si->last_section_number      =   section_header[7];
-    pmt_si->pcr_program_id           = ((section_header[8] & 0x1F) << 8) | section_header[9];
-    pmt_si->program_info_length      = ((section_header[10] & 0x0F) << 8) | section_header[11];
+    pmt_si->table_id                 =    section_header[ 0];
+    pmt_si->section_syntax_indicator = !!(section_header[ 1] & 0x80);
+    /* '0'              1 bit        = !!(section_header[ 1] & 0x40);           */
+    /* reserved '11'    2 bit        =   (section_header[ 1] & 0x30) >> 4;      */
+    pmt_si->section_length           =   (section_header[ 1] & 0x0F) << 8
+                                     |    section_header[ 2];
+    pmt_si->program_number           =    section_header[ 3]         << 8
+                                     |    section_header[ 4];
+    /* reserved '11'    2 bit        =    section_header[ 5]         >> 6;      */
+    pmt_si->version_number           =   (section_header[ 5] & 0x3E) >> 1;
+    pmt_si->current_next_indicator   =    section_header[ 5] & 0x01;
+    pmt_si->section_number           =    section_header[ 6];
+    pmt_si->last_section_number      =    section_header[ 7];
+    pmt_si->pcr_program_id           =   (section_header[ 8] & 0x1F) << 8
+                                     |    section_header[ 9];
+    pmt_si->program_info_length      =   (section_header[10] & 0x0F) << 8
+                                     |    section_header[11];
 }
 
 static inline int64_t mpegts_get_file_size( mpegts_file_context_t *file )
