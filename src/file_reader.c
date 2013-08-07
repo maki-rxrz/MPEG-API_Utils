@@ -57,7 +57,7 @@ typedef struct {
  *  File Reader functions
  *==========================================================================*/
 
-static uint64_t fr_get_file_size( void *ctx )
+static int64_t fr_get_file_size( void *ctx )
 {
     file_read_context_t *fr_ctx = (file_read_context_t *)ctx;
     return fr_ctx->file_size;
