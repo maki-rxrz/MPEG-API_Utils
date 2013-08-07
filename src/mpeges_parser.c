@@ -59,9 +59,9 @@ static inline int64_t mpeges_ftell( mpeges_info_t *info )
     return file_reader.ftell( info->fr_ctx );
 }
 
-static inline int mpeges_fread( mpeges_info_t *info, uint8_t *read_buffer, int64_t read_size, int64_t *dst_size )
+static inline int mpeges_fread( mpeges_info_t *info, uint8_t *read_buffer, int64_t read_size, int64_t *dest_size )
 {
-    return file_reader.fread( info->fr_ctx, read_buffer, read_size, dst_size );
+    return file_reader.fread( info->fr_ctx, read_buffer, read_size, dest_size );
 }
 
 static inline int mpeges_fseek( mpeges_info_t *info, int64_t seek_offset, int origin )
@@ -95,10 +95,10 @@ static int mpeges_first_check( mpeges_info_t *info )
 {
     int result = -1;
     int64_t start_position = mpeges_ftell( info );
-    int64_t dst_size       = 0;
+    int64_t dest_size      = 0;
     uint8_t mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE];
-    mpeges_fread( info, mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE, &dst_size );
-    if( dst_size != MPEG_VIDEO_START_CODE_SIZE )
+    mpeges_fread( info, mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE, &dest_size );
+    if( dest_size != MPEG_VIDEO_START_CODE_SIZE )
         goto end_first_check;
     if( mpeg_video_check_start_code( mpeg_video_head_data, MPEG_VIDEO_START_CODE_SHC ) )
         goto end_first_check;
@@ -113,10 +113,10 @@ static int mpeges_parse_stream_type( mpeges_info_t *info )
     dprintf( LOG_LV2, "[check] mpeges_parse_stream_type()\n" );
     int64_t start_position = mpeges_ftell( info );
     /* parse raw data. */
-    int64_t dst_size = 0;
+    int64_t dest_size = 0;
     uint8_t mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE];
-    mpeges_fread( info, mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE - 1, &dst_size );
-    if( dst_size != MPEG_VIDEO_START_CODE_SIZE - 1 )
+    mpeges_fread( info, mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE - 1, &dest_size );
+    if( dest_size != MPEG_VIDEO_START_CODE_SIZE - 1 )
         return -1;
     int result = -1;
     while( 1 )
@@ -143,8 +143,8 @@ static int mpeges_parse_stream_type( mpeges_info_t *info )
         int64_t  start_code_position = mpeges_ftell( info ) - MPEG_VIDEO_START_CODE_SIZE;
         /* get header/extension information. */
         uint8_t buf[read_size];
-        mpeges_fread( info, buf, read_size, &dst_size );
-        if( dst_size != read_size )
+        mpeges_fread( info, buf, read_size, &dest_size );
+        if( dest_size != read_size )
             goto end_parse_stream_type;
         int64_t check_size = mpeg_video_get_header_info( buf, start_code_info.start_code, info->video_info );
         if( check_size < read_size )
@@ -198,17 +198,17 @@ static int mpeges_get_mpeg_video_picture_info( mpeges_info_t *info )
 {
     dprintf( LOG_LV2, "[check] mpeges_get_mpeg_video_picture_info()\n" );
     /* parse raw data. */
-    int64_t dst_size = 0;
+    int64_t dest_size = 0;
     uint8_t mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE];
-    mpeges_fread( info, mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE - 1, &dst_size );
-    if( dst_size != MPEG_VIDEO_START_CODE_SIZE - 1)
+    mpeges_fread( info, mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE - 1, &dest_size );
+    if( dest_size != MPEG_VIDEO_START_CODE_SIZE - 1)
         return -1;
     int result = -1;
     int64_t read_position = -1;
     while( 1 )
     {
-        mpeges_fread( info, &(mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE - 1]), 1, &dst_size );
-        if( dst_size == 0 )
+        mpeges_fread( info, &(mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE - 1]), 1, &dest_size );
+        if( dest_size == 0 )
             break;
         /* check Start Code. */
         if( mpeg_video_check_start_code_common_head( mpeg_video_head_data ) )
@@ -217,8 +217,8 @@ static int mpeges_get_mpeg_video_picture_info( mpeges_info_t *info )
             continue;
         }
         uint8_t identifier;
-        mpeges_fread( info, &identifier, 1, &dst_size );
-        if( dst_size == 0 )
+        mpeges_fread( info, &identifier, 1, &dest_size );
+        if( dest_size == 0 )
             goto end_get_video_picture_info;
         mpeges_fseek( info, -1, SEEK_CUR );
         mpeg_video_start_code_info_t start_code_info;
@@ -231,8 +231,8 @@ static int mpeges_get_mpeg_video_picture_info( mpeges_info_t *info )
         int64_t  start_code_position = mpeges_ftell( info ) - MPEG_VIDEO_START_CODE_SIZE;
         /* get header/extension information. */
         uint8_t buf[read_size];
-        mpeges_fread( info, buf, read_size, &dst_size );
-        if( dst_size != read_size )
+        mpeges_fread( info, buf, read_size, &dest_size );
+        if( dest_size != read_size )
             goto end_get_video_picture_info;
         int64_t check_size = mpeg_video_get_header_info( buf, start_code_info.start_code, info->video_info );
         if( check_size < read_size )
@@ -273,15 +273,15 @@ end_get_video_picture_info:
 
 static int64_t mpeges_seek_next_start_position( mpeges_info_t *info )
 {
-    int64_t dst_size = 0;
+    int64_t dest_size = 0;
     uint8_t mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE];
-    mpeges_fread( info, mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE - 1, &dst_size );
-    if( dst_size != MPEG_VIDEO_START_CODE_SIZE - 1 )
+    mpeges_fread( info, mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE - 1, &dest_size );
+    if( dest_size != MPEG_VIDEO_START_CODE_SIZE - 1 )
         return -1;
     while( 1 )
     {
-        mpeges_fread( info, &(mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE - 1]), 1, &dst_size );
-        if( dst_size == 0 )
+        mpeges_fread( info, &(mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE - 1]), 1, &dest_size );
+        if( dest_size == 0 )
             break;
         /* check Start Code. */
         if( mpeg_video_check_start_code_common_head( mpeg_video_head_data ) )
@@ -338,9 +338,9 @@ static int get_sample_data( void *ih, mpeg_sample_type sample_type, uint8_t stre
         return -1;
     dprintf( LOG_LV3, "[debug] buffer_size:%d\n", sample_size );
     /* get data. */
-    int64_t dst_size = 0;
-    mpeges_fread( info, buffer, sample_size, &dst_size );
-    uint32_t read_size = (uint32_t)dst_size;
+    int64_t dest_size = 0;
+    mpeges_fread( info, buffer, sample_size, &dest_size );
+    uint32_t read_size = (uint32_t)dest_size;
     dprintf( LOG_LV3, "[debug] read_size:%d\n", read_size );
     *dst_buffer    = buffer;
     *dst_read_size = read_size;

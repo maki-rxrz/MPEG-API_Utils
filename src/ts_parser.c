@@ -405,9 +405,9 @@ static inline int64_t dumper_ftell( void *fw_ctx )
     return file_writer.ftell( fw_ctx );
 }
 
-static inline int dumper_fwrite( void *fw_ctx, uint8_t *src_buffer, int64_t src_size, int64_t *dst_size )
+static inline int dumper_fwrite( void *fw_ctx, uint8_t *src_buffer, int64_t src_size, int64_t *dest_size )
 {
-    return file_writer.fwrite( fw_ctx, src_buffer, src_size, dst_size );
+    return file_writer.fwrite( fw_ctx, src_buffer, src_size, dest_size );
 }
 
 static inline int dumper_fseek( void *fw_ctx, int64_t seek_offset, int origin )

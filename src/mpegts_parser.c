@@ -195,9 +195,9 @@ static inline int64_t mpegts_ftell( mpegts_file_context_t *file )
     return file_reader.ftell( file->fr_ctx );
 }
 
-static inline int mpegts_fread( mpegts_file_context_t *file, uint8_t *read_buffer, int64_t read_size, int64_t *dst_size )
+static inline int mpegts_fread( mpegts_file_context_t *file, uint8_t *read_buffer, int64_t read_size, int64_t *dest_size )
 {
-    return file_reader.fread( file->fr_ctx, read_buffer, read_size, dst_size );
+    return file_reader.fread( file->fr_ctx, read_buffer, read_size, dest_size );
 }
 
 static inline int mpegts_fseek( mpegts_file_context_t *file, int64_t seek_offset, int origin )

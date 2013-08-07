@@ -68,15 +68,15 @@ static int64_t fw_ftell( void *ctx )
     return fw_ctx->file_size;
 }
 
-static int fw_fwrite( void *ctx, uint8_t *src_buffer, int64_t src_size, int64_t *dst_size )
+static int fw_fwrite( void *ctx, uint8_t *src_buffer, int64_t src_size, int64_t *dest_size )
 {
     file_write_context_t *fw_ctx = (file_write_context_t *)ctx;
 
     uint8_t *buf  = src_buffer;
     int64_t  size = src_size;
 
-    if( dst_size )
-        *dst_size = 0;
+    if( dest_size )
+        *dest_size = 0;
 
     if( fw_ctx->cache.pos + size > fw_ctx->buffer_size )
     {
@@ -109,15 +109,15 @@ static int fw_fwrite( void *ctx, uint8_t *src_buffer, int64_t src_size, int64_t 
     /* Update the information of file size. */
     fw_ctx->file_size += src_size;
 
-    if( dst_size )
-        *dst_size = src_size;
+    if( dest_size )
+        *dest_size = src_size;
 
     return MAPI_SUCCESS;
 
 #if 0       // FIXME: This code assumed that fwrite fails.
 fail:
-    if( dst_size )
-        *dst_size = 0;
+    if( dest_size )
+        *dest_size = 0;
 
     return MAPI_FAILURE;
 #endif

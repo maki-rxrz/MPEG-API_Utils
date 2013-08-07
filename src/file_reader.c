@@ -69,15 +69,15 @@ static int64_t fr_ftell( void *ctx )
     return fr_ctx->read_pos + fr_ctx->cache.pos;
 }
 
-static int fr_fread( void *ctx, uint8_t *read_buffer, int64_t read_size, int64_t *dst_size )
+static int fr_fread( void *ctx, uint8_t *read_buffer, int64_t read_size, int64_t *dest_size )
 {
     file_read_context_t *fr_ctx = (file_read_context_t *)ctx;
 
     uint8_t *buf  = read_buffer;
     int64_t  size = read_size;
 
-    if( dst_size )
-        *dst_size = 0;
+    if( dest_size )
+        *dest_size = 0;
 
     while( read_size )
     {
@@ -114,14 +114,14 @@ static int fr_fread( void *ctx, uint8_t *read_buffer, int64_t read_size, int64_t
         }
     }
 
-    if( dst_size )
-        *dst_size = size;
+    if( dest_size )
+        *dest_size = size;
 
     return MAPI_SUCCESS;
 
 fail:
-    if( dst_size )
-        *dst_size = size - read_size;
+    if( dest_size )
+        *dest_size = size - read_size;
 
     return MAPI_EOF;
 }
