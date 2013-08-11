@@ -41,16 +41,23 @@
 
 #define READ_BUFFER_DEFAULT_SIZE            (2048)
 
+typedef enum {
+    FR_STATUS_NOINIT = 0,
+    FR_STATUS_CLOSED = 1,
+    FR_STATUS_OPENED = 2
+} fr_status_type;
+
 typedef struct {
-    FILE       *fp;
-    uint64_t    read_pos;
-    int64_t     file_size;
-    uint64_t    buffer_size;
+    FILE           *fp;
+    uint64_t        read_pos;
+    int64_t         file_size;
+    uint64_t        buffer_size;
     struct {
         uint8_t    *buf;
         uint64_t    size;
         uint64_t    pos;
     } cache;
+    fr_status_type  status;
 } file_read_context_t;
 
 /*============================================================================
@@ -59,19 +66,31 @@ typedef struct {
 
 static int64_t fr_get_file_size( void *ctx )
 {
+    if( !ctx )
+        return -1;
     file_read_context_t *fr_ctx = (file_read_context_t *)ctx;
+    if( fr_ctx->status != FR_STATUS_OPENED )
+        return -1;
     return fr_ctx->file_size;
 }
 
 static int64_t fr_ftell( void *ctx )
 {
+    if( !ctx )
+        return -1;
     file_read_context_t *fr_ctx = (file_read_context_t *)ctx;
+    if( fr_ctx->status != FR_STATUS_OPENED )
+        return -1;
     return fr_ctx->read_pos + fr_ctx->cache.pos;
 }
 
 static int fr_fread( void *ctx, uint8_t *read_buffer, int64_t read_size, int64_t *dest_size )
 {
+    if( !ctx )
+        return MAPI_FAILURE;
     file_read_context_t *fr_ctx = (file_read_context_t *)ctx;
+    if( fr_ctx->status != FR_STATUS_OPENED )
+        return MAPI_FAILURE;
 
     uint8_t *buf  = read_buffer;
     int64_t  size = read_size;
@@ -83,7 +102,7 @@ static int fr_fread( void *ctx, uint8_t *read_buffer, int64_t read_size, int64_t
     {
         uint64_t rest_size = fr_ctx->cache.size - fr_ctx->cache.pos;
 
-        if( rest_size < read_size )
+        if( rest_size < (uint64_t)read_size )
         {
             if( rest_size )
             {
@@ -128,7 +147,11 @@ fail:
 
 static int fr_fseek( void *ctx, int64_t seek_offset, int origin )
 {
+    if( !ctx )
+        return MAPI_FAILURE;
     file_read_context_t *fr_ctx = (file_read_context_t *)ctx;
+    if( fr_ctx->status != FR_STATUS_OPENED )
+        return MAPI_FAILURE;
 
     int64_t position = -1;
 
@@ -153,7 +176,7 @@ static int fr_fseek( void *ctx, int64_t seek_offset, int origin )
 
     /* Seek. */
     int64_t offset = position - fr_ctx->read_pos;
-    if( 0 <= offset && offset < fr_ctx->cache.size )
+    if( 0 <= offset && (uint64_t)offset < fr_ctx->cache.size )
     {
         /* Cache hit. */
         fr_ctx->cache.pos = offset;
@@ -177,11 +200,15 @@ static int fr_fseek( void *ctx, int64_t seek_offset, int origin )
 
 static int fr_open( void *ctx, char *file_name, uint64_t buffer_size )
 {
+    if( !ctx )
+        return MAPI_FAILURE;
     file_read_context_t *fr_ctx = (file_read_context_t *)ctx;
+    if(  fr_ctx->status != FR_STATUS_CLOSED )
+        return MAPI_FAILURE;
 
-    int64_t   file_size = 0;
-    uint8_t  *buffer    = NULL;
-    FILE     *fp        = fopen( file_name, "rb" );
+    int64_t  file_size = 0;
+    uint8_t *buffer    = NULL;
+    FILE    *fp        = fopen( file_name, "rb" );
     if( !fp )
         return MAPI_FILE_ERROR;
 
@@ -200,6 +227,7 @@ static int fr_open( void *ctx, char *file_name, uint64_t buffer_size )
     fr_ctx->file_size   = file_size;
     fr_ctx->buffer_size = buffer_size;
     fr_ctx->cache.buf   = buffer;
+    fr_ctx->status      = FR_STATUS_OPENED;
 
     return MAPI_SUCCESS;
 
@@ -211,7 +239,11 @@ fail:
 
 static void fr_close( void *ctx )
 {
+    if( !ctx )
+        return;
     file_read_context_t *fr_ctx = (file_read_context_t *)ctx;
+    if( fr_ctx->status != FR_STATUS_OPENED )
+        return;
 
     if( fr_ctx->cache.buf )
         free( fr_ctx->cache.buf );
@@ -219,29 +251,32 @@ static void fr_close( void *ctx )
         fclose( fr_ctx->fp );
 
     memset( fr_ctx, 0, sizeof(file_read_context_t) );
+    fr_ctx->status = FR_STATUS_CLOSED;
 }
 
 static int fr_init( void **fr_ctx )
 {
+    if( !fr_ctx || *fr_ctx )
+        return MAPI_FAILURE;
     file_read_context_t *ctx = (file_read_context_t *)malloc( sizeof(file_read_context_t) );
     if( !ctx )
-        goto fail;
+        return MAPI_FAILURE;
 
     memset( ctx, 0, sizeof(file_read_context_t) );
+    ctx->status = FR_STATUS_CLOSED;
     *fr_ctx = (void *)ctx;
 
     return MAPI_SUCCESS;
-
-fail:
-    return MAPI_FAILURE;
 }
 
 static void fr_release( void **fr_ctx )
 {
-    if( !fr_ctx )
+    if( !fr_ctx || !(*fr_ctx) )
         return;
-
     file_read_context_t *ctx = (file_read_context_t *)(*fr_ctx);
+
+    fr_close( (void *)ctx );
+
     free( ctx );
 
     *fr_ctx = NULL;

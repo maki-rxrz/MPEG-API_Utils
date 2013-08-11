@@ -40,16 +40,23 @@
 
 #define WRITE_BUFFER_DEFAULT_SIZE           (4096)
 
+typedef enum {
+    FW_STATUS_NOINIT = 0,
+    FW_STATUS_CLOSED = 1,
+    FW_STATUS_OPENED = 2
+} fw_status_type;
+
 typedef struct {
-    FILE       *fp;
-    uint64_t    write_pos;
-    int64_t     file_size;
-    uint64_t    buffer_size;
+    FILE           *fp;
+    uint64_t        write_pos;
+    int64_t         file_size;
+    uint64_t        buffer_size;
     struct {
         uint8_t    *buf;
         uint64_t    size;
         uint64_t    pos;
     } cache;
+    fw_status_type  status;
 } file_write_context_t;
 
 /*============================================================================
@@ -64,13 +71,21 @@ static void inline fw_flush_buffer( file_write_context_t *fw_ctx )
 
 static int64_t fw_ftell( void *ctx )
 {
+    if( !ctx )
+        return -1;
     file_write_context_t *fw_ctx = (file_write_context_t *)ctx;
+    if( fw_ctx->status != FW_STATUS_OPENED )
+        return -1;
     return fw_ctx->file_size;
 }
 
 static int fw_fwrite( void *ctx, uint8_t *src_buffer, int64_t src_size, int64_t *dest_size )
 {
+    if( !ctx )
+        return MAPI_FAILURE;
     file_write_context_t *fw_ctx = (file_write_context_t *)ctx;
+    if( fw_ctx->status != FW_STATUS_OPENED )
+        return MAPI_FAILURE;
 
     uint8_t *buf  = src_buffer;
     int64_t  size = src_size;
@@ -125,7 +140,11 @@ fail:
 
 static int fw_fseek( void *ctx, int64_t seek_offset, int origin )
 {
+    if( !ctx )
+        return MAPI_FAILURE;
     file_write_context_t *fw_ctx = (file_write_context_t *)ctx;
+    if( fw_ctx->status != FW_STATUS_OPENED )
+        return MAPI_FAILURE;
 
     int64_t position = -1;
 
@@ -161,10 +180,14 @@ static int fw_fseek( void *ctx, int64_t seek_offset, int origin )
 
 static int fw_open( void *ctx, char *file_name, uint64_t buffer_size )
 {
+    if( !ctx )
+        return MAPI_FAILURE;
     file_write_context_t *fw_ctx = (file_write_context_t *)ctx;
+    if(  fw_ctx->status != FW_STATUS_CLOSED )
+        return MAPI_FAILURE;
 
-    uint8_t  *buffer    = NULL;
-    FILE     *fp        = fopen( file_name, "wb" );
+    uint8_t *buffer = NULL;
+    FILE    *fp     = fopen( file_name, "wb" );
     if( !fp )
         return MAPI_FILE_ERROR;
 
@@ -180,6 +203,7 @@ static int fw_open( void *ctx, char *file_name, uint64_t buffer_size )
     fw_ctx->fp          = fp;
     fw_ctx->buffer_size = buffer_size;
     fw_ctx->cache.buf   = buffer;
+    fw_ctx->status      = FW_STATUS_OPENED;
 
     return MAPI_SUCCESS;
 
@@ -191,7 +215,11 @@ fail:
 
 static void fw_close( void *ctx )
 {
+    if( !ctx )
+        return;
     file_write_context_t *fw_ctx = (file_write_context_t *)ctx;
+    if( fw_ctx->status != FW_STATUS_OPENED )
+        return;
 
     /* Output data in cache. */
     if( fw_ctx->cache.pos )
@@ -203,29 +231,32 @@ static void fw_close( void *ctx )
         fclose( fw_ctx->fp );
 
     memset( fw_ctx, 0, sizeof(file_write_context_t) );
+    fw_ctx->status = FW_STATUS_CLOSED;
 }
 
 static int fw_init( void **fw_ctx )
 {
+    if( !fw_ctx || *fw_ctx )
+        return MAPI_FAILURE;
     file_write_context_t *ctx = (file_write_context_t *)malloc( sizeof(file_write_context_t) );
     if( !ctx )
-        goto fail;
+        return MAPI_FAILURE;
 
     memset( ctx, 0, sizeof(file_write_context_t) );
+    ctx->status = FW_STATUS_CLOSED;
     *fw_ctx = (void *)ctx;
 
     return MAPI_SUCCESS;
-
-fail:
-    return MAPI_FAILURE;
 }
 
 static void fw_release( void **fw_ctx )
 {
-    if( !fw_ctx )
+    if( !fw_ctx || !(*fw_ctx) )
         return;
-
     file_write_context_t *ctx = (file_write_context_t *)(*fw_ctx);
+
+    fw_close( (void *)ctx );
+
     free( ctx );
 
     *fw_ctx = NULL;
