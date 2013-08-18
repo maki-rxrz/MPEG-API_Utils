@@ -54,6 +54,11 @@ typedef struct {
     void                   *fr_ctx;
 } mpeges_info_t;
 
+static inline int64_t mpeges_get_file_size( mpeges_info_t *info )
+{
+    return file_reader.get_size( info->fr_ctx );
+}
+
 static inline int64_t mpeges_ftell( mpeges_info_t *info )
 {
     return file_reader.ftell( info->fr_ctx );
@@ -277,7 +282,7 @@ static int64_t mpeges_seek_next_start_position( mpeges_info_t *info )
     uint8_t mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE];
     mpeges_fread( info, mpeg_video_head_data, MPEG_VIDEO_START_CODE_SIZE - 1, &dest_size );
     if( dest_size != MPEG_VIDEO_START_CODE_SIZE - 1 )
-        return -1;
+        return mpeges_get_file_size( info );
     while( 1 )
     {
         mpeges_fread( info, &(mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE - 1]), 1, &dest_size );
