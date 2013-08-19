@@ -90,9 +90,9 @@ static const struct {
     const char           *ext;
 } get_sample_list[3] =
     {
-        { GET_SAMPLE_DATA_RAW       , ".raw." },
-        { GET_SAMPLE_DATA_PES_PACKET, ".pes." },
-        { GET_SAMPLE_DATA_CONTAINER , ".ts."  },
+        { GET_SAMPLE_DATA_RAW       , "[raw]" },
+        { GET_SAMPLE_DATA_PES_PACKET, "[pes]" },
+        { GET_SAMPLE_DATA_CONTAINER , "[ts]"  },
     };
 
 #define TIMESTAMP_WRAP_AROUND_CHECK_VALUE       (0x0FFFFFFFFLL)
@@ -389,6 +389,9 @@ static int correct_parameter( param_t *p )
         p->output = strdup( p->input );
         if( !p->output )
             return -1;
+        char *ext = strrchr( p->output, '.' );
+        if( ext )
+            *ext = '\0';
     }
     return 0;
 }
@@ -595,20 +598,27 @@ static void open_file( param_t *p, void *info, mpeg_sample_type sample_type, uin
     const char *id_info = mpeg_api_get_stream_information( info, sample_type, stream_number, GET_INFO_KEY_ID );
     int add_str_len = add_str ? strlen( add_str ) + 1 : 0;
     int id_info_len = id_info ? strlen( id_info ) + 1 : 0;
-    size_t dump_name_size = strlen( p->output ) + 32 + add_str_len + id_info_len;
+    int outtype_len = strlen( get_sample_list[get_index].ext ) + 1;
+    size_t dump_name_size = strlen( p->output ) + 32 + add_str_len + id_info_len + outtype_len;
     char dump_name[dump_name_size];
     strcpy( dump_name, p->output );
     /* output type */
+    int add_outtype_suffix = 1;
     if( get_mode == GET_SAMPLE_DATA_RAW )
     {
         const char *raw_ext = mpeg_api_get_sample_file_extension( info, sample_type, stream_number );
         if( raw_ext )
+        {
             add_ext = raw_ext;
-        else
-            strcat( dump_name, get_sample_list[get_index].ext );
+            add_outtype_suffix = 0;
+        }
     }
-    else
-        strcat( dump_name, get_sample_list[get_index].ext );
+    if( add_outtype_suffix )
+    {
+        char outtype_name[outtype_len + 1];
+        sprintf( outtype_name, " %s", get_sample_list[get_index].ext );
+        strcat( dump_name, outtype_name );
+    }
     /* id */
     if( id_info )
     {
@@ -631,6 +641,17 @@ static void open_file( param_t *p, void *info, mpeg_sample_type sample_type, uin
     }
     /* extension */
     strcat( dump_name, add_ext );
+    /* check duplicate. */
+    if( !strcmp( dump_name, p->input ) )
+    {
+        char outtype_name[outtype_len + 1];
+        sprintf( outtype_name, " %s", get_sample_list[get_index].ext );
+        char *ext = strrchr( dump_name, '.' );
+        if( ext )
+            *ext = '\0';
+        strcat( dump_name, outtype_name );
+        strcat( dump_name, add_ext );
+    }
     /* open. */
     dumper_open( file, dump_name, p->write_buffer_size );
 }
