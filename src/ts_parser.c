@@ -42,6 +42,8 @@
 #include "file_utils.h"
 #include "file_writer.h"
 
+#define PROGRAM_NAME                    "MPEG-2 TS/ES Parser"
+
 #define PROGRAM_VERSION                 "0.0.7"
 
 #ifndef REVISION_NUMBER
@@ -100,7 +102,7 @@ static const struct {
 static void print_version( void )
 {
     fprintf( stdout,
-        "MPEG-2 TS/ES Parser version " PROGRAM_VERSION "." REVISION_NUMBER "\n"
+        PROGRAM_NAME " version " PROGRAM_VERSION "." REVISION_NUMBER "\n"
     );
 }
 
@@ -108,7 +110,7 @@ static void print_help( void )
 {
     fprintf( stdout,
         "\n"
-        "MPEG-2 TS/ES Parser version " PROGRAM_VERSION "." REVISION_NUMBER "\n"
+        PROGRAM_NAME " version " PROGRAM_VERSION "." REVISION_NUMBER "\n"
         "\n"
         "usage:  ts_parser [options] <input>\n"
         "\n"
