@@ -99,6 +99,8 @@ static const struct {
 
 #define TIMESTAMP_WRAP_AROUND_CHECK_VALUE       (0x0FFFFFFFFLL)
 
+#define PARSE_VIDEO_PTS_LIMIT                   (30)
+
 static void print_version( void )
 {
     fprintf( stdout,
@@ -677,20 +679,24 @@ static void open_file_for_list_api( param_t *p, void *info, stream_info_t *strea
             /* get video stream info. */
             if( !mpeg_api_get_sample_info( info, SAMPLE_TYPE_VIDEO, i, 0, stream_info ) )
             {
+                mpeg_reader_delay_type delay_type = p->delay_type;
                 int64_t video_1st_pts = stream_info->video_pts;
                 int64_t video_key_pts = (stream_info->picture_coding_type == MPEG_VIDEO_I_FRAME) ? stream_info->video_pts : -1;
                 uint32_t j = 0;
                 while( stream_info->temporal_reference || video_key_pts < 0 )
                 {
                     ++j;
-                    if( mpeg_api_get_sample_info( info, SAMPLE_TYPE_VIDEO, i, j, stream_info ) )
+                    if( j > PARSE_VIDEO_PTS_LIMIT || mpeg_api_get_sample_info( info, SAMPLE_TYPE_VIDEO, i, j, stream_info ) )
+                    {
+                        delay_type = MPEG_READER_DEALY_FAST_VIDEO_STREAM;
                         break;
+                    }
                     if( video_1st_pts > stream_info->video_pts && video_1st_pts < stream_info->video_pts + p->wrap_around_check_v )
                         video_1st_pts = stream_info->video_pts;
                     if( video_key_pts < 0 && stream_info->picture_coding_type == MPEG_VIDEO_I_FRAME )
                         video_key_pts = stream_info->video_pts;
                 }
-                switch( p->delay_type )
+                switch( delay_type )
                 {
                     case MPEG_READER_DEALY_VIDEO_GOP_KEYFRAME :
                         video_pts = video_key_pts;
@@ -752,6 +758,7 @@ static void open_file_for_stream_api( param_t *p, void *info, stream_info_t *str
         if( (p->output_stream & OUTPUT_STREAM_AUDIO) && audio_stream_num
          && video_pts < 0 && p->delay_type != MPEG_READER_DEALY_NONE )
         {
+            mpeg_reader_delay_type delay_type = p->delay_type;
             /* get video stream info. */
             if( mpeg_api_get_video_frame( info, i, stream_info ) )
                 continue;
@@ -759,10 +766,15 @@ static void open_file_for_stream_api( param_t *p, void *info, stream_info_t *str
             int64_t start_position = stream_info->file_position;
             int64_t video_1st_pts  = stream_info->video_pts;
             int64_t video_key_pts  = (stream_info->picture_coding_type == MPEG_VIDEO_I_FRAME) ? stream_info->video_pts : -1;
+            uint32_t parse_count = 0;
             while( stream_info->temporal_reference || video_key_pts < 0 )
             {
-                if( mpeg_api_get_video_frame( info, i, stream_info ) )
+                ++parse_count;
+                if( parse_count > PARSE_VIDEO_PTS_LIMIT || mpeg_api_get_video_frame( info, i, stream_info ) )
+                {
+                    delay_type = MPEG_READER_DEALY_FAST_VIDEO_STREAM;
                     break;
+                }
                 if( video_1st_pts > stream_info->video_pts && video_1st_pts < stream_info->video_pts + p->wrap_around_check_v )
                     video_1st_pts = stream_info->video_pts;
                 if( video_key_pts < 0 && stream_info->picture_coding_type == MPEG_VIDEO_I_FRAME )
@@ -773,7 +785,7 @@ static void open_file_for_stream_api( param_t *p, void *info, stream_info_t *str
                     start_position = stream_info->file_position;
                 }
             }
-            switch( p->delay_type )
+            switch( delay_type )
             {
                 case MPEG_READER_DEALY_VIDEO_GOP_KEYFRAME :
                     video_pts = video_key_pts;
