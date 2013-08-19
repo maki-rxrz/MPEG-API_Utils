@@ -2104,7 +2104,7 @@ static int set_pmt_stream_info( mpegts_info_t *info )
                     stream->stream_judge                     = stream_judge;
                     stream->stream_parse_info                = stream_parse_info;
                     stream->gop_number                       = -1;
-                    sprintf( stream->private_info[GET_INFO_KEY_ID].info, "PID %u", program_id );
+                    sprintf( stream->private_info[GET_INFO_KEY_ID].info, "PID %x", program_id );
                     dprintf( LOG_LV2, "[check] %s PID:0x%04X  stream_type:0x%02X\n", stream_name[index], program_id, stream_type );
                     mpegts_file_seek( &(stream->file_read), info->file_read.read_position, MPEGTS_SEEK_SET );
                     ++(*stream_num);
