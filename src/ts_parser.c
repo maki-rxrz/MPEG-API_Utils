@@ -86,13 +86,13 @@ typedef struct {
 } param_t;
 
 static const struct {
-    get_sample_data_mode get_mode;
-    char ext[5];
+    get_sample_data_mode  get_mode;
+    const char           *ext;
 } get_sample_list[3] =
     {
-        { GET_SAMPLE_DATA_RAW       , ".raw" },
-        { GET_SAMPLE_DATA_PES_PACKET, ".pes" },
-        { GET_SAMPLE_DATA_CONTAINER , ".ts"  },
+        { GET_SAMPLE_DATA_RAW       , ".raw." },
+        { GET_SAMPLE_DATA_PES_PACKET, ".pes." },
+        { GET_SAMPLE_DATA_CONTAINER , ".ts."  },
     };
 
 #define TIMESTAMP_WRAP_AROUND_CHECK_VALUE       (0x0FFFFFFFFLL)
@@ -578,7 +578,7 @@ static void dump_sample_info( void *info, stream_info_t *stream_info, uint8_t vi
     }
 }
 
-static void open_file( param_t *p, void *info, mpeg_sample_type sample_type, uint8_t total_stream_num, uint8_t stream_number, void **file, char *add_string, int add_str_len )
+static void open_file( param_t *p, void *info, mpeg_sample_type sample_type, uint8_t total_stream_num, uint8_t stream_number, void **file, char *add_str )
 {
     int                  get_index = p->output_mode - OUTPUT_GET_SAMPLE_RAW;
     get_sample_data_mode get_mode  = get_sample_list[get_index].get_mode;
@@ -591,28 +591,39 @@ static void open_file( param_t *p, void *info, mpeg_sample_type sample_type, uin
             { "a", ".audio" }
         };
     int type_index = (sample_type == SAMPLE_TYPE_VIDEO) ? 0 : 1;
-    size_t dump_name_size = strlen( p->output ) + 16 + add_str_len;
+    const char *add_ext = stream_type[type_index].add_ext;
+    int add_str_len = add_str ? strlen( add_str ) + 1 : 0;
+    size_t dump_name_size = strlen( p->output ) + 32 + add_str_len;
     char dump_name[dump_name_size];
     strcpy( dump_name, p->output );
-    strcat( dump_name, get_sample_list[get_index].ext );
-    if( total_stream_num > 1 )
-    {
-        char stream_name[6];
-        sprintf( stream_name, ".%s%u", stream_type[type_index].add_name, stream_number );
-        strcat( dump_name, stream_name );
-    }
-    if( add_string )
-        strcat( dump_name, add_string );
+    /* output type */
     if( get_mode == GET_SAMPLE_DATA_RAW )
     {
         const char *raw_ext = mpeg_api_get_sample_file_extension( info, sample_type, stream_number );
         if( raw_ext )
-            strcat( dump_name, raw_ext );
+            add_ext = raw_ext;
         else
-            strcat( dump_name, stream_type[type_index].add_ext );
+            strcat( dump_name, get_sample_list[get_index].ext );
     }
     else
-        strcat( dump_name, stream_type[type_index].add_ext );
+        strcat( dump_name, get_sample_list[get_index].ext );
+    /* id */
+    if( total_stream_num > 1 )
+    {
+        char stream_name[6];
+        sprintf( stream_name, " %s%u", stream_type[type_index].add_name, stream_number );
+        strcat( dump_name, stream_name );
+    }
+    /* specified data */
+    if( add_str )
+    {
+        char add_name[add_str_len + 1];
+        sprintf( add_name, " %s", add_str );
+        strcat( dump_name, add_name );
+    }
+    /* extension */
+    strcat( dump_name, add_ext );
+    /* open. */
     dumper_open( file, dump_name, p->write_buffer_size );
 }
 
@@ -629,7 +640,7 @@ static void open_file_for_list_api( param_t *p, void *info, stream_info_t *strea
         dprintf( LOG_LV_PROGRESS, "[log] Video Stream[%3u]  sample_num:%8u\n", i, sample_num );
         if( sample_num && (p->output_stream & OUTPUT_STREAM_VIDEO) )
             /* open output file. */
-            open_file( p, info, SAMPLE_TYPE_VIDEO, video_stream_num, i, &(video[i]), NULL, 0 );
+            open_file( p, info, SAMPLE_TYPE_VIDEO, video_stream_num, i, &(video[i]), NULL );
         if( video_pts < 0 && p->delay_type != MPEG_READER_DEALY_NONE )
         {
             /* get video stream info. */
@@ -689,13 +700,9 @@ static void open_file_for_list_api( param_t *p, void *info, stream_info_t *strea
             }
             /* open output file. */
             char delay_string[256];
-            int delay_str_len = 0;
             if( audio_delay )
-            {
-                sprintf( delay_string, ". DELAY %"PRId64"ms", audio_delay / 90 );
-                delay_str_len = strlen( delay_string );
-            }
-            open_file( p, info, SAMPLE_TYPE_AUDIO, audio_stream_num, i, &(audio[i]), audio_delay ? delay_string : NULL, delay_str_len );
+                sprintf( delay_string, "DELAY %"PRId64"ms", audio_delay / 90 );
+            open_file( p, info, SAMPLE_TYPE_AUDIO, audio_stream_num, i, &(audio[i]), audio_delay ? delay_string : NULL );
         }
     }
 }
@@ -710,7 +717,7 @@ static void open_file_for_stream_api( param_t *p, void *info, stream_info_t *str
     {
         if( p->output_stream & OUTPUT_STREAM_VIDEO )
             /* open output file. */
-            open_file( p, info, SAMPLE_TYPE_VIDEO, video_stream_num, i, &(video[i]), NULL, 0 );
+            open_file( p, info, SAMPLE_TYPE_VIDEO, video_stream_num, i, &(video[i]), NULL );
         if( (p->output_stream & OUTPUT_STREAM_AUDIO) && audio_stream_num
          && video_pts < 0 && p->delay_type != MPEG_READER_DEALY_NONE )
         {
@@ -774,13 +781,9 @@ static void open_file_for_stream_api( param_t *p, void *info, stream_info_t *str
             }
             /* open output file. */
             char delay_string[256];
-            int delay_str_len = 0;
             if( audio_delay )
-            {
-                sprintf( delay_string, ". DELAY %"PRId64"ms", audio_delay / 90 );
-                delay_str_len = strlen( delay_string );
-            }
-            open_file( p, info, SAMPLE_TYPE_AUDIO, audio_stream_num, i, &(audio[i]), audio_delay ? delay_string : NULL, delay_str_len );
+                sprintf( delay_string, "DELAY %"PRId64"ms", audio_delay / 90 );
+            open_file( p, info, SAMPLE_TYPE_AUDIO, audio_stream_num, i, &(audio[i]), audio_delay ? delay_string : NULL );
         }
     }
 }
