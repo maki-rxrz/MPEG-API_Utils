@@ -307,6 +307,11 @@ static int64_t mpeges_seek_next_start_position( mpeges_info_t *info )
     return mpeges_ftell( info );
 }
 
+static const char *get_stream_information( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, get_information_key_type key )
+{
+    return NULL;
+}
+
 static mpeg_stream_type get_sample_stream_type( void *ih, mpeg_sample_type sample_type, uint8_t stream_number )
 {
     mpeges_info_t *info = (mpeges_info_t *)ih;
@@ -543,5 +548,6 @@ mpeg_parser_t mpeges_parser = {
     seek_next_sample_position,
     get_sample_data,
     free_sample_buffer,
-    get_sample_stream_type
+    get_sample_stream_type,
+    get_stream_information
 };

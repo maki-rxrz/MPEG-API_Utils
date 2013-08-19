@@ -70,6 +70,9 @@ typedef struct {
     mpeg_stream_group_type      stream_judge;
     void                       *stream_parse_info;
     int64_t                     gop_number;
+    struct {
+        char                    info[16];
+    } private_info[GET_INFO_KEY_MAX];
 } mpegts_stream_context_t;
 
 typedef struct {
@@ -1489,6 +1492,21 @@ static int mpegts_malloc_stream_parse_context( mpeg_stream_type stream_type, mpe
     return 0;
 }
 
+static const char *get_stream_information( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, get_information_key_type key )
+{
+    mpegts_info_t *info = (mpegts_info_t *)ih;
+    if( !info || key >= GET_INFO_KEY_MAX )
+        return NULL;
+    mpegts_stream_context_t *stream = NULL;
+    if( sample_type == SAMPLE_TYPE_VIDEO && stream_number < info->video_stream_num )
+        stream = &(info->video_stream[stream_number]);
+    else if( sample_type == SAMPLE_TYPE_AUDIO && stream_number < info->audio_stream_num )
+        stream = &(info->audio_stream[stream_number]);
+    else
+        return NULL;
+    return stream->private_info[key].info;
+}
+
 static mpeg_stream_type get_sample_stream_type( void *ih, mpeg_sample_type sample_type, uint8_t stream_number )
 {
     mpegts_info_t *info = (mpegts_info_t *)ih;
@@ -2086,6 +2104,7 @@ static int set_pmt_stream_info( mpegts_info_t *info )
                     stream->stream_judge                     = stream_judge;
                     stream->stream_parse_info                = stream_parse_info;
                     stream->gop_number                       = -1;
+                    sprintf( stream->private_info[GET_INFO_KEY_ID].info, "PID %u", program_id );
                     dprintf( LOG_LV2, "[check] %s PID:0x%04X  stream_type:0x%02X\n", stream_name[index], program_id, stream_type );
                     mpegts_file_seek( &(stream->file_read), info->file_read.read_position, MPEGTS_SEEK_SET );
                     ++(*stream_num);
@@ -2386,5 +2405,6 @@ mpeg_parser_t mpegts_parser = {
     seek_next_sample_position,
     get_sample_data,
     free_sample_buffer,
-    get_sample_stream_type
+    get_sample_stream_type,
+    get_stream_information
 };

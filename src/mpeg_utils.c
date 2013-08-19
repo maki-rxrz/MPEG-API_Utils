@@ -574,6 +574,14 @@ MAPI_EXPORT uint8_t mpeg_api_get_stream_num( void *ih, mpeg_sample_type sample_t
     return info->parser->get_stream_num( info->parser_info, sample_type );
 }
 
+MAPI_EXPORT const char *mpeg_api_get_stream_information( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, get_information_key_type key )
+{
+    mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
+    if( !info || !info->parser_info )
+        return NULL;
+    return info->parser->get_stream_information( info->parser_info, sample_type, stream_number, key );
+}
+
 MAPI_EXPORT const char *mpeg_api_get_sample_file_extension( void *ih, mpeg_sample_type sample_type, uint8_t stream_number )
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;

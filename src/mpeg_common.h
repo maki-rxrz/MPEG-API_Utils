@@ -66,6 +66,11 @@ typedef enum {
 } mpeg_reader_delay_type;
 
 typedef enum {
+    GET_INFO_KEY_ID = 0,
+    GET_INFO_KEY_MAX
+} get_information_key_type;
+
+typedef enum {
     STREAM_IS_UNKNOWN       = 0x0000                       ,
     STREAM_IS_VIDEO         = 0x0001                       ,
     STREAM_IS_MPEG_VIDEO    = 0x0002 | STREAM_IS_VIDEO     ,

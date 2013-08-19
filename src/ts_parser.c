@@ -592,8 +592,10 @@ static void open_file( param_t *p, void *info, mpeg_sample_type sample_type, uin
         };
     int type_index = (sample_type == SAMPLE_TYPE_VIDEO) ? 0 : 1;
     const char *add_ext = stream_type[type_index].add_ext;
+    const char *id_info = mpeg_api_get_stream_information( info, sample_type, stream_number, GET_INFO_KEY_ID );
     int add_str_len = add_str ? strlen( add_str ) + 1 : 0;
-    size_t dump_name_size = strlen( p->output ) + 32 + add_str_len;
+    int id_info_len = id_info ? strlen( id_info ) + 1 : 0;
+    size_t dump_name_size = strlen( p->output ) + 32 + add_str_len + id_info_len;
     char dump_name[dump_name_size];
     strcpy( dump_name, p->output );
     /* output type */
@@ -608,7 +610,13 @@ static void open_file( param_t *p, void *info, mpeg_sample_type sample_type, uin
     else
         strcat( dump_name, get_sample_list[get_index].ext );
     /* id */
-    if( total_stream_num > 1 )
+    if( id_info )
+    {
+        char id_name[id_info_len + 1];
+        sprintf( id_name, " %s", id_info );
+        strcat( dump_name, id_name );
+    }
+    else if( total_stream_num > 1 )
     {
         char stream_name[6];
         sprintf( stream_name, " %s%u", stream_type[type_index].add_name, stream_number );

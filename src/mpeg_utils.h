@@ -78,6 +78,8 @@ MAPI_EXPORT int mpeg_api_get_stream_all( void *ih, mpeg_sample_type sample_type,
 
 MAPI_EXPORT uint8_t mpeg_api_get_stream_num( void *ih, mpeg_sample_type sample_type );
 
+MAPI_EXPORT const char *mpeg_api_get_stream_information( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, get_information_key_type key );
+
 MAPI_EXPORT const char *mpeg_api_get_sample_file_extension( void *ih, mpeg_sample_type sample_type, uint8_t stream_number );
 
 MAPI_EXPORT mpeg_stream_type mpeg_api_get_sample_stream_type( void *ih, mpeg_sample_type sample_type, uint8_t stream_number );
