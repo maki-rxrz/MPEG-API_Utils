@@ -237,7 +237,7 @@ static int init_parameter( param_t *p )
     memset( p, 0, sizeof(param_t) );
     p->output_stream       = OUTPUT_STREAM_BOTH_VA;
     p->wrap_around_check_v = TIMESTAMP_WRAP_AROUND_CHECK_VALUE;
-    p->delay_type          = MPEG_READER_DEALY_FAST_VIDEO_STREAM;
+    p->delay_type          = MPEG_READER_DEALY_VIDEO_GOP_TR_ORDER;
     p->logfile             = stderr;
     return 0;
 }
@@ -257,6 +257,7 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
     if( !argv )
         return -1;
     int i = index;
+    mpeg_reader_delay_type specified_delay_type = MPEG_READER_DEALY_INVALID;
     while( i < argc && *argv[i] == '-' )
     {
         if( !strcasecmp( argv[i], "--output" ) || !strcasecmp( argv[i], "-o" ) )
@@ -303,7 +304,7 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
         {
             mpeg_reader_delay_type delay_type = atoi( argv[++i] );
             if( MPEG_READER_DEALY_NONE <= delay_type && delay_type < MPEG_READER_DEALY_INVALID )
-                p->delay_type = delay_type;
+                specified_delay_type = delay_type;
         }
         else if( !strcasecmp( argv[i], "--debug" ) )
         {
@@ -358,7 +359,6 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
                         break;
                     case 'v' :
                         output_stream |= OUTPUT_STREAM_VIDEO;
-                        p->delay_type  = MPEG_READER_DEALY_VIDEO_GOP_TR_ORDER;
                         break;
                     case 'a' :
                         output_stream |= OUTPUT_STREAM_AUDIO;
@@ -380,6 +380,11 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
         p->input = strdup( argv[i] );
         ++i;
     }
+    /* Set up the delay type. */
+    if( specified_delay_type != MPEG_READER_DEALY_INVALID )
+        p->delay_type = specified_delay_type;
+    else if( !(p->output_stream & OUTPUT_STREAM_VIDEO) )
+        p->delay_type = MPEG_READER_DEALY_FAST_VIDEO_STREAM;
     return i;
 }
 
