@@ -226,7 +226,7 @@ fail:
 
 static void mpegts_close( mpegts_file_context_t *file )
 {
-    if( !file || !(file->fr_ctx) )
+    if( !file || !file->fr_ctx )
         return;
     file_reader.close( file->fr_ctx );
     file_reader.release( &(file->fr_ctx) );

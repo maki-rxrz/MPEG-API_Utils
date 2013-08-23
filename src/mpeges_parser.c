@@ -90,7 +90,7 @@ fail:
 
 static void mpeges_close( mpeges_info_t *info )
 {
-    if( !info || !(info->fr_ctx) )
+    if( !info || !info->fr_ctx )
         return;
     file_reader.close( info->fr_ctx );
     file_reader.release( &(info->fr_ctx) );
@@ -170,7 +170,7 @@ static int mpeges_parse_stream_type( mpeges_info_t *info )
         else if( !result )
             goto end_parse_stream_type;
         /* cleanup buffer. */
-        memset( mpeg_video_head_data, 0xFF, MPEG_VIDEO_START_CODE_SIZE );
+        memset( mpeg_video_head_data, MPEG_VIDEO_START_CODE_ALL_CLEAR_VALUE, MPEG_VIDEO_START_CODE_SIZE );
     }
 end_parse_stream_type:
     mpeges_fseek( info, start_position, SEEK_SET );
@@ -269,7 +269,7 @@ static int mpeges_get_mpeg_video_picture_info( mpeges_info_t *info )
               || start_code_info.searching_status == DETECT_SEC )
             goto end_get_video_picture_info;
         /* cleanup buffer. */
-        memset( mpeg_video_head_data, 0xFF, MPEG_VIDEO_START_CODE_SIZE );
+        memset( mpeg_video_head_data, MPEG_VIDEO_START_CODE_ALL_CLEAR_VALUE, MPEG_VIDEO_START_CODE_SIZE );
     }
 end_get_video_picture_info:
     info->read_position = (result) ? -1 : read_position;
