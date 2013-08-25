@@ -79,6 +79,7 @@ typedef struct {
     output_stream_type      output_stream;
     output_demux_mode_type  demux_mode;
     uint16_t                pmt_program_id;
+    pmt_target_type         pmt_target;
     int64_t                 wrap_around_check_v;
     mpeg_reader_delay_type  delay_type;
     FILE                   *logfile;
@@ -119,6 +120,9 @@ static void print_help( void )
         "options:\n"
         "    -o --output <string>       Specify output file name.\n"
         "       --pmt-pid <integer>     Specify Program Map Table ID.\n"
+        "       --pmt-target <integer>  Specify detection target of PMT.\n"
+        "               (default: 0)        - 0 : Select maximum of PMT detected\n"
+        "                                   - 1 : Select minimum of PMT detected\n"
         "       --mode <string>         Specify together multiple settings.\n"
         "                                   - p : Parse (--api-type 0 --output-mode 0)\n"
         "                                   - d : Demux (--api-type 3 --output-mode 1)\n"
@@ -273,6 +277,8 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
             int base = (strncmp( argv[i], "0x", 2 )) ? 10 : 16;
             p->pmt_program_id = strtol( argv[i], NULL, base );
         }
+        else if( !strcasecmp( argv[i], "--pmt-target" ) )
+            p->pmt_target = atoi( argv[++i] );
         else if( !strcasecmp( argv[i], "--api-type" ) )
         {
             int type = atoi( argv[++i] );
@@ -1570,6 +1576,8 @@ static void parse_mpeg( param_t *p )
     if( p->pmt_program_id )
         if( 0 > mpeg_api_set_pmt_program_id( info, p->pmt_program_id ) )
             goto end_parse;
+    if( p->pmt_target )
+        mpeg_api_set_pmt_target( info, p->pmt_target );
     int parse_result = mpeg_api_parse( info );
     if( !parse_result )
     {

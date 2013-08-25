@@ -92,6 +92,7 @@ typedef struct {
     int                 output_no_overwrite;
     output_mode_type    output_mode;
     uint16_t            pmt_program_id;
+    pmt_target_type     pmt_target;
     frame_rate_t        frame_rate;
     int64_t             wrap_around_check_v;
     aspect_ratio_type   aspect_ratio;
@@ -166,6 +167,9 @@ static void print_help( void )
         "                                   - t, tmpgenc    TMPGEnc series.\n"
         "       --no-reader             Disable check of the read delay time.\n"
         "       --pmt-pid <integer>     Specify Program Map Table ID.\n"
+        "       --pmt-target <integer>  Specify detection target of PMT.\n"
+        "               (default: 0)        - 0 : Select maximum of PMT detected\n"
+        "                                   - 1 : Select minimum of PMT detected\n"
         "    -d --delay <integer>       Specify delay time.\n"
         "    -f --framerate <int/int>   Specify framerate.       (ex: 30000/1001)\n"
         "       --fps-num <integer>     Specify fps numerator.   (ex: 24000)\n"
@@ -363,6 +367,8 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
             int base = (strncmp( argv[i], "0x", 2 )) ? 10 : 16;
             p->pmt_program_id = strtol( argv[i], NULL, base );
         }
+        else if( !strcasecmp( argv[i], "--pmt-target" ) )
+            p->pmt_target = atoi( argv[++i] );
         else if( !strcasecmp( argv[i], "--delay" ) || !strcasecmp( argv[i], "-d" ) )
             p->delay_time = atoi( argv[++i] );
         else if( !strcasecmp( argv[i], "--framerate" ) || !strcasecmp( argv[i], "-f" ) )
@@ -1003,6 +1009,8 @@ static void parse_reader_offset( param_t *p, delay_info_type *delay_info )
     if( p->pmt_program_id )
         if( 0 > mpeg_api_set_pmt_program_id( info, p->pmt_program_id ) )
             goto end_parse;
+    if( p->pmt_target )
+        mpeg_api_set_pmt_target( info, p->pmt_target );
     int64_t video_1st_pts, video_key_pts;
     int get_info_result = mpeg_api_get_stream_info( info, stream_info, &video_1st_pts, &video_key_pts );
     if( !get_info_result )

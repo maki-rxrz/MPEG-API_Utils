@@ -464,6 +464,11 @@ static int get_audio_info( void *ih, uint8_t stream_number, audio_sample_info_t 
     return -1;
 }
 
+static int set_program_target( void *ih, pmt_target_type pmt_target )
+{
+    return -1;
+}
+
 static int set_program_id( void *ih, mpegts_select_pid_type pid_type, uint16_t program_id )
 {
     return -1;
@@ -535,6 +540,7 @@ mpeg_parser_t mpeges_parser = {
     initialize,
     release,
     parse,
+    set_program_target,
     set_program_id,
     get_program_id,
     get_video_info,

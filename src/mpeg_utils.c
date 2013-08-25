@@ -884,6 +884,15 @@ MAPI_EXPORT int mpeg_api_get_stream_info( void *ih, stream_info_t *stream_info, 
     return (check_stream_exist == BOTH_VA_NONE);
 }
 
+MAPI_EXPORT int mpeg_api_set_pmt_target( void *ih, pmt_target_type pmt_target )
+{
+    mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
+    if( !info || !info->parser_info )
+        return -1;
+    info->parser->set_program_target( info->parser_info, pmt_target );
+    return 0;
+}
+
 MAPI_EXPORT int mpeg_api_set_pmt_program_id( void *ih, uint16_t pmt_program_id )
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;

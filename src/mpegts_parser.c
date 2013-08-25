@@ -102,6 +102,7 @@ typedef struct {
 #ifdef NEED_OPCR_VALUE
     int64_t                     opcr;
 #endif
+    pmt_target_type             pmt_target;
 } mpegts_info_t;
 
 /*  */
@@ -754,15 +755,18 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
             }
         }
     }
-    int target_count_max = 0;
+    int detection_max = (info->pmt_target == PMT_TARGET_MAX);
+    int target_count  = detection_max ? 0 : PMT_PARSE_COUNT_NUM + 1;
     for( int i = 0; i < PMT_PARSE_COUNT_NUM && target_candidate[i].count; ++i )
     {
         dprintf( LOG_LV2, "[check] pmt candidate[%d]  crc:%08X  detect_count:%d  target:%d\n"
                         , i, target_candidate[i].crc32, target_candidate[i].count, target_candidate[i].target );
-        if( target_count_max < target_candidate[i].count )
+
+        if( detection_max ? target_count < target_candidate[i].count
+                          : target_count > target_candidate[i].count )
         {
-            target_count_max = target_candidate[i].count;
-            target_pmt       = target_candidate[i].target;
+            target_count = target_candidate[i].count;
+            target_pmt   = target_candidate[i].target;
         }
     }
     dprintf( LOG_LV2, "[check] target_pmt:%d\n", target_pmt );
@@ -2271,6 +2275,17 @@ static int set_stream_program_id( mpegts_info_t *info, uint16_t program_id )
     return result;
 }
 
+static int set_program_target( void *ih, pmt_target_type pmt_target )
+{
+    mpegts_info_t *info = (mpegts_info_t *)ih;
+    if( !info )
+        return -1;
+    dprintf( LOG_LV2, "[mpegts_parser] set_program_target()\n"
+                      "[check] pmt_target: %d\n", pmt_target );
+    info->pmt_target = pmt_target;
+    return 0;
+}
+
 static int set_program_id( void *ih, mpegts_select_pid_type pid_type, uint16_t program_id )
 {
     mpegts_info_t *info = (mpegts_info_t *)ih;
@@ -2392,6 +2407,7 @@ mpeg_parser_t mpegts_parser = {
     initialize,
     release,
     parse,
+    set_program_target,
     set_program_id,
     get_program_id,
     get_video_info,

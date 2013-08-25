@@ -71,6 +71,11 @@ typedef enum {
 } get_information_key_type;
 
 typedef enum {
+    PMT_TARGET_MAX = 0,
+    PMT_TARGET_MIN = 1
+} pmt_target_type;
+
+typedef enum {
     STREAM_IS_UNKNOWN       = 0x0000                       ,
     STREAM_IS_VIDEO         = 0x0001                       ,
     STREAM_IS_MPEG_VIDEO    = 0x0002 | STREAM_IS_VIDEO     ,
