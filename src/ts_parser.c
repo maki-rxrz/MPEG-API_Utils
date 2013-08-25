@@ -44,7 +44,7 @@
 
 #define PROGRAM_NAME                    "MPEG-2 TS/ES Parser"
 
-#define PROGRAM_VERSION                 "0.0.9"
+#define PROGRAM_VERSION                 "0.0.10"
 
 #ifndef REVISION_NUMBER
 #define REVISION_NUMBER                 "0"
