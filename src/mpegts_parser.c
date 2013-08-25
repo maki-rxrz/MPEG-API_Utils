@@ -344,10 +344,10 @@ static int mpegts_first_check( mpegts_file_context_t *file )
             file->packet_size        = mpegts_packet_size[i];
             file->sync_byte_position = position;
             result = 0;
+            dprintf( LOG_LV3, "[check] packet size:%d\n", file->packet_size );
             break;
         }
     }
-    dprintf( LOG_LV3, "[check] packet size:%d\n", file->packet_size );
     return result;
 }
 
