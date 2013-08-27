@@ -86,6 +86,7 @@ typedef struct {
     int64_t                 read_buffer_size;
     int64_t                 write_buffer_size;
     int64_t                 file_size;
+    int64_t                 gop_limit;
 } param_t;
 
 static const struct {
@@ -97,6 +98,9 @@ static const struct {
         { GET_SAMPLE_DATA_PES_PACKET, "[pes]" },
         { GET_SAMPLE_DATA_CONTAINER , "[ts]"  },
     };
+
+#define INT64_MAX_VALUE                         (0x7FFFFFFFFFFFFFFFLL)
+#define INT64_MIN_VALUE                         (0x8000000000000000LL)
 
 #define TIMESTAMP_WRAP_AROUND_CHECK_VALUE       (0x0FFFFFFFFLL)
 
@@ -156,6 +160,7 @@ static void print_help( void )
         "                                   - 2 : GOP 1st frame\n"
         "                                   - 3 : 1st Video frame\n"
         "                                   (default: [V+A: 2] [A only: 3])\n"
+        "       --gop-limit             Specify limit of GOP number in stream parsing.\n"
         "       --debug <integer>       Specify output log level. [1-4]\n"
         "       --log <string>          Specify output file name of log.\n"
         "       --log-silent            Log: Suppress the output to stderr.\n"
@@ -313,6 +318,8 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
             if( MPEG_READER_DEALY_NONE <= delay_type && delay_type < MPEG_READER_DEALY_INVALID )
                 specified_delay_type = delay_type;
         }
+        else if( !strcasecmp( argv[i], "--gop-limit" ) )
+            p->gop_limit = atoi( argv[++i] );
         else if( !strcasecmp( argv[i], "--debug" ) )
         {
             log_level lv = atoi( argv[++i] );
@@ -474,9 +481,11 @@ static void get_speaker_mapping_info( uint16_t speaker_mapping, char *mapping_in
         strcat( mapping_info, "+lfe" );
 }
 
-static void dump_stream_info( void *info, stream_info_t *stream_info, uint8_t video_stream_num, uint8_t audio_stream_num )
+static void dump_stream_info( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num, uint8_t audio_stream_num )
 {
     static const char frame[4] = { '?', 'I', 'P', 'B' };
+    int64_t pts_limit = INT64_MAX_VALUE;
+    int64_t gop_limit = (p->gop_limit > 0) ? p->gop_limit - 1 : INT64_MAX_VALUE;
     for( uint8_t i = 0; i < video_stream_num; ++i )
     {
         dprintf( LOG_LV_OUTPUT, "[log] Video Stream[%3u]\n", i );
@@ -496,6 +505,11 @@ static void dump_stream_info( void *info, stream_info_t *stream_info, uint8_t vi
             {
                 if( gop_number < stream_info->gop_number )
                 {
+                    if( stream_info->gop_number > gop_limit )
+                    {
+                        pts_limit = pts;        // FIXME: This is not best, because don't check 1st frame by temporal_reference.
+                        break;
+                    }
                     gop_number = stream_info->gop_number;
                     dprintf( LOG_LV_OUTPUT, " [GOP:%6"PRId64"]  progr_sequence:%d  closed_gop:%d\n", gop_number, stream_info->progressive_sequence, stream_info->closed_gop );
                 }
@@ -518,6 +532,8 @@ static void dump_stream_info( void *info, stream_info_t *stream_info, uint8_t vi
         {
             if( mpeg_api_get_audio_frame( info, i, stream_info ) )
                 break;
+            if( pts_limit < stream_info->audio_pts )
+                break;
             int64_t pts = stream_info->audio_pts;
             int64_t dts = stream_info->audio_dts;
             char mapping_info[8];
@@ -534,11 +550,13 @@ static void dump_stream_info( void *info, stream_info_t *stream_info, uint8_t vi
     }
 }
 
-static void dump_sample_info( void *info, stream_info_t *stream_info, uint8_t video_stream_num, uint8_t audio_stream_num )
+static void dump_sample_info( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num, uint8_t audio_stream_num )
 {
     static const char frame[4] = { '?', 'I', 'P', 'B' };
     if( mpeg_api_create_sample_list( info ) )
         return;
+    int64_t pts_limit = INT64_MAX_VALUE;
+    int64_t gop_limit = (p->gop_limit > 0) ? p->gop_limit - 1 : INT64_MAX_VALUE;
     for( uint8_t i = 0; i < video_stream_num; ++i )
     {
         dprintf( LOG_LV_OUTPUT, "[log] Video Stream[%3u]\n", i );
@@ -559,6 +577,11 @@ static void dump_sample_info( void *info, stream_info_t *stream_info, uint8_t vi
             {
                 if( gop_number < stream_info->gop_number )
                 {
+                    if( stream_info->gop_number > gop_limit )
+                    {
+                        pts_limit = pts;        // FIXME: This is not best, because don't check 1st frame by temporal_reference.
+                        break;
+                    }
                     gop_number = stream_info->gop_number;
                     dprintf( LOG_LV_OUTPUT, " [GOP:%6"PRId64"]  progr_sequence:%d  closed_gop:%d\n", gop_number, stream_info->progressive_sequence, stream_info->closed_gop );
                 }
@@ -580,6 +603,8 @@ static void dump_sample_info( void *info, stream_info_t *stream_info, uint8_t vi
         for( uint32_t j = 0; ; ++j )
         {
             if( mpeg_api_get_sample_info( info, SAMPLE_TYPE_AUDIO, i, j, stream_info ) )
+                break;
+            if( pts_limit < stream_info->audio_pts )
                 break;
             int64_t pts = stream_info->audio_pts;
             int64_t dts = stream_info->audio_dts;
@@ -1595,7 +1620,7 @@ static void parse_mpeg( param_t *p )
             goto end_parse;
         /* output. */
         static const struct {
-            void (*dump )( void *info, stream_info_t *stream_info, uint8_t video_stream_num, uint8_t audio_stream_num );
+            void (*dump )( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num, uint8_t audio_stream_num );
             void (*demux)( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num, uint8_t audio_stream_num );
         } output_func[USE_MAPI_TYPE_MAX] =
             {
@@ -1607,7 +1632,7 @@ static void parse_mpeg( param_t *p )
         switch( p->output_mode )
         {
             case OUTPUT_GET_INFO :
-                output_func[p->api_type].dump( info, stream_info, video_stream_num, audio_stream_num );
+                output_func[p->api_type].dump( p, info, stream_info, video_stream_num, audio_stream_num );
                 break;
             case OUTPUT_GET_SAMPLE_RAW :
             case OUTPUT_GET_SAMPLE_PES :
