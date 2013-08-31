@@ -562,7 +562,7 @@ static void dump_stream_info( param_t *p, void *info, stream_info_t *stream_info
         {
             if( mpeg_api_get_audio_frame( info, i, stream_info ) )
                 break;
-            if( pts_limit < stream_info->audio_pts )
+            if( pts_limit < stream_info->audio_pts && (stream_info->audio_pts - pts_limit) < p->wrap_around_check_v )
                 break;
             int64_t pts = stream_info->audio_pts;
             int64_t dts = stream_info->audio_dts;
@@ -660,7 +660,7 @@ static void dump_sample_info( param_t *p, void *info, stream_info_t *stream_info
         {
             if( mpeg_api_get_sample_info( info, SAMPLE_TYPE_AUDIO, i, j, stream_info ) )
                 break;
-            if( pts_limit < stream_info->audio_pts )
+            if( pts_limit < stream_info->audio_pts && (stream_info->audio_pts - pts_limit) < p->wrap_around_check_v )
                 break;
             int64_t pts = stream_info->audio_pts;
             int64_t dts = stream_info->audio_dts;
