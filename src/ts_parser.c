@@ -87,6 +87,7 @@ typedef struct {
     int64_t                 write_buffer_size;
     int64_t                 file_size;
     int64_t                 gop_limit;
+    int64_t                 frm_limit;
 } param_t;
 
 static const struct {
@@ -161,6 +162,7 @@ static void print_help( void )
         "                                   - 3 : 1st Video frame\n"
         "                                   (default: [V+A: 2] [A only: 3])\n"
         "       --gop-limit             Specify limit of GOP number in stream parsing.\n"
+        "       --frame-limit           Specify limit of frame number in stream parsing.\n"
         "       --debug <integer>       Specify output log level. [1-4]\n"
         "       --log <string>          Specify output file name of log.\n"
         "       --log-silent            Log: Suppress the output to stderr.\n"
@@ -320,6 +322,8 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
         }
         else if( !strcasecmp( argv[i], "--gop-limit" ) )
             p->gop_limit = atoi( argv[++i] );
+        else if( !strcasecmp( argv[i], "--frame-limit" ) )
+            p->frm_limit = atoi( argv[++i] );
         else if( !strcasecmp( argv[i], "--debug" ) )
         {
             log_level lv = atoi( argv[++i] );
@@ -486,16 +490,42 @@ static void dump_stream_info( param_t *p, void *info, stream_info_t *stream_info
     static const char frame[4] = { '?', 'I', 'P', 'B' };
     int64_t pts_limit = INT64_MAX_VALUE;
     int64_t gop_limit = (p->gop_limit > 0) ? p->gop_limit - 1 : INT64_MAX_VALUE;
+    int64_t frm_limit = (p->frm_limit > 0) ? p->frm_limit - 1 : INT64_MAX_VALUE;
     for( uint8_t i = 0; i < video_stream_num; ++i )
     {
         dprintf( LOG_LV_OUTPUT, "[log] Video Stream[%3u]\n", i );
         int64_t gop_number = -1;
+        int64_t max_pts    = MPEG_TIMESTAMP_INVALID_VALUE;
         for( uint32_t j = 0; ; ++j )
         {
             if( mpeg_api_get_video_frame( info, i, stream_info ) )
                 break;
             int64_t pts = stream_info->video_pts;
             int64_t dts = stream_info->video_dts;
+            if( frm_limit != INT64_MAX_VALUE )
+            {
+                if( j == 0 )
+                    max_pts = pts;
+                else
+                {
+                    int64_t diff = pts - max_pts;
+                    if( llabs(diff) > p->wrap_around_check_v )
+                    {
+                        if( diff < 0 )
+                            max_pts = pts;
+                    }
+                    else
+                    {
+                        if( max_pts < pts )
+                            max_pts = pts;
+                    }
+                }
+            }
+            if( j > frm_limit )
+            {
+                pts_limit = max_pts;
+                break;
+            }
             if( stream_info->gop_number < 0 )
             {
                 dprintf( LOG_LV_OUTPUT, " [no GOP Picture data]" );
@@ -557,17 +587,43 @@ static void dump_sample_info( param_t *p, void *info, stream_info_t *stream_info
         return;
     int64_t pts_limit = INT64_MAX_VALUE;
     int64_t gop_limit = (p->gop_limit > 0) ? p->gop_limit - 1 : INT64_MAX_VALUE;
+    int64_t frm_limit = (p->frm_limit > 0) ? p->frm_limit - 1 : INT64_MAX_VALUE;
     for( uint8_t i = 0; i < video_stream_num; ++i )
     {
         dprintf( LOG_LV_OUTPUT, "[log] Video Stream[%3u]\n", i );
         uint32_t no_gop_picture_num = 0;
         int64_t  gop_number         = -1;
+        int64_t  max_pts            = MPEG_TIMESTAMP_INVALID_VALUE;
         for( uint32_t j = 0; ; ++j )
         {
             if( mpeg_api_get_sample_info( info, SAMPLE_TYPE_VIDEO, i, j, stream_info ) )
                 break;
             int64_t pts = stream_info->video_pts;
             int64_t dts = stream_info->video_dts;
+            if( frm_limit != INT64_MAX_VALUE )
+            {
+                if( j == 0 )
+                    max_pts = pts;
+                else
+                {
+                    int64_t diff = pts - max_pts;
+                    if( llabs(diff) > p->wrap_around_check_v )
+                    {
+                        if( diff < 0 )
+                            max_pts = pts;
+                    }
+                    else
+                    {
+                        if( max_pts < pts )
+                            max_pts = pts;
+                    }
+                }
+            }
+            if( j > frm_limit )
+            {
+                pts_limit = max_pts;
+                break;
+            }
             if( stream_info->gop_number < 0 )
             {
                 dprintf( LOG_LV_OUTPUT, " [no GOP Picture data]" );
