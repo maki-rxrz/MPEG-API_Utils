@@ -48,36 +48,36 @@ extern int64_t mpeg_pes_get_timestamp( uint8_t *time_stamp_data )
 extern int mpeg_pes_check_start_code( uint8_t *start_code, mpeg_pes_packet_start_code_type start_code_type )
 {
     static const uint8_t pes_start_code_common_head[PES_PACKET_START_CODE_SIZE - 1] = { 0x00, 0x00, 0x01 };
-    static const struct {
-        uint8_t     mask;
-        uint8_t     code;
-    } pes_stream_id_list[PES_PACKET_START_CODE_MAX] =
+    static const uint8_t pes_start_codes[PES_PACKET_START_CODE_MAX] =
         {
             /* MPEG-1/2 stream type. */
-            { 0xBD, 0xBD },         /* Private Stream 1             */
-            { 0xBE, 0xBE },         /* Padding Stream               */
-            { 0xBF, 0xBF },         /* Private Stream 2             */
-            { 0xF0, 0xE0 },         /* Video Stream                 */
-            { 0xE0, 0xC0 },         /* Audio Stream                 */
-            { 0xF3, 0xF3 },         /* MHEG Reserved                */
+            0xBD,       /* Private Stream 1             */
+            0xBE,       /* Padding Stream               */
+            0xBF,       /* Private Stream 2             */
+            0xE0,       /* Video Stream                 */
+            0xC0,       /* Audio Stream                 */
+            0xF3,       /* MHEG Reserved                */
             /* MPEG-2 stream type. */
-            { 0xBC, 0xBC },         /* Program Stream Map           */
-            { 0xF0, 0xF0 },         /* License Management Message 1 */
-            { 0xF1, 0xF1 },         /* License Management Message 2 */
-            { 0xF2, 0xF2 },         /* DSM Control Command          */
-            { 0xF4, 0xFC },         /* ITU-T Reserved               */
-            { 0xF8, 0xF8 },         /* ITU-T Reserved               */
-            { 0xF9, 0xF9 },         /* PS Trasnport on TS           */
-            { 0xFF, 0xFF },         /* Program Stream Directory     */
+            0xBC,       /* Program Stream Map           */
+            0xF0,       /* License Management Message 1 */
+            0xF1,       /* License Management Message 2 */
+            0xF2,       /* DSM Control Command          */
+            0xFC,       /* ITU-T Reserved               */
+            0xF8,       /* ITU-T Reserved               */
+            0xF9,       /* PS Trasnport on TS           */
+            0xFF,       /* Program Stream Directory     */
             /* User Private */
-            { 0xFF, 0xE2 },         /* MPEG-4 AVC Stream            */
-            { 0xFF, 0x0F },         /* VC-1 Video Stream 1          */
-            { 0xFF, 0x0D },         /* VC-1 Video Stream 2          */
-            { 0xFF, 0xFD }          /* AC-3/DTS Audio Stream        */
+            0xE2,       /* MPEG-4 AVC Stream            */
+            0x0F,       /* VC-1 Video Stream 1          */
+            0x0D,       /* VC-1 Video Stream 2          */
+            0xFD        /* AC-3/DTS Audio Stream        */
         };
+    uint8_t mask = (start_code_type == PES_PACKET_START_CODE_VIDEO_STREAM) ? 0xF0
+                 : (start_code_type == PES_PACKET_START_CODE_AUDIO_STREAM) ? 0xE0
+                 :                                                           0xFF;
     if( memcmp( start_code, pes_start_code_common_head, PES_PACKET_START_CODE_SIZE - 1 ) )
         return -1;
-    if( (start_code[PES_PACKET_START_CODE_SIZE - 1] & pes_stream_id_list[start_code_type].mask) != pes_stream_id_list[start_code_type].code )
+    if( (start_code[PES_PACKET_START_CODE_SIZE - 1] & mask) != pes_start_codes[start_code_type] )
         return -1;
     return 0;
 }
