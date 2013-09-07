@@ -76,7 +76,7 @@ typedef struct {
     uint8_t         dsm_trick_mode_flag;
     uint8_t         additional_copy_info_flag;
     uint8_t         crc_flag;
-    uint8_t         extention_flag;
+    uint8_t         extension_flag;
     uint8_t         header_length;
 } mpeg_pes_header_info_t;
 

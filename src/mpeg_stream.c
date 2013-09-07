@@ -98,7 +98,7 @@ extern void mpeg_pes_get_header_info( uint8_t *buf, mpeg_pes_header_info_t *pes_
     pes_info->dsm_trick_mode_flag       = !!(buf[3] & 0x08);
     pes_info->additional_copy_info_flag = !!(buf[3] & 0x04);
     pes_info->crc_flag                  = !!(buf[3] & 0x02);
-    pes_info->extention_flag            = !!(buf[3] & 0x01);
+    pes_info->extension_flag            = !!(buf[3] & 0x01);
     pes_info->header_length             =    buf[4];
 }
 
