@@ -916,7 +916,13 @@ static uint16_t mpegts_get_program_id( mpegts_info_t *info, mpeg_stream_type str
     return info->pid_list_in_pmt[pid_list_index].program_id;
 }
 
-static int mpegts_get_stream_timestamp( mpegts_file_context_t *file, uint16_t program_id, mpeg_pes_packet_start_code_type start_code, int64_t *pts_set_p, int64_t *dts_set_p )
+static int mpegts_get_stream_timestamp
+(
+    mpegts_file_context_t              *file,
+    uint16_t                            program_id,
+    mpeg_pes_packet_start_code_type     start_code,
+    mpeg_timestamp_t                   *timestamp
+)
 {
     dprintf( LOG_LV2, "[check] mpegts_get_stream_timestamp()\n" );
     mpegts_packet_header_t h;
@@ -970,8 +976,8 @@ static int mpegts_get_stream_timestamp( mpegts_file_context_t *file, uint16_t pr
     }
     while( pts == MPEG_TIMESTAMP_INVALID_VALUE );
     /* setup. */
-    *pts_set_p = pts;
-    *dts_set_p = dts;
+    timestamp->pts = pts;
+    timestamp->dts = dts;
     /* ready next. */
     mpegts_file_seek( file, read_pos, MPEGTS_SEEK_RESET );      /* reset start position of detect packet. */
     file->read_position      = read_pos;
@@ -1904,8 +1910,8 @@ static int get_video_info( void *ih, uint8_t stream_number, video_sample_info_t 
     /* check PES start code. */
     mpeg_pes_packet_start_code_type start_code = mpeg_pes_get_stream_start_code( stream_judge );
     /* get timestamp. */
-    int64_t pts = MPEG_TIMESTAMP_INVALID_VALUE, dts = MPEG_TIMESTAMP_INVALID_VALUE;
-    if( mpegts_get_stream_timestamp( file_read, program_id, start_code, &pts, &dts ) )
+    mpeg_timestamp_t ts = { MPEG_TIMESTAMP_INVALID_VALUE, MPEG_TIMESTAMP_INVALID_VALUE };
+    if( mpegts_get_stream_timestamp( file_read, program_id, start_code, &ts ) )
         return -1;
     int64_t start_position = file_read->read_position;
     /* check raw data. */
@@ -1954,8 +1960,8 @@ static int get_video_info( void *ih, uint8_t stream_number, video_sample_info_t 
     video_sample_info->sample_size          = TS_PACKET_SIZE * ts_packet_count;
     video_sample_info->raw_data_size        = raw_data_info.data_size;
     video_sample_info->raw_data_read_offset = raw_data_info.read_offset;
-    video_sample_info->pts                  = pts;
-    video_sample_info->dts                  = dts;
+    video_sample_info->pts                  = ts.pts;
+    video_sample_info->dts                  = ts.dts;
     video_sample_info->gop_number           = gop_number;
     video_sample_info->progressive_sequence = progressive_sequence;
     video_sample_info->closed_gop           = closed_gop;
@@ -1967,7 +1973,7 @@ static int get_video_info( void *ih, uint8_t stream_number, video_sample_info_t 
     video_sample_info->top_field_first      = top_field_first;
     static const char frame[4] = { '?', 'I', 'P', 'B' };
     dprintf( LOG_LV2, "[check] Video PTS:%"PRId64" [%"PRId64"ms], [%c] temporal_reference:%d\n"
-                    , pts, pts / 90, frame[picture_coding_type], temporal_reference );
+                    , ts.pts, ts.pts / 90, frame[picture_coding_type], temporal_reference );
     dprintf( LOG_LV2, "[check] file position:%"PRId64"\n", start_position );
     /* ready next. */
     file_read->sync_byte_position = -1;
@@ -1988,8 +1994,8 @@ static int get_audio_info( void *ih, uint8_t stream_number, audio_sample_info_t 
     /* check PES start code. */
     mpeg_pes_packet_start_code_type start_code = mpeg_pes_get_stream_start_code( stream_judge );
     /* get timestamp. */
-    int64_t pts = MPEG_TIMESTAMP_INVALID_VALUE, dts = MPEG_TIMESTAMP_INVALID_VALUE;
-    if( mpegts_get_stream_timestamp( file_read, program_id, start_code, &pts, &dts ) )
+    mpeg_timestamp_t ts = { MPEG_TIMESTAMP_INVALID_VALUE, MPEG_TIMESTAMP_INVALID_VALUE };
+    if( mpegts_get_stream_timestamp( file_read, program_id, start_code, &ts ) )
         return -1;
     int64_t start_position = file_read->read_position;
     /* check raw data. */
@@ -2008,14 +2014,14 @@ static int get_audio_info( void *ih, uint8_t stream_number, audio_sample_info_t 
     audio_sample_info->sample_size          = TS_PACKET_SIZE * ts_packet_count;
     audio_sample_info->raw_data_size        = raw_data_info.data_size;
     audio_sample_info->raw_data_read_offset = raw_data_info.read_offset;
-    audio_sample_info->pts                  = pts;
-    audio_sample_info->dts                  = dts;
+    audio_sample_info->pts                  = ts.pts;
+    audio_sample_info->dts                  = ts.dts;
     audio_sample_info->sampling_frequency   = raw_data_info.stream_raw_info.sampling_frequency;
     audio_sample_info->bitrate              = raw_data_info.stream_raw_info.bitrate;
     audio_sample_info->channel              = raw_data_info.stream_raw_info.channel;
     audio_sample_info->layer                = raw_data_info.stream_raw_info.layer;
     audio_sample_info->bit_depth            = raw_data_info.stream_raw_info.bit_depth;
-    dprintf( LOG_LV2, "[check] Audio PTS:%"PRId64" [%"PRId64"ms]\n", pts, pts / 90 );
+    dprintf( LOG_LV2, "[check] Audio PTS:%"PRId64" [%"PRId64"ms]\n", ts.pts, ts.pts / 90 );
     dprintf( LOG_LV2, "[check] file position:%"PRId64"\n", start_position );
     /* ready next. */
     file_read->sync_byte_position = -1;

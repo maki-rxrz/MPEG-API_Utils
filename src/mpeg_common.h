@@ -156,6 +156,11 @@ typedef enum {
     MPEG_AUDIO_SPEAKER_R_3CHANNELS   = MPEG_AUDIO_SPEAKER_REAR_SRROUND | MPEG_AUDIO_SPEAKER_R_2CHANNELS
 } mpeg_audio_speaker_mapping_type;
 
+typedef struct {
+    int64_t             pts;
+    int64_t             dts;
+} mpeg_timestamp_t;
+
 typedef void (*get_stream_data_cb_func)( void *cb_params, void *cb_ret );
 
 typedef struct {

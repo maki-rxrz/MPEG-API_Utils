@@ -177,7 +177,7 @@ end_parse_stream_type:
     return result;
 }
 
-static void mpeges_get_stream_timestamp( mpeges_info_t *info, int64_t *pts_set_p, int64_t *dts_set_p )
+static void mpeges_get_stream_timestamp( mpeges_info_t *info, mpeg_timestamp_t *timestamp )
 {
     dprintf( LOG_LV2, "[check] mpeges_get_stream_timestamp()\n" );
     dprintf( LOG_LV3, "[debug] fps: %u / %u\n"
@@ -192,11 +192,11 @@ static void mpeges_get_stream_timestamp( mpeges_info_t *info, int64_t *pts_set_p
     int64_t pts = info->timestamp_base * (info->total_picture_num + info->video_info->picture.temporal_reference);
     int64_t dts = (info->video_info->picture.picture_coding_type != MPEG_VIDEO_B_FRAME
                  && info->video_info->picture.temporal_reference != info->picture_num)
-                 ? info->timestamp_base * (info->total_picture_num + info->picture_num - 1)
-                 : pts;
+                ? info->timestamp_base * (info->total_picture_num + info->picture_num - 1)
+                : pts;
     /* setup. */
-    *pts_set_p = pts;
-    *dts_set_p = dts;
+    timestamp->pts = pts;
+    timestamp->dts = dts;
 }
 
 static int mpeges_get_mpeg_video_picture_info( mpeges_info_t *info )
@@ -432,15 +432,15 @@ static int get_video_info( void *ih, uint8_t stream_number, video_sample_info_t 
     /* search next start position. */
     int64_t read_last_position = mpeges_seek_next_start_position( info );
     /* get timestamp. */
-    int64_t pts = MPEG_TIMESTAMP_INVALID_VALUE, dts = MPEG_TIMESTAMP_INVALID_VALUE;
-    mpeges_get_stream_timestamp( info, &pts, &dts );
+    mpeg_timestamp_t ts = { MPEG_TIMESTAMP_INVALID_VALUE, MPEG_TIMESTAMP_INVALID_VALUE };
+    mpeges_get_stream_timestamp( info, &ts );
     /* setup. */
     video_sample_info->file_position        = info->read_position;
     video_sample_info->sample_size          = /* raw_data_size */
     video_sample_info->raw_data_size        = read_last_position - info->read_position;
     video_sample_info->raw_data_read_offset = 0;
-    video_sample_info->pts                  = pts;
-    video_sample_info->dts                  = dts;
+    video_sample_info->pts                  = ts.pts;
+    video_sample_info->dts                  = ts.dts;
     video_sample_info->gop_number           = gop_number;
     video_sample_info->progressive_sequence = progressive_sequence;
     video_sample_info->closed_gop           = closed_gop;
@@ -452,7 +452,7 @@ static int get_video_info( void *ih, uint8_t stream_number, video_sample_info_t 
     video_sample_info->top_field_first      = top_field_first;
     static const char frame[4] = { '?', 'I', 'P', 'B' };
     dprintf( LOG_LV2, "[check] Video PTS:%"PRId64" [%"PRId64"ms], [%c] temporal_reference:%d\n"
-                    , pts, pts / 90, frame[picture_coding_type], temporal_reference );
+                    , ts.pts, ts.pts / 90, frame[picture_coding_type], temporal_reference );
     dprintf( LOG_LV2, "[check] file position:%"PRId64"\n", info->read_position );
     /* ready next. */
     info->video_position = read_last_position;
