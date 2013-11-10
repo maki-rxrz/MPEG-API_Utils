@@ -1682,7 +1682,7 @@ static void parse_mpeg( param_t *p )
                                   , pcr_info->last_pcr , pcr_info->last_pcr  / 90 );
             if( pcr_info->start_pcr > pcr_info->last_pcr )
             {
-                int64_t duration = MPEG_TIMESTAMP_WRAPAROUND_VALUE + pcr_info->last_pcr - pcr_info->start_pcr;
+                int64_t duration = MPEG_TIMESTAMP_WRAPAROUND_VALUE - pcr_info->start_pcr;
                 duration /= 90;
                 dprintf( LOG_LV_OUTPUT, "  wrap-around: %02d:%02d:%02d.%03d\n"
                                       , duration / 3600000, duration / 60000, duration / 1000 % 60
