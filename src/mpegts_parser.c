@@ -1179,8 +1179,8 @@ static uint32_t mpegts_get_sample_packets_num( mpegts_file_context_t *file, uint
 static int mpegts_check_sample_raw_frame_length( mpegts_file_context_t *file, uint16_t program_id, mpeg_stream_type stream_type, mpeg_stream_group_type stream_judge, uint32_t frame_length, uint8_t *cache_buffer, int32_t cache_read_size )
 {
     dprintf( LOG_LV4, "[debug] mpegts_check_sample_raw_frame_length()\n" );
-    int result = -1;
-    int64_t start_position = mpegts_ftell( file );
+    int     result                   = -1;
+    int64_t start_position           = mpegts_ftell( file );
     int32_t start_rest_packet_length = file->ts_packet_length;
     /* check. */
     int32_t stream_header_check_size = mpeg_stream_get_header_check_size( stream_type, stream_judge );
