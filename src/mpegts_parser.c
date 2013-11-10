@@ -102,6 +102,8 @@ typedef struct {
 #ifdef NEED_OPCR_VALUE
     int64_t                     opcr;
 #endif
+    int64_t                     start_pcr;
+    int64_t                     last_pcr;
     pmt_target_type             pmt_target;
 } mpegts_info_t;
 
@@ -837,10 +839,10 @@ fail_parse:
     return -1;
 }
 
-static int mpegts_get_pcr( mpegts_info_t *info )
+static int mpegts_get_pcr( mpegts_info_t *info, int64_t *pcr )
 {
     dprintf( LOG_LV2, "[check] mpegts_get_pcr()\n" );
-    info->pcr = -1;
+    *pcr = MPEG_TIMESTAMP_INVALID_VALUE;
     uint16_t program_id = info->pcr_program_id;
     if( program_id & MPEGTS_ILLEGAL_PROGRAM_ID_MASK )
         return -1;
@@ -875,7 +877,7 @@ static int mpegts_get_pcr( mpegts_info_t *info )
                 tsp_get_pcr( &(adpf_data[1]), &pcr_value );
                 dprintf( LOG_LV3, "[check] PCR_value:%"PRId64"\n", pcr_value );
                 /* setup. */
-                info->pcr = pcr_value;
+                *pcr = pcr_value;
             }
             if( adpf_header.opcr_flag )
             {
@@ -891,11 +893,52 @@ static int mpegts_get_pcr( mpegts_info_t *info )
         /* ready next. */
         mpegts_file_seek( &(info->file_read), 0, MPEGTS_SEEK_NEXT );
     }
-    while( info->pcr < 0 );
-    dprintf( LOG_LV2, "[check] PCR:%"PRId64" [%"PRId64"ms]\n", info->pcr, info->pcr / 90 );
+    while( *pcr == MPEG_TIMESTAMP_INVALID_VALUE );
+    dprintf( LOG_LV2, "[check] PCR:%"PRId64" [%"PRId64"ms]\n", *pcr, *pcr / 90 );
     dprintf( LOG_LV2, "[check] file position:%"PRId64"\n", read_pos );
     /* ready next. */
     info->file_read.read_position = read_pos;
+    return 0;
+}
+
+static int mpegts_parse_pcr( mpegts_info_t *info )
+{
+    dprintf( LOG_LV2, "[check] mpegts_parse_pcr()\n" );
+    int64_t reset_position = mpegts_ftell( &(info->file_read) );
+    /* get start pcr. */
+    if( mpegts_get_pcr( info, &(info->start_pcr) ) )
+        return -1;
+    /* get last pcr. */
+    int64_t rewind_size = info->file_read.packet_size * 100;
+    int64_t seek_offset = info->file_size - reset_position;
+    seek_offset -= seek_offset % info->file_read.packet_size;
+    while( 1 )
+    {
+        int64_t last_pcr = -1;
+        /* seek position. */
+        seek_offset -= rewind_size;
+        if( seek_offset > 0 )
+        {
+            mpegts_file_seek( &(info->file_read), reset_position + seek_offset, MPEGTS_SEEK_RESET );
+            mpegts_packet_header_t h;
+            if( mpegts_search_program_id_packet( &(info->file_read), &h, info->pcr_program_id ) )
+                continue;
+            mpegts_file_seek( &(info->file_read), -(info->file_read.packet_size), MPEGTS_SEEK_CUR );
+        }
+        else
+        {
+            mpegts_file_seek( &(info->file_read), reset_position, MPEGTS_SEEK_RESET );
+            info->last_pcr = info->start_pcr;
+        }
+        /* search last pcr. */
+        while( !mpegts_get_pcr( info, &last_pcr ) )
+            info->last_pcr = last_pcr;
+        break;
+    }
+    /* reset position. */
+    mpegts_file_seek( &(info->file_read), reset_position, MPEGTS_SEEK_RESET );
+    dprintf( LOG_LV2, "[check] start PCR:%"PRId64" [%"PRId64"ms]\n", info->start_pcr, info->start_pcr / 90 );
+    dprintf( LOG_LV2, "[check]  last PCR:%"PRId64" [%"PRId64"ms]\n", info->last_pcr, info->last_pcr / 90 );
     return 0;
 }
 
@@ -1879,20 +1922,19 @@ static uint8_t get_stream_num( void *ih, mpeg_sample_type sample_type )
     return stream_num;
 }
 
-static int64_t get_pcr( void *ih )
+static int get_pcr( void *ih, pcr_info_t *pcr_info )
 {
     mpegts_info_t *info = (mpegts_info_t *)ih;
     if( !info )
         return -1;
-    if( info->pcr < 0 )
-    {
-        int64_t start_position = mpegts_ftell( &(info->file_read) );
-        int result = mpegts_get_pcr( info );
-        mpegts_file_seek( &(info->file_read), start_position, MPEGTS_SEEK_RESET );
-        if( result )
-            return -1;
-    }
-    return info->pcr;
+    int64_t reset_position = mpegts_ftell( &(info->file_read) );
+    int result = mpegts_get_pcr( info, &(info->pcr) );
+    mpegts_file_seek( &(info->file_read), reset_position, MPEGTS_SEEK_RESET );
+    /* setup. */
+    pcr_info->pcr       = info->pcr;
+    pcr_info->start_pcr = info->start_pcr;
+    pcr_info->last_pcr  = info->last_pcr;
+    return result;
 }
 
 static int get_video_info( void *ih, uint8_t stream_number, video_sample_info_t *video_sample_info )
@@ -2220,7 +2262,7 @@ static int parse_pmt_info( mpegts_info_t *info )
     dprintf( LOG_LV2, "[check] [sub] parse_pmt_info()\n" );
     if( mpegts_parse_pmt( info ) )
         goto fail_parse;
-    if( mpegts_get_pcr( info ) )
+    if( mpegts_parse_pcr( info ) )
         goto fail_parse;
     return 0;
 fail_parse:
@@ -2244,7 +2286,9 @@ static int set_pmt_program_id( mpegts_info_t *info, uint16_t program_id )
     info->file_read.sync_byte_position = 0;
     info->file_read.read_position      = -1;
     info->pcr_program_id               = TS_PID_ERR;
-    info->pcr                          = -1;
+    info->pcr                          = MPEG_TIMESTAMP_INVALID_VALUE;
+    info->start_pcr                    = MPEG_TIMESTAMP_INVALID_VALUE;
+    info->last_pcr                     = MPEG_TIMESTAMP_INVALID_VALUE;
     release_stream_handle( info );
     if( info->pid_list_in_pmt )
     {
@@ -2379,7 +2423,9 @@ static void *initialize( const char *input_file, int64_t buffer_size )
     info->file_read.packet_check_count_num = TS_PACKET_SEARCH_CHECK_COUNT_NUM;
     info->packet_check_retry_num           = TS_PACKET_SEARCH_RETRY_COUNT_NUM;
     info->pcr_program_id                   = TS_PID_ERR;
-    info->pcr                              = -1;
+    info->pcr                              = MPEG_TIMESTAMP_INVALID_VALUE;
+    info->start_pcr                        = MPEG_TIMESTAMP_INVALID_VALUE;
+    info->last_pcr                         = MPEG_TIMESTAMP_INVALID_VALUE;
     /* first check. */
     if( mpegts_first_check( &(info->file_read) ) )
         goto fail_initialize;

@@ -152,6 +152,7 @@ static void print_help( void )
         "                                   - v  : video only\n"
         "                                   - a  : audio only\n"
         "                                   - va : video/audio\n"
+        "                                   - p  : pcr only\n"
         "       --demux-mode <integer>  Specify output demux mode. [0-1]\n"
         "                                   - 0 : Sequential read\n"
         "                                   - 1 : Multi-thread read\n"
@@ -161,6 +162,7 @@ static void print_help( void )
         "                                   - 2 : GOP 1st frame\n"
         "                                   - 3 : 1st Video frame\n"
         "                                   (default: [V+A: 2] [A only: 3])\n"
+        "       --pcr                   Parse pcr only.\n"
         "       --gop-limit             Specify limit of GOP number in stream parsing.\n"
         "       --frame-limit           Specify limit of frame number in stream parsing.\n"
         "       --debug <integer>       Specify output log level. [1-4]\n"
@@ -311,6 +313,10 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
                 p->output_stream = OUTPUT_STREAM_VIDEO;
             else if( !strncasecmp( c, "a", 1 ) )
                 p->output_stream = OUTPUT_STREAM_AUDIO;
+            else if( !strncasecmp( c, "p", 1 ) )
+                p->output_stream = OUTPUT_STREAM_NONE_PCR_ONLY;
+            else
+                p->output_stream = OUTPUT_STREAM_NONE;
         }
         else if( !strcasecmp( argv[i], "--demux-mode" ) )
             p->demux_mode = atoi( argv[++i] );
@@ -388,9 +394,10 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
                     default :
                         break;
                 }
-            if( output_stream != OUTPUT_STREAM_NONE )
-                p->output_stream = output_stream;
+            p->output_stream = output_stream;
         }
+        else if( !strcasecmp( argv[i], "--pcr" ) )
+            p->output_stream = OUTPUT_STREAM_NONE_PCR_ONLY;
         ++i;
     }
     if( i < argc )
@@ -1651,8 +1658,9 @@ static void parse_mpeg( param_t *p )
     void *info = mpeg_api_initialize_info( p->input, p->read_buffer_size );
     if( !info )
         return;
+    pcr_info_t    *pcr_info    = malloc( sizeof(*pcr_info) );
     stream_info_t *stream_info = malloc( sizeof(*stream_info) );
-    if( !stream_info )
+    if( !pcr_info || !stream_info )
         goto end_parse;
     if( p->pmt_program_id )
         if( 0 > mpeg_api_set_pmt_program_id( info, p->pmt_program_id ) )
@@ -1665,9 +1673,24 @@ static void parse_mpeg( param_t *p )
         /* check file size. */
         p->file_size = get_file_size( p->input );
         /* check PCR. */
-        int64_t pcr = mpeg_api_get_pcr( info );
-        if( pcr >= 0 )
-            dprintf( LOG_LV_OUTPUT, "[log] pcr: %10"PRId64"  [%8"PRId64"ms]\n", pcr, pcr / 90 );
+        if( !mpeg_api_get_pcr( info, pcr_info ) )
+        {
+            dprintf( LOG_LV_OUTPUT, "[log] pcr information\n"
+                                    "  start pcr: %10"PRId64"  [%8"PRId64"ms]\n"
+                                    "   last pcr: %10"PRId64"  [%8"PRId64"ms]\n"
+                                  , pcr_info->start_pcr, pcr_info->start_pcr / 90
+                                  , pcr_info->last_pcr , pcr_info->last_pcr  / 90 );
+            if( pcr_info->start_pcr > pcr_info->last_pcr )
+            {
+                int64_t duration = MPEG_TIMESTAMP_WRAPAROUND_VALUE + pcr_info->last_pcr - pcr_info->start_pcr;
+                duration /= 90;
+                dprintf( LOG_LV_OUTPUT, "  wrap-around: %02d:%02d:%02d.%03d\n"
+                                      , duration / 3600000, duration / 60000, duration / 1000 % 60
+                                      , duration % 1000 );
+            }
+        }
+        if( p->output_stream == OUTPUT_STREAM_NONE_PCR_ONLY )
+            goto end_parse;
         /* check Video and Audio information. */
         uint8_t video_stream_num = mpeg_api_get_stream_num( info, SAMPLE_TYPE_VIDEO );
         uint8_t audio_stream_num = mpeg_api_get_stream_num( info, SAMPLE_TYPE_AUDIO );
@@ -1675,6 +1698,8 @@ static void parse_mpeg( param_t *p )
         if( !video_stream_num && !audio_stream_num )
             goto end_parse;
         /* output. */
+        if( p->output_stream == OUTPUT_STREAM_NONE )
+            goto end_parse;
         static const struct {
             void (*dump )( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num, uint8_t audio_stream_num );
             void (*demux)( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num, uint8_t audio_stream_num );
@@ -1705,6 +1730,8 @@ static void parse_mpeg( param_t *p )
     else
         dprintf( LOG_LV0, "[log] MPEG no read.\n" );
 end_parse:
+    if( pcr_info )
+        free( pcr_info );
     if( stream_info )
         free( stream_info );
     mpeg_api_release_info( info );

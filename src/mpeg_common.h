@@ -50,10 +50,11 @@ typedef enum {
 } get_sample_data_mode;
 
 typedef enum {
-    OUTPUT_STREAM_NONE    = 0x00,
-    OUTPUT_STREAM_VIDEO   = 0x01,
-    OUTPUT_STREAM_AUDIO   = 0x02,
-    OUTPUT_STREAM_BOTH_VA = 0x03
+    OUTPUT_STREAM_NONE          = 0x00,
+    OUTPUT_STREAM_VIDEO         = 0x01,
+    OUTPUT_STREAM_AUDIO         = 0x02,
+    OUTPUT_STREAM_BOTH_VA       = 0x03,
+    OUTPUT_STREAM_NONE_PCR_ONLY = 0x04
 } output_stream_type;
 
 typedef enum {
@@ -160,6 +161,12 @@ typedef struct {
     int64_t             pts;
     int64_t             dts;
 } mpeg_timestamp_t;
+
+typedef struct {
+    int64_t             pcr;
+    int64_t             start_pcr;
+    int64_t             last_pcr;
+} pcr_info_t;
 
 typedef void (*get_stream_data_cb_func)( void *cb_params, void *cb_ret );
 

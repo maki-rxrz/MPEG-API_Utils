@@ -763,12 +763,12 @@ MAPI_EXPORT int mpeg_api_free_sample_buffer( void *ih, uint8_t **buffer )
     return 0;
 }
 
-MAPI_EXPORT int64_t mpeg_api_get_pcr( void *ih )
+MAPI_EXPORT int mpeg_api_get_pcr( void *ih, pcr_info_t *pcr_info )
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
         return -1;
-    return info->parser->get_pcr( info->parser_info );
+    return info->parser->get_pcr( info->parser_info, pcr_info );
 }
 
 MAPI_EXPORT int mpeg_api_get_video_frame( void *ih, uint8_t stream_number, stream_info_t *stream_info )
@@ -872,8 +872,11 @@ MAPI_EXPORT int mpeg_api_get_stream_info( void *ih, stream_info_t *stream_info, 
     /* get audio. */
     audio_sample_info_t audio_sample_info;
     check_stream_exist |= parser->get_audio_info( parser_info, stream_number, &audio_sample_info ) ? AUDIO_NONE : 0;
+    /* get pcr. */
+    pcr_info_t pcr_info;
+    parser->get_pcr( info->parser_info, &pcr_info );
     /* setup. */
-    stream_info->pcr                = parser->get_pcr( info->parser_info );
+    stream_info->pcr                = pcr_info.pcr < pcr_info.start_pcr ? pcr_info.start_pcr : pcr_info.pcr;
     stream_info->video_pts          = video_sample_info.pts;
     stream_info->audio_pts          = audio_sample_info.pts;
     stream_info->sampling_frequency = audio_sample_info.sampling_frequency;

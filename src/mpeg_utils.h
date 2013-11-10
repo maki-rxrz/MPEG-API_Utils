@@ -92,7 +92,7 @@ MAPI_EXPORT int mpeg_api_get_sample_data( void *ih, mpeg_sample_type sample_type
 
 MAPI_EXPORT int mpeg_api_free_sample_buffer( void *ih, uint8_t **buffer );
 
-MAPI_EXPORT int64_t mpeg_api_get_pcr( void *ih );
+MAPI_EXPORT int mpeg_api_get_pcr( void *ih, pcr_info_t *pcr_info );
 
 MAPI_EXPORT int mpeg_api_get_video_frame( void *ih, uint8_t stream_number, stream_info_t *stream_info );
 

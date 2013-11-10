@@ -406,7 +406,7 @@ static uint8_t get_stream_num( void *ih, mpeg_sample_type sample_type )
     return (sample_type == SAMPLE_TYPE_VIDEO);
 }
 
-static int64_t get_pcr( void *ih )
+static int get_pcr( void *ih, pcr_info_t *pcr_info )
 {
     return -1;
 }
