@@ -1756,13 +1756,13 @@ static int get_specific_stream_data( void *ih, get_sample_data_mode get_mode, ou
     switch( get_mode )
     {
         case GET_SAMPLE_DATA_CONTAINER :
-            read_size   = file->ts_packet_length;
+            read_size = file->ts_packet_length;
             break;
         case GET_SAMPLE_DATA_PES_PACKET :
             /* seek payload data. */
             if( mpegts_seek_packet_payload_data( file, &h, stream->program_id, INDICATOR_UNCHECKED ) )
                 return -1;
-            read_size   = file->ts_packet_length;
+            read_size = file->ts_packet_length;
             break;
         case GET_SAMPLE_DATA_RAW :
             if( file->read_position == stream->file_read.read_position )
@@ -1778,20 +1778,15 @@ static int get_specific_stream_data( void *ih, get_sample_data_mode get_mode, ou
                 stream->file_read.read_position    = reset_position;
                 stream->file_read.ts_packet_length = TS_PACKET_SIZE;
             }
-            /* seek payload data. */
-            while( 1 )
+            /* seek PES payload data */
+            if( mpegts_seek_packet_payload_data( file, &h, stream->program_id, INDICATOR_UNCHECKED ) )
+                return -1;
+            if( h.payload_unit_start_indicator )
             {
-                /* seek PES payload data */
-                if( mpegts_seek_packet_payload_data( file, &h, stream->program_id, INDICATOR_UNCHECKED ) )
-                    return -1;
-                if( h.payload_unit_start_indicator )
-                {
-                    mpeg_pes_header_info_t pes_info;
-                    GET_PES_PACKET_HEADER( file, pes_info );
-                    /* skip PES packet header. */
-                    mpegts_file_seek( file, pes_info.header_length, MPEGTS_SEEK_CUR );
-                }
-                break;
+                mpeg_pes_header_info_t pes_info;
+                GET_PES_PACKET_HEADER( file, pes_info );
+                /* skip PES packet header. */
+                mpegts_file_seek( file, pes_info.header_length, MPEGTS_SEEK_CUR );
             }
             read_size = file->ts_packet_length;
             break;
