@@ -1812,8 +1812,8 @@ static int get_specific_stream_data( void *ih, get_sample_data_mode get_mode, ou
         };
         cb->func( cb->params, (void *)&cb_ret );
     }
-    ///* ready next. */
-    //mpegts_file_seek( file, 0, MPEGTS_SEEK_NEXT );
+    /* ready next. */
+    mpegts_file_seek( file, 0, MPEGTS_SEEK_NEXT );
     return 0;
 }
 
@@ -1901,8 +1901,8 @@ static int get_stream_data( void *ih, mpeg_sample_type sample_type, uint8_t stre
         };
         cb->func( cb->params, (void *)&cb_ret );
     }
-    ///* ready next. */
-    //mpegts_file_seek( file, 0, MPEGTS_SEEK_NEXT );
+    /* ready next. */
+    mpegts_file_seek( file, 0, MPEGTS_SEEK_NEXT );
     return read_offset;
 }
 
