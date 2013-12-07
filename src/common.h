@@ -96,10 +96,11 @@ typedef enum {
 } log_level;
 
 #ifdef MAPI_INTERNAL_CODE_ENABLED
-#define dprintf mpeg_api_debug_log
-extern void dprintf( log_level level, const char *format, ... );
+#define mapi_log mapi_debug_log
+extern void mapi_log( log_level level, const char *format, ... );
 #elif MAPI_UTILS_CODE_ENABLED
-extern void dprintf( log_level level, const char *format, ... );
+#define mapi_log mapi_utils_log
+extern void mapi_log( log_level level, const char *format, ... );
 #endif
 
 /* file */

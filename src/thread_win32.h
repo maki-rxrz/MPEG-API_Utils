@@ -57,7 +57,7 @@ extern void *thread_create( thread_func func, void *func_arg )
     thread_ctrl->thread   = (HANDLE)_beginthreadex( NULL, 0, win32_thread_starter, (void *)thread_ctrl, 0, NULL );
     if( !thread_ctrl->thread )
     {
-        dprintf( LOG_LV0, "[log] thread_create()  result: Failed!\n" );
+        mapi_log( LOG_LV0, "[log] thread_create()  result: Failed!\n" );
         free( thread_ctrl );
         thread_ctrl = NULL;
     }

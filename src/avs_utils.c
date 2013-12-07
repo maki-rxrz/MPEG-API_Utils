@@ -260,7 +260,7 @@ static int make_prn_list( char **elements_list, char **prn_list, int elements_nu
         else
             elements_buffer[buffer_index++] = elements;
     }
-    dprintf( LOG_LV4, "[debug] prn_index: %d, %d\n", buffer_index, stack_index );
+    mapi_log( LOG_LV4, "[debug] prn_index: %d, %d\n", buffer_index, stack_index );
     return buffer_index;
 }
 
@@ -307,10 +307,10 @@ static int32_t calculate_prn_string_to_number( char **elements_list, int element
 
 #define LIST_DATA_DEBUG_LOG( list, num )        \
 {                                               \
-    dprintf( LOG_LV4, "[debug]" );              \
+    mapi_log( LOG_LV4, "[debug]" );             \
     for( int i = 0; i < num; ++i )              \
-        dprintf( LOG_LV4, " %s", list[i] );     \
-    dprintf( LOG_LV4, "\n" );                   \
+        mapi_log( LOG_LV4, " %s", list[i] );    \
+    mapi_log( LOG_LV4, "\n" );                  \
 }
 extern int avs_string_convert_calculate_string_to_result_number( avs_trim_info_t *info )
 {
@@ -343,12 +343,12 @@ extern int avs_string_convert_calculate_string_to_result_number( avs_trim_info_t
     /* convert. */
     for( int i = 0; i < 2; i++ )
     {
-        dprintf( LOG_LV4, "[debug] %s\n", convert_info[i].str );
+        mapi_log( LOG_LV4, "[debug] %s\n", convert_info[i].str );
         /* check number string. */
         int elements_num, max_size;
         if( get_calculate_string_elements_info( convert_info[i].str, &elements_num, &max_size ) )
             return -1;
-        dprintf( LOG_LV4, "[debug] [%d] elements:%d, max:%d\n", i, elements_num, max_size );
+        mapi_log( LOG_LV4, "[debug] [%d] elements:%d, max:%d\n", i, elements_num, max_size );
         /* set elements. */
         char **elements_list = make_elements_list( convert_info[i].str, elements_num, max_size );
         if( !elements_list )
@@ -360,7 +360,7 @@ extern int avs_string_convert_calculate_string_to_result_number( avs_trim_info_t
         LIST_DATA_DEBUG_LOG( elements_prn_list, prn_index );
         /* calculate. */
         convert_info[i].num = calculate_prn_string_to_number( elements_prn_list, prn_index );
-        dprintf( LOG_LV4, "[debug] %d\n", convert_info[i].num );
+        mapi_log( LOG_LV4, "[debug] %d\n", convert_info[i].num );
         /* release. */
         free( elements_list[0] );
         free( elements_list );
@@ -369,9 +369,9 @@ extern int avs_string_convert_calculate_string_to_result_number( avs_trim_info_t
     if( convert_info[1].num < 0 )
         convert_info[1].num = convert_info[0].num - convert_info[1].num - 1;
     /* setup. */
-    dprintf( LOG_LV3, "[debug] str: %s\n"
-                      "             %s\n", convert_info[0].str, convert_info[1].str );
-    dprintf( LOG_LV3, "[debug] num: %d, %d\n", convert_info[0].num, convert_info[1].num );
+    mapi_log( LOG_LV3, "[debug] str: %s\n"
+                       "             %s\n", convert_info[0].str, convert_info[1].str );
+    mapi_log( LOG_LV3, "[debug] num: %d, %d\n", convert_info[0].num, convert_info[1].num );
     if( convert_info[0].num < 0 )
         return -1;
     info->start = convert_info[0].num;

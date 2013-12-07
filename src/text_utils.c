@@ -110,7 +110,7 @@ static int load_avs_txt( common_param_t *p, FILE *list, const char *search_word 
         /* erase invalid strings. */
         if( avs_string_erase_invalid_strings( line ) )
             goto fail_load;
-        dprintf( LOG_LV4, "[debug] line: %s\n", line );
+        mapi_log( LOG_LV4, "[debug] line: %s\n", line );
         /* parse. */
         char *line_p = strstr( line, search_word );
         while( line_p )
@@ -119,8 +119,8 @@ static int load_avs_txt( common_param_t *p, FILE *list, const char *search_word 
             char *param_string = avs_string_get_fuction_parameters( &line_p, search_word );
             if( !param_string )
                 break;
-            dprintf( LOG_LV4, "[debug] param_str: %s\n", param_string );
-            dprintf( LOG_LV4, "[debug] next_str : %s\n", line_p );
+            mapi_log( LOG_LV4, "[debug] param_str: %s\n", param_string );
+            mapi_log( LOG_LV4, "[debug] next_str : %s\n", line_p );
             /* convert and calculate. */
             avs_trim_info_t info;
             info.string = param_string;
@@ -224,7 +224,7 @@ static int load_keyframe_txt( common_param_t *p, FILE *list, const char *search_
     /* check if first frame number is '0'. */
     if( !fgets( line, p->line_max, list ) || atoi( line ) )
     {
-        dprintf( LOG_LV0, "[log] error, *.keyframe is NG foramt...\n" );
+        mapi_log( LOG_LV0, "[log] error, *.keyframe is NG foramt...\n" );
         return -1;
     }
     /* check 'AUTO'. */
@@ -248,7 +248,7 @@ static int load_keyframe_txt( common_param_t *p, FILE *list, const char *search_
             list_type = CUT_LIST_KEY_CUT_E;
         else
             list_type = CUT_LIST_KEY_CUT_O;
-        dprintf( LOG_LV1, "[list] [keyframe] odd:%d, even:%d, select:%d\n", odd_total, even_total, list_type - CUT_LIST_KEY_AUTO );
+        mapi_log( LOG_LV1, "[list] [keyframe] odd:%d, even:%d, select:%d\n", odd_total, even_total, list_type - CUT_LIST_KEY_AUTO );
     }
     /* initialize. */
     fseeko( list, 0, SEEK_SET );

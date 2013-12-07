@@ -38,7 +38,7 @@ static struct {
     FILE       *msg_out;
 } debug_ctrl = { 0 };
 
-extern void dprintf( log_level level, const char *format, ... )
+extern void mapi_log( log_level level, const char *format, ... )
 {
     FILE *msg_out = debug_ctrl.msg_out;
     if( level == LOG_LV_OUTPUT )

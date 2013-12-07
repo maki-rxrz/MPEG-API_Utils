@@ -606,240 +606,240 @@ extern void mpeg_video_debug_header_info( mpeg_video_info_t *video_info, mpeg_vi
     switch( searching_status )
     {
         case DETECT_SHC :
-            dprintf( LOG_LV2,
-                    "[check] detect Sequence Start Code.\n"
-                    "        frame_size:%ux%u\n"
-                    "        aspect_ratio_code:%u\n"
-                    "        frame_rate_code:%u\n"
-                    "        bit_rate:%u\n"
-                    "        vbv_buffer_size:%u\n"
-                    "        constrained_parameters_flag:%u\n"
-                    "        load_intra_quantiser_matrix:%u\n"
-                    "        load_non_intra_quantiser_matrix:%u\n"
-                    , video_info->sequence.horizontal_size
-                    , video_info->sequence.vertical_size
-                    , video_info->sequence.aspect_ratio_information
-                    , video_info->sequence.frame_rate_code
-                    , video_info->sequence.bit_rate
-                    , video_info->sequence.vbv_buffer_size
-                    , video_info->sequence.constrained_parameters_flag
-                    , video_info->sequence.load_intra_quantiser_matrix
-                    , video_info->sequence.load_non_intra_quantiser_matrix );
+            mapi_log( LOG_LV2,
+                      "[check] detect Sequence Start Code.\n"
+                      "        frame_size:%ux%u\n"
+                      "        aspect_ratio_code:%u\n"
+                      "        frame_rate_code:%u\n"
+                      "        bit_rate:%u\n"
+                      "        vbv_buffer_size:%u\n"
+                      "        constrained_parameters_flag:%u\n"
+                      "        load_intra_quantiser_matrix:%u\n"
+                      "        load_non_intra_quantiser_matrix:%u\n"
+                      , video_info->sequence.horizontal_size
+                      , video_info->sequence.vertical_size
+                      , video_info->sequence.aspect_ratio_information
+                      , video_info->sequence.frame_rate_code
+                      , video_info->sequence.bit_rate
+                      , video_info->sequence.vbv_buffer_size
+                      , video_info->sequence.constrained_parameters_flag
+                      , video_info->sequence.load_intra_quantiser_matrix
+                      , video_info->sequence.load_non_intra_quantiser_matrix );
             break;
         case DETECT_SESC :
-            dprintf( LOG_LV2,
-                    "        profile_and_level_indication:%u\n"
-                    "        progressive_sequence:%u\n"
-                    "        chroma_format:%u\n"
-                    "        horizontal_size_extension:%u\n"
-                    "        vertical_size_extension:%u\n"
-                    "        bit_rate_extension:%u\n"
-                    "        vbv_buffer_size_extension:%u\n"
-                    "        low_delay:%u\n"
-                    "        frame_rate_extension_n:%u\n"
-                    "        frame_rate_extension_d:%u\n"
-                    , video_info->sequence_ext.profile_and_level_indication
-                    , video_info->sequence_ext.progressive_sequence
-                    , video_info->sequence_ext.chroma_format
-                    , video_info->sequence_ext.horizontal_size_extension
-                    , video_info->sequence_ext.vertical_size_extension
-                    , video_info->sequence_ext.bit_rate_extension
-                    , video_info->sequence_ext.vbv_buffer_size_extension
-                    , video_info->sequence_ext.low_delay
-                    , video_info->sequence_ext.frame_rate_extension_n
-                    , video_info->sequence_ext.frame_rate_extension_d );
+            mapi_log( LOG_LV2,
+                      "        profile_and_level_indication:%u\n"
+                      "        progressive_sequence:%u\n"
+                      "        chroma_format:%u\n"
+                      "        horizontal_size_extension:%u\n"
+                      "        vertical_size_extension:%u\n"
+                      "        bit_rate_extension:%u\n"
+                      "        vbv_buffer_size_extension:%u\n"
+                      "        low_delay:%u\n"
+                      "        frame_rate_extension_n:%u\n"
+                      "        frame_rate_extension_d:%u\n"
+                      , video_info->sequence_ext.profile_and_level_indication
+                      , video_info->sequence_ext.progressive_sequence
+                      , video_info->sequence_ext.chroma_format
+                      , video_info->sequence_ext.horizontal_size_extension
+                      , video_info->sequence_ext.vertical_size_extension
+                      , video_info->sequence_ext.bit_rate_extension
+                      , video_info->sequence_ext.vbv_buffer_size_extension
+                      , video_info->sequence_ext.low_delay
+                      , video_info->sequence_ext.frame_rate_extension_n
+                      , video_info->sequence_ext.frame_rate_extension_d );
             break;
         case DETECT_SDE :
-            dprintf( LOG_LV2,
-                    "        video_format:%u\n"
-                    "        colour_description:%u\n"
-                    "        colour_primaries:%u\n"
-                    "        transfer_characteristics:%u\n"
-                    "        matrix_coefficients:%u\n"
-                    "        display_horizontal_size:%u\n"
-                    "        display_vertical_size:%u\n"
-                    , video_info->sequence_display_ext.video_format
-                    , video_info->sequence_display_ext.colour_description
-                    , video_info->sequence_display_ext.colour_primaries
-                    , video_info->sequence_display_ext.transfer_characteristics
-                    , video_info->sequence_display_ext.matrix_coefficients
-                    , video_info->sequence_display_ext.display_horizontal_size
-                    , video_info->sequence_display_ext.display_vertical_size );
+            mapi_log( LOG_LV2,
+                      "        video_format:%u\n"
+                      "        colour_description:%u\n"
+                      "        colour_primaries:%u\n"
+                      "        transfer_characteristics:%u\n"
+                      "        matrix_coefficients:%u\n"
+                      "        display_horizontal_size:%u\n"
+                      "        display_vertical_size:%u\n"
+                      , video_info->sequence_display_ext.video_format
+                      , video_info->sequence_display_ext.colour_description
+                      , video_info->sequence_display_ext.colour_primaries
+                      , video_info->sequence_display_ext.transfer_characteristics
+                      , video_info->sequence_display_ext.matrix_coefficients
+                      , video_info->sequence_display_ext.display_horizontal_size
+                      , video_info->sequence_display_ext.display_vertical_size );
             break;
         case DETECT_SSE :
-            dprintf( LOG_LV2,
-                    "        scalable_mode:%u\n"
-                    "        layer_id:%u\n"
-                    "        lower_layer_prediction_horizontal_size:%u\n"
-                    "        lower_layer_prediction_vertical_size:%u\n"
-                    "        horizontal_subsampling_factor_m:%u\n"
-                    "        horizontal_subsampling_factor_n:%u\n"
-                    "        vertical_subsampling_factor_m:%u\n"
-                    "        vertical_subsampling_factor_n:%u\n"
-                    "        picture_mux_enable:%u\n"
-                    "        mux_to_progressive_sequence:%u\n"
-                    "        picture_mux_order:%u\n"
-                    "        picture_mux_factor:%u\n"
-                    , video_info->sequence_scalable_ext.scalable_mode
-                    , video_info->sequence_scalable_ext.layer_id
-                    , video_info->sequence_scalable_ext.lower_layer_prediction_horizontal_size
-                    , video_info->sequence_scalable_ext.lower_layer_prediction_vertical_size
-                    , video_info->sequence_scalable_ext.horizontal_subsampling_factor_m
-                    , video_info->sequence_scalable_ext.horizontal_subsampling_factor_n
-                    , video_info->sequence_scalable_ext.vertical_subsampling_factor_m
-                    , video_info->sequence_scalable_ext.vertical_subsampling_factor_n
-                    , video_info->sequence_scalable_ext.picture_mux_enable
-                    , video_info->sequence_scalable_ext.mux_to_progressive_sequence
-                    , video_info->sequence_scalable_ext.picture_mux_order
-                    , video_info->sequence_scalable_ext.picture_mux_factor );
+            mapi_log( LOG_LV2,
+                      "        scalable_mode:%u\n"
+                      "        layer_id:%u\n"
+                      "        lower_layer_prediction_horizontal_size:%u\n"
+                      "        lower_layer_prediction_vertical_size:%u\n"
+                      "        horizontal_subsampling_factor_m:%u\n"
+                      "        horizontal_subsampling_factor_n:%u\n"
+                      "        vertical_subsampling_factor_m:%u\n"
+                      "        vertical_subsampling_factor_n:%u\n"
+                      "        picture_mux_enable:%u\n"
+                      "        mux_to_progressive_sequence:%u\n"
+                      "        picture_mux_order:%u\n"
+                      "        picture_mux_factor:%u\n"
+                      , video_info->sequence_scalable_ext.scalable_mode
+                      , video_info->sequence_scalable_ext.layer_id
+                      , video_info->sequence_scalable_ext.lower_layer_prediction_horizontal_size
+                      , video_info->sequence_scalable_ext.lower_layer_prediction_vertical_size
+                      , video_info->sequence_scalable_ext.horizontal_subsampling_factor_m
+                      , video_info->sequence_scalable_ext.horizontal_subsampling_factor_n
+                      , video_info->sequence_scalable_ext.vertical_subsampling_factor_m
+                      , video_info->sequence_scalable_ext.vertical_subsampling_factor_n
+                      , video_info->sequence_scalable_ext.picture_mux_enable
+                      , video_info->sequence_scalable_ext.mux_to_progressive_sequence
+                      , video_info->sequence_scalable_ext.picture_mux_order
+                      , video_info->sequence_scalable_ext.picture_mux_factor );
             break;
         case DETECT_ESC :
         case DETECT_UDSC :
         case DETECT_SEC :
             break;
         case DETECT_GSC :
-            dprintf( LOG_LV2,
-                    "[check] detect GOP Start Code.\n"
-                    "        time_code:%u\n"
-                    "        closed_gop:%u\n"
-                    "        broken_link:%u\n"
-                    , video_info->gop.time_code
-                    , video_info->gop.closed_gop
-                    , video_info->gop.broken_link );
+            mapi_log( LOG_LV2,
+                      "[check] detect GOP Start Code.\n"
+                      "        time_code:%u\n"
+                      "        closed_gop:%u\n"
+                      "        broken_link:%u\n"
+                      , video_info->gop.time_code
+                      , video_info->gop.closed_gop
+                      , video_info->gop.broken_link );
             break;
         case DETECT_PSC :
-            dprintf( LOG_LV2,
-                    "[check] detect Picture Start Code.\n"
-                    "        temporal_reference:%d\n"
-                    "        picture_coding_type:%u\n"
-                    "        vbv_delay:%u\n"
-                    "        full_pel_forward_vector:%u\n"
-                    "        forward_f_code:%u\n"
-                    "        full_pel_backword_vector:%u\n"
-                    "        backward_f_code:%u\n"
-                    , video_info->picture.temporal_reference
-                    , video_info->picture.picture_coding_type
-                    , video_info->picture.vbv_delay
-                    , video_info->picture.full_pel_forward_vector
-                    , video_info->picture.forward_f_code
-                    , video_info->picture.full_pel_backword_vector
-                    , video_info->picture.backward_f_code );
+            mapi_log( LOG_LV2,
+                      "[check] detect Picture Start Code.\n"
+                      "        temporal_reference:%d\n"
+                      "        picture_coding_type:%u\n"
+                      "        vbv_delay:%u\n"
+                      "        full_pel_forward_vector:%u\n"
+                      "        forward_f_code:%u\n"
+                      "        full_pel_backword_vector:%u\n"
+                      "        backward_f_code:%u\n"
+                      , video_info->picture.temporal_reference
+                      , video_info->picture.picture_coding_type
+                      , video_info->picture.vbv_delay
+                      , video_info->picture.full_pel_forward_vector
+                      , video_info->picture.forward_f_code
+                      , video_info->picture.full_pel_backword_vector
+                      , video_info->picture.backward_f_code );
             break;
         case DETECT_PCESC :
-            dprintf( LOG_LV2,
-                    "        forward_horizontal:%u\n"
-                    "        forward_vertical:%u\n"
-                    "        backward_horizontal:%u\n"
-                    "        backward_vertical:%u\n"
-                    "        intra_dc_precision:%u\n"
-                    "        picture_structure:%u\n"
-                    "        top_field_first:%u\n"
-                    "        frame_predictive_frame_dct:%u\n"
-                    "        concealment_motion_vectors:%u\n"
-                    "        q_scale_type:%u\n"
-                    "        intra_vlc_format:%u\n"
-                    "        alternate_scan:%u\n"
-                    "        repeat_first_field:%u\n"
-                    "        chroma_420_type:%u\n"
-                    "        progressive_frame:%u\n"
-                    "        composite_display_flag:%u\n"
-                    "        v_axis:%u\n"
-                    "        field_sequence:%u\n"
-                    "        sub_carrier:%u\n"
-                    "        burst_amplitude:%u\n"
-                    "        sub_carrier_phase:%u\n"
-                    , video_info->picture_coding_ext.f_code[0].horizontal
-                    , video_info->picture_coding_ext.f_code[0].vertical
-                    , video_info->picture_coding_ext.f_code[1].horizontal
-                    , video_info->picture_coding_ext.f_code[1].vertical
-                    , video_info->picture_coding_ext.intra_dc_precision
-                    , video_info->picture_coding_ext.picture_structure
-                    , video_info->picture_coding_ext.top_field_first
-                    , video_info->picture_coding_ext.frame_predictive_frame_dct
-                    , video_info->picture_coding_ext.concealment_motion_vectors
-                    , video_info->picture_coding_ext.q_scale_type
-                    , video_info->picture_coding_ext.intra_vlc_format
-                    , video_info->picture_coding_ext.alternate_scan
-                    , video_info->picture_coding_ext.repeat_first_field
-                    , video_info->picture_coding_ext.chroma_420_type
-                    , video_info->picture_coding_ext.progressive_frame
-                    , video_info->picture_coding_ext.composite_display_flag
-                    , video_info->picture_coding_ext.v_axis
-                    , video_info->picture_coding_ext.field_sequence
-                    , video_info->picture_coding_ext.sub_carrier
-                    , video_info->picture_coding_ext.burst_amplitude
-                    , video_info->picture_coding_ext.sub_carrier_phase );
+            mapi_log( LOG_LV2,
+                      "        forward_horizontal:%u\n"
+                      "        forward_vertical:%u\n"
+                      "        backward_horizontal:%u\n"
+                      "        backward_vertical:%u\n"
+                      "        intra_dc_precision:%u\n"
+                      "        picture_structure:%u\n"
+                      "        top_field_first:%u\n"
+                      "        frame_predictive_frame_dct:%u\n"
+                      "        concealment_motion_vectors:%u\n"
+                      "        q_scale_type:%u\n"
+                      "        intra_vlc_format:%u\n"
+                      "        alternate_scan:%u\n"
+                      "        repeat_first_field:%u\n"
+                      "        chroma_420_type:%u\n"
+                      "        progressive_frame:%u\n"
+                      "        composite_display_flag:%u\n"
+                      "        v_axis:%u\n"
+                      "        field_sequence:%u\n"
+                      "        sub_carrier:%u\n"
+                      "        burst_amplitude:%u\n"
+                      "        sub_carrier_phase:%u\n"
+                      , video_info->picture_coding_ext.f_code[0].horizontal
+                      , video_info->picture_coding_ext.f_code[0].vertical
+                      , video_info->picture_coding_ext.f_code[1].horizontal
+                      , video_info->picture_coding_ext.f_code[1].vertical
+                      , video_info->picture_coding_ext.intra_dc_precision
+                      , video_info->picture_coding_ext.picture_structure
+                      , video_info->picture_coding_ext.top_field_first
+                      , video_info->picture_coding_ext.frame_predictive_frame_dct
+                      , video_info->picture_coding_ext.concealment_motion_vectors
+                      , video_info->picture_coding_ext.q_scale_type
+                      , video_info->picture_coding_ext.intra_vlc_format
+                      , video_info->picture_coding_ext.alternate_scan
+                      , video_info->picture_coding_ext.repeat_first_field
+                      , video_info->picture_coding_ext.chroma_420_type
+                      , video_info->picture_coding_ext.progressive_frame
+                      , video_info->picture_coding_ext.composite_display_flag
+                      , video_info->picture_coding_ext.v_axis
+                      , video_info->picture_coding_ext.field_sequence
+                      , video_info->picture_coding_ext.sub_carrier
+                      , video_info->picture_coding_ext.burst_amplitude
+                      , video_info->picture_coding_ext.sub_carrier_phase );
             break;
         case DETECT_QME :
-            dprintf( LOG_LV2,
-                    "        load_intra_quantiser_matrix:%u\n"
-                    "        load_non_intra_quantiser_matrix:%u\n"
-                    "        load_chroma_intra_quantiser_matrix:%u\n"
-                    "        load_chroma_non_intra_quantiser_matrix:%u\n"
-                    , video_info->quant_matrix_ext.load_intra_quantiser_matrix
-                    , video_info->quant_matrix_ext.load_non_intra_quantiser_matrix
-                    , video_info->quant_matrix_ext.load_chroma_intra_quantiser_matrix
-                    , video_info->quant_matrix_ext.load_chroma_non_intra_quantiser_matrix );
+            mapi_log( LOG_LV2,
+                      "        load_intra_quantiser_matrix:%u\n"
+                      "        load_non_intra_quantiser_matrix:%u\n"
+                      "        load_chroma_intra_quantiser_matrix:%u\n"
+                      "        load_chroma_non_intra_quantiser_matrix:%u\n"
+                      , video_info->quant_matrix_ext.load_intra_quantiser_matrix
+                      , video_info->quant_matrix_ext.load_non_intra_quantiser_matrix
+                      , video_info->quant_matrix_ext.load_chroma_intra_quantiser_matrix
+                      , video_info->quant_matrix_ext.load_chroma_non_intra_quantiser_matrix );
             break;
         case DETECT_PDE :
-            dprintf( LOG_LV2,
-                    "        number_of_frame_centre_offsets:%u\n"
-                    "        offsets[0].horizontal:%u\n"
-                    "        offsets[0].vertical_offset:%u\n"
-                    "        offsets[1].horizontal:%u\n"
-                    "        offsets[1].vertical_offset:%u\n"
-                    "        offsets[2].horizontal:%u\n"
-                    "        offsets[2].vertical_offset:%u\n"
-                    , video_info->picture_display_ext.number_of_frame_centre_offsets
-                    , video_info->picture_display_ext.frame_centre_offsets[0].horizontal_offset
-                    , video_info->picture_display_ext.frame_centre_offsets[0].vertical_offset
-                    , video_info->picture_display_ext.frame_centre_offsets[1].horizontal_offset
-                    , video_info->picture_display_ext.frame_centre_offsets[1].vertical_offset
-                    , video_info->picture_display_ext.frame_centre_offsets[2].horizontal_offset
-                    , video_info->picture_display_ext.frame_centre_offsets[2].vertical_offset );
+            mapi_log( LOG_LV2,
+                      "        number_of_frame_centre_offsets:%u\n"
+                      "        offsets[0].horizontal:%u\n"
+                      "        offsets[0].vertical_offset:%u\n"
+                      "        offsets[1].horizontal:%u\n"
+                      "        offsets[1].vertical_offset:%u\n"
+                      "        offsets[2].horizontal:%u\n"
+                      "        offsets[2].vertical_offset:%u\n"
+                      , video_info->picture_display_ext.number_of_frame_centre_offsets
+                      , video_info->picture_display_ext.frame_centre_offsets[0].horizontal_offset
+                      , video_info->picture_display_ext.frame_centre_offsets[0].vertical_offset
+                      , video_info->picture_display_ext.frame_centre_offsets[1].horizontal_offset
+                      , video_info->picture_display_ext.frame_centre_offsets[1].vertical_offset
+                      , video_info->picture_display_ext.frame_centre_offsets[2].horizontal_offset
+                      , video_info->picture_display_ext.frame_centre_offsets[2].vertical_offset );
             break;
         case DETECT_PTSE :
-            dprintf( LOG_LV2,
-                    "        reference_select_code:%u\n"
-                    "        forward_temporal_reference:%d\n"
-                    "        backward_temporal_reference:%d\n"
-                    , video_info->picture_temporal_scalable_ext.reference_select_code
-                    , video_info->picture_temporal_scalable_ext.forward_temporal_reference
-                    , video_info->picture_temporal_scalable_ext.backward_temporal_reference );
+            mapi_log( LOG_LV2,
+                      "        reference_select_code:%u\n"
+                      "        forward_temporal_reference:%d\n"
+                      "        backward_temporal_reference:%d\n"
+                      , video_info->picture_temporal_scalable_ext.reference_select_code
+                      , video_info->picture_temporal_scalable_ext.forward_temporal_reference
+                      , video_info->picture_temporal_scalable_ext.backward_temporal_reference );
             break;
         case DETECT_PSSE :
-            dprintf( LOG_LV2,
-                    "        lower_layer_temporal_reference:%d\n"
-                    "        lower_layer_horizontal_offset:%u\n"
-                    "        lower_layer_vertical_offset:%u\n"
-                    "        spatial_temporal_weight_code_table_index:%u\n"
-                    "        lower_layer_progressive_frame:%u\n"
-                    "        lower_layer_deinterlaced_field_select:%u\n"
-                    , video_info->picture_spatial_scalable_ext.lower_layer_temporal_reference
-                    , video_info->picture_spatial_scalable_ext.lower_layer_horizontal_offset
-                    , video_info->picture_spatial_scalable_ext.lower_layer_vertical_offset
-                    , video_info->picture_spatial_scalable_ext.spatial_temporal_weight_code_table_index
-                    , video_info->picture_spatial_scalable_ext.lower_layer_progressive_frame
-                    , video_info->picture_spatial_scalable_ext.lower_layer_deinterlaced_field_select );
+            mapi_log( LOG_LV2,
+                      "        lower_layer_temporal_reference:%d\n"
+                      "        lower_layer_horizontal_offset:%u\n"
+                      "        lower_layer_vertical_offset:%u\n"
+                      "        spatial_temporal_weight_code_table_index:%u\n"
+                      "        lower_layer_progressive_frame:%u\n"
+                      "        lower_layer_deinterlaced_field_select:%u\n"
+                      , video_info->picture_spatial_scalable_ext.lower_layer_temporal_reference
+                      , video_info->picture_spatial_scalable_ext.lower_layer_horizontal_offset
+                      , video_info->picture_spatial_scalable_ext.lower_layer_vertical_offset
+                      , video_info->picture_spatial_scalable_ext.spatial_temporal_weight_code_table_index
+                      , video_info->picture_spatial_scalable_ext.lower_layer_progressive_frame
+                      , video_info->picture_spatial_scalable_ext.lower_layer_deinterlaced_field_select );
             break;
         case DETECT_CPRE :
-            dprintf( LOG_LV2,
-                    "        copyright_flag:%u\n"
-                    "        copyright_identifier:%u\n"
-                    "        original_or_copy:%u\n"
-                    "        copyright_number_1:%u\n"
-                    "        copyright_number_2:%u\n"
-                    "        copyright_number_3:%u\n"
-                    , video_info->copyright_ext.copyright_flag
-                    , video_info->copyright_ext.copyright_identifier
-                    , video_info->copyright_ext.original_or_copy
-                    , video_info->copyright_ext.copyright_number_1
-                    , video_info->copyright_ext.copyright_number_2
-                    , video_info->copyright_ext.copyright_number_3 );
+            mapi_log( LOG_LV2,
+                      "        copyright_flag:%u\n"
+                      "        copyright_identifier:%u\n"
+                      "        original_or_copy:%u\n"
+                      "        copyright_number_1:%u\n"
+                      "        copyright_number_2:%u\n"
+                      "        copyright_number_3:%u\n"
+                      , video_info->copyright_ext.copyright_flag
+                      , video_info->copyright_ext.copyright_identifier
+                      , video_info->copyright_ext.original_or_copy
+                      , video_info->copyright_ext.copyright_number_1
+                      , video_info->copyright_ext.copyright_number_2
+                      , video_info->copyright_ext.copyright_number_3 );
             break;
         case DETECT_SSC :
-            dprintf( LOG_LV2,
-                    "[check] detect Slice Start Code.\n" );
+            mapi_log( LOG_LV2,
+                      "[check] detect Slice Start Code.\n" );
             break;
         default :
             break;

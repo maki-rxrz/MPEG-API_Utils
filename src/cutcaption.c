@@ -200,7 +200,7 @@ static struct {
     log_mode    mode;
 } debug_ctrl = { 0 };
 
-extern void dprintf( log_level level, const char *format, ... )
+extern void mapi_log( log_level level, const char *format, ... )
 {
     /* check level. */
     if( debug_ctrl.log_lv < level )
@@ -499,7 +499,7 @@ static int correct_parameter( param_t *p )
     }
     if( mode == OUTPUT_NONE )
     {
-        dprintf( LOG_LV0, "[log] don't exist input file. input:%s\n", p->input );
+        mapi_log( LOG_LV0, "[log] don't exist input file. input:%s\n", p->input );
         return -1;
     }
     p->output_mode &= mode;
@@ -511,7 +511,7 @@ static int correct_parameter( param_t *p )
         p->output = (char *)malloc( len + 5 );
         if( !p->output )
         {
-            dprintf( LOG_LV0, "[log] malloc error.\n" );
+            mapi_log( LOG_LV0, "[log] malloc error.\n" );
             return -1;
         }
         strcpy( p->output, p->input );
@@ -524,7 +524,7 @@ static int correct_parameter( param_t *p )
         char *tmp = (char *)realloc( p->output, len + 5 );
         if( !tmp )
         {
-            dprintf( LOG_LV0, "[log] realloc error.\n" );
+            mapi_log( LOG_LV0, "[log] realloc error.\n" );
             return -1;
         }
         p->output = tmp;
@@ -545,7 +545,7 @@ static int correct_parameter( param_t *p )
         }
     if( p->output_mode == OUTPUT_NONE )
     {
-        dprintf( LOG_LV0, "[log] already exist output file.\n" );
+        mapi_log( LOG_LV0, "[log] already exist output file.\n" );
         return 1;
     }
     return 0;
@@ -563,17 +563,17 @@ static int load_cut_list( param_t *p )
         {
             p->reader = MPEG_READER_NONE;
             PUSH_LIST_DATA( p, 0, INT32_MAX - 1 );
-            dprintf( LOG_LV1, "[log] apply delay. delay:%d\n", p->delay_time );
-            dprintf( LOG_LV2, "[list] [%d]  s:%6d  e:%6d\n", 0, p->list_data[0].start, p->list_data[0].end );
+            mapi_log( LOG_LV1, "[log] apply delay. delay:%d\n", p->delay_time );
+            mapi_log( LOG_LV2, "[list] [%d]  s:%6d  e:%6d\n", 0, p->list_data[0].start, p->list_data[0].end );
             return 0;
         }
         return -1;
     }
-    dprintf( LOG_LV0, "[log] list : %s\n", p->list );
+    mapi_log( LOG_LV0, "[log] list : %s\n", p->list );
     int result = text_load_cut_list( (common_param_t *)p, list );
     fclose( list );
     for( int i = 0; i < p->list_data_count; ++i )
-        dprintf( LOG_LV1, "[list] [%d]  s:%6d  e:%6d\n", i, p->list_data[i].start, p->list_data[i].end );
+        mapi_log( LOG_LV1, "[list] [%d]  s:%6d  e:%6d\n", i, p->list_data[i].start, p->list_data[i].end );
     return result;
 }
 
@@ -594,7 +594,7 @@ static int64_t time_to_total( caption_time_t *t, int floor )
 
 static void total_to_time( caption_time_t *t, int64_t total, int round )
 {
-    dprintf( LOG_LV4, "[debug] total:%"PRId64"\n", total );
+    mapi_log( LOG_LV4, "[debug] total:%"PRId64"\n", total );
     if( round )
         total += 5;
     t->Msecs = total % 1000;
@@ -610,13 +610,13 @@ static void total_to_time( caption_time_t *t, int64_t total, int round )
 
 static double time_to_frame( double time, frame_rate_t frame_rate )
 {
-    dprintf( LOG_LV4, "[debug] t2f: %f\n", time );
+    mapi_log( LOG_LV4, "[debug] t2f: %f\n", time );
     return time * frame_rate.num / frame_rate.den / 1000;
 }
 
 static double frame_to_time( double frame_num, frame_rate_t frame_rate )
 {
-    dprintf( LOG_LV4, "[debug] f2t: %f\n", frame_num * frame_rate.den * 1000 / frame_rate.num );
+    mapi_log( LOG_LV4, "[debug] f2t: %f\n", frame_num * frame_rate.den * 1000 / frame_rate.num );
     return frame_num * frame_rate.den * 1000 / frame_rate.num;
 }
 
@@ -633,7 +633,7 @@ static int get_output_times( param_t *p, int64_t *start, int64_t *end )
         if( s < p->list_data[i].start && e < p->list_data[i].start )
         {
             /* delete. */
-            dprintf( LOG_LV4, "[debug] delete. s:%f e:%f\n", s, e );
+            mapi_log( LOG_LV4, "[debug] delete. s:%f e:%f\n", s, e );
             return -1;
         }
         if( s <= p->list_data[i].end + 1 && e >= p->list_data[i].end + 1 )
@@ -641,7 +641,7 @@ static int get_output_times( param_t *p, int64_t *start, int64_t *end )
             /* correct end. */
             e = p->list_data[i].end + 1;
             is_output = 1;
-            dprintf( LOG_LV4, "[debug] correct end time. e:%f cut:%"PRId64"\n", e, cut_frames );
+            mapi_log( LOG_LV4, "[debug] correct end time. e:%f cut:%"PRId64"\n", e, cut_frames );
             break;
         }
         if( s < p->list_data[i].start && e >= p->list_data[i].start && e <= p->list_data[i].end + 1 )
@@ -649,7 +649,7 @@ static int get_output_times( param_t *p, int64_t *start, int64_t *end )
             /* correct start. */
             s = p->list_data[i].start;
             is_output = 1;
-            dprintf( LOG_LV4, "[debug] correct start time. e:%f cut:%"PRId64"\n", s, cut_frames );
+            mapi_log( LOG_LV4, "[debug] correct start time. e:%f cut:%"PRId64"\n", s, cut_frames );
             break;
         }
         if( s < p->list_data[i].start && e >= p->list_data[i].end + 1 )
@@ -658,7 +658,7 @@ static int get_output_times( param_t *p, int64_t *start, int64_t *end )
             s = p->list_data[i].start;
             e = p->list_data[i].end + 1;
             is_output = 1;
-            dprintf( LOG_LV4, "[debug] correct times. s:%f e:%f cut:%"PRId64"\n", s, e, cut_frames );
+            mapi_log( LOG_LV4, "[debug] correct times. s:%f e:%f cut:%"PRId64"\n", s, e, cut_frames );
             break;
         }
         if( i < p->list_data_count - 1
@@ -669,17 +669,17 @@ static int get_output_times( param_t *p, int64_t *start, int64_t *end )
             s += middle_cut;
             cut_frames += middle_cut;
             is_output = 1;
-            dprintf( LOG_LV4, "[debug] middle cut. s:%f e:%f cut:%"PRId64"\n", s, e, cut_frames );
+            mapi_log( LOG_LV4, "[debug] middle cut. s:%f e:%f cut:%"PRId64"\n", s, e, cut_frames );
             break;
         }
         if( e <= p->list_data[i].end + 1 )
         {
             /* output. */
-            dprintf( LOG_LV4, "[debug] output. cut:%"PRId64"\n", cut_frames );
+            mapi_log( LOG_LV4, "[debug] output. cut:%"PRId64"\n", cut_frames );
             is_output = 1;
             break;
         }
-        dprintf( LOG_LV4, "[debug] --calc-- s:%f e:%f, cut:%"PRId64", ls:%d le:%d\n", s, e, cut_frames, p->list_data[i].start, p->list_data[i].end );
+        mapi_log( LOG_LV4, "[debug] --calc-- s:%f e:%f, cut:%"PRId64", ls:%d le:%d\n", s, e, cut_frames, p->list_data[i].start, p->list_data[i].end );
         cut_start = p->list_data[i].end + 1;
     }
     if( !is_output )
@@ -688,7 +688,7 @@ static int get_output_times( param_t *p, int64_t *start, int64_t *end )
     double time_e = frame_to_time( e - cut_frames, p->frame_rate );
     /* check delay. */
     int64_t delay = p->delay_time + p->reader_delay;
-    dprintf( LOG_LV3, "[debug] s:%f e:%f d:%"PRId64"\n", time_s, time_e, delay );
+    mapi_log( LOG_LV3, "[debug] s:%f e:%f d:%"PRId64"\n", time_s, time_e, delay );
     time_e += delay;
     if( time_e < 0 )
         return -1;
@@ -698,7 +698,7 @@ static int get_output_times( param_t *p, int64_t *start, int64_t *end )
     /* setup. */
     *start = (int64_t)(time_s + 0.5);
     *end   = (int64_t)(time_e + 0.5);
-    dprintf( LOG_LV2, "[debug] out s:%"PRId64" e:%"PRId64"\n", *start, *end );
+    mapi_log( LOG_LV2, "[debug] out s:%"PRId64" e:%"PRId64"\n", *start, *end );
     return 0;
 }
 
@@ -719,7 +719,7 @@ static int ass_header_change_aspect_ratio( param_t *p, FILE *input, FILE *output
         else if( sscanf( line, "PlayResY: %d", &play_res_y ) )
             continue;
     }
-    dprintf( LOG_LV3, "[debug] PlayResX:%d, PlayResY:%d, Aspect Ratio:%d\n", play_res_x, play_res_y, video_aspect_ratio );
+    mapi_log( LOG_LV3, "[debug] PlayResX:%d, PlayResY:%d, Aspect Ratio:%d\n", play_res_x, play_res_y, video_aspect_ratio );
     fseeko( input, 0, SEEK_SET );
     /* check ass script info. */
     if( !play_res_x || !play_res_y || video_aspect_ratio < ASPECT_RATIO_DEFAULT || ASPECT_RATIO_CINEMA < video_aspect_ratio )
@@ -791,7 +791,7 @@ static void cut_ass( param_t *p, FILE *input, FILE *output )
     if( p->aspect_ratio != ASPECT_RATIO_DEFAULT )
         change_layout = !(ass_header_change_aspect_ratio( p, input, output, &ar_shift_x, &ar_shift_y ));
     change_layout = (change_layout || p->shift_pos_x || p->shift_pos_y);
-    dprintf( LOG_LV3, "[debug] layout:%d, %d, %d\n", change_layout, ar_shift_x, ar_shift_y );
+    mapi_log( LOG_LV3, "[debug] layout:%d, %d, %d\n", change_layout, ar_shift_x, ar_shift_y );
     /* parse data. */
     while( fgets( line, p->line_max, input ) )
     {
@@ -967,9 +967,9 @@ static void correct_d2v_input( param_t *p )
         input[path_size] = '\0';
         strcat( input, filename );
     }
-    dprintf( LOG_LV2, "[check] correct input filename from d2v.\n"
-                      "        %s\n"
-                      "        %s\n", p->input, input );
+    mapi_log( LOG_LV2, "[check] correct input filename from d2v.\n"
+                       "        %s\n"
+                       "        %s\n", p->input, input );
     free( p->input );
     p->input = input;
 end_correct:
@@ -1046,9 +1046,9 @@ static void parse_reader_offset( param_t *p, delay_info_type *delay_info )
             default :
                 break;
         }
-        dprintf( LOG_LV2, "[check] [read_delay] video_1st: %"PRId64", video_odr: %"PRId64", video_key: %"PRId64"\n"
-                          "                     audio: %"PRId64"\n", video_1st_start, video_odr_start, video_key_start, audio_start );
-        dprintf( LOG_LV1, "[reader] delay: %"PRId64"\n", p->reader_delay );
+        mapi_log( LOG_LV2, "[check] [read_delay] video_1st: %"PRId64", video_odr: %"PRId64", video_key: %"PRId64"\n"
+                           "                     audio: %"PRId64"\n", video_1st_start, video_odr_start, video_key_start, audio_start );
+        mapi_log( LOG_LV1, "[reader] delay: %"PRId64"\n", p->reader_delay );
         /* setup required informations. */
         if( delay_info )
         {
@@ -1059,7 +1059,7 @@ static void parse_reader_offset( param_t *p, delay_info_type *delay_info )
         }
     }
     else if( get_info_result > 0 )
-        dprintf( LOG_LV1, "[reader] MPEG-TS not have both video and audio stream.\n" );
+        mapi_log( LOG_LV1, "[reader] MPEG-TS not have both video and audio stream.\n" );
 end_parse:
     if( stream_info )
         free( stream_info );
@@ -1073,13 +1073,13 @@ static void output_caption( param_t *p )
     if( check )
     {
         if( check < 0 )
-            dprintf( LOG_LV0, "[log] error, parameters...\n" );
+            mapi_log( LOG_LV0, "[log] error, parameters...\n" );
         return;
     }
     /* ready. */
     if( load_cut_list( p ) )
     {
-        dprintf( LOG_LV0, "[log] error, list file.\n" );
+        mapi_log( LOG_LV0, "[log] error, list file.\n" );
         return;
     }
     parse_reader_offset( p, NULL );
@@ -1104,8 +1104,8 @@ static void output_caption( param_t *p )
             /* close files. */
             fclose( output );
             fclose( input );
-            dprintf( LOG_LV0, "[log] input: %s%s\n"
-                              "     output: %s%s\n", p->input, input_array[i].ext, p->output, input_array[i].ext );
+            mapi_log( LOG_LV0, "[log] input: %s%s\n"
+                               "     output: %s%s\n", p->input, input_array[i].ext, p->output, input_array[i].ext );
         }
     }
 }
@@ -1115,14 +1115,14 @@ static void analyze_mpegts( param_t *p )
     /* check. */
     if( !p || !p->input )
     {
-        dprintf( LOG_LV0, "[log] error, parameters...\n" );
+        mapi_log( LOG_LV0, "[log] error, parameters...\n" );
         return;
     }
     /* parse. */
     delay_info_type delay_info = { 0 };
     parse_reader_offset( p, &delay_info );
     /* display. */
-    dprintf( LOG_LV_OUTPUT,
+    mapi_log( LOG_LV_OUTPUT,
         "[analyze_mpegts]  %s.ts\n"
         "[reader's delay]\n"
         "  MPEG-2 VIDEO VFAPI Plug-In: %"PRId64" msec\n"

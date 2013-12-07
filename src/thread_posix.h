@@ -45,7 +45,7 @@ extern void *thread_create( thread_func func, void *func_arg )
     int result = pthread_create( &(thread_ctrl->thread), NULL, func, func_arg );
     if( result )
     {
-        dprintf( LOG_LV0, "[log] thread_create()  result:%d\n", result );
+        mapi_log( LOG_LV0, "[log] thread_create()  result:%d\n", result );
         free( thread_ctrl );
         thread_ctrl = NULL;
     }
@@ -57,6 +57,6 @@ extern void thread_wait_end( void * th, void **value_ptr )
     thread_control_t *thread_ctrl = (thread_control_t *)th;
     int result = pthread_join( thread_ctrl->thread, value_ptr );
     if( result )
-        dprintf( LOG_LV0, "[log] thread_wait_end()  result:%d\n", result );
+        mapi_log( LOG_LV0, "[log] thread_wait_end()  result:%d\n", result );
     free( thread_ctrl );
 }

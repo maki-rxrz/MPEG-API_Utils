@@ -388,9 +388,9 @@ extern void mpeg_stream_get_descriptor_info( mpeg_stream_type stream_type, uint8
 #define PRINT_DESCRIPTOR_INFO( name, ... )          \
 {                                                   \
     case name##_descriptor :                        \
-        dprintf( LOG_LV2,                           \
-                 "[check] "#name"_descriptor\n"     \
-                 __VA_ARGS__ );                     \
+        mapi_log( LOG_LV2,                          \
+                  "[check] "#name"_descriptor\n"    \
+                  __VA_ARGS__ );                    \
 }
 extern void mpeg_stream_debug_descriptor_info( mpeg_descriptor_info_t *descriptor_info )
 {
@@ -446,10 +446,10 @@ extern void mpeg_stream_debug_descriptor_info( mpeg_descriptor_info_t *descripto
             /* additional_identification_info */        // FIXME
             if( descriptor_info->length - 4 > 0 )
             {
-                dprintf( LOG_LV2, "        additional_info:" );
+                mapi_log( LOG_LV2, "        additional_info:" );
                 for( uint8_t i = 6; i < descriptor_info->length; ++i )
-                    dprintf( LOG_LV2, " 0x%02X", descriptor_info->registration.additional_identification_info[i] );
-                dprintf( LOG_LV2, "\n" );
+                    mapi_log( LOG_LV2, " 0x%02X", descriptor_info->registration.additional_identification_info[i] );
+                mapi_log( LOG_LV2, "\n" );
             }
             break;
         PRINT_DESCRIPTOR_INFO( data_stream_alignment,
@@ -484,11 +484,11 @@ extern void mpeg_stream_debug_descriptor_info( mpeg_descriptor_info_t *descripto
             break;
         PRINT_DESCRIPTOR_INFO( ISO_639_language )
             for( uint8_t i = 0; i < descriptor_info->ISO_639_language.data_num; ++i )
-                dprintf( LOG_LV2,
-                         "        ISO_639_language_code:0x%06X\n"
-                         "        audio_type:%u\n"
-                         , descriptor_info->ISO_639_language.data[i].ISO_639_language_code
-                         , descriptor_info->ISO_639_language.data[i].audio_type );
+                mapi_log( LOG_LV2,
+                          "        ISO_639_language_code:0x%06X\n"
+                          "        audio_type:%u\n"
+                          , descriptor_info->ISO_639_language.data[i].ISO_639_language_code
+                          , descriptor_info->ISO_639_language.data[i].audio_type );
             break;
         PRINT_DESCRIPTOR_INFO( system_clock,
                 "        external_clock_reference_indicator:%u\n"
@@ -570,11 +570,11 @@ extern void mpeg_stream_debug_descriptor_info( mpeg_descriptor_info_t *descripto
             break;
         PRINT_DESCRIPTOR_INFO( FMC )
             for( uint8_t i = 0; i < descriptor_info->FMC.data_num; ++i )
-                dprintf( LOG_LV2,
-                         "        ES_ID:%u\n"
-                         "        FlexMuxChannel:%u\n"
-                         , descriptor_info->FMC.data[i].ES_ID
-                         , descriptor_info->FMC.data[i].FlexMuxChannel );
+                mapi_log( LOG_LV2,
+                          "        ES_ID:%u\n"
+                          "        FlexMuxChannel:%u\n"
+                          , descriptor_info->FMC.data[i].ES_ID
+                          , descriptor_info->FMC.data[i].FlexMuxChannel );
             break;
         PRINT_DESCRIPTOR_INFO( External_ES_ID,
                 "        External_ES_ID:%u\n"
@@ -723,7 +723,7 @@ static int mpa_header_check( uint8_t *header, mpeg_stream_raw_info_t *stream_raw
      || bitrate == ng_matrix[index][2] || bitrate == ng_matrix[index][3] )
         return -1;
     /* detect header. */
-    dprintf( LOG_LV4, "[debug] [MPEG-Audio] detect header.\n" );
+    mapi_log( LOG_LV4, "[debug] [MPEG-Audio] detect header.\n" );
     /* setup. */
     if( stream_raw_info )
     {
@@ -761,7 +761,7 @@ static int aac_header_check( uint8_t *header, mpeg_stream_raw_info_t *stream_raw
     /* protection absent           =   header[1] & 0x01;            */
     uint8_t  channel_configuration = ((header[2] & 0x01) << 2) | (header[3] >> 6);
     /* detect header. */
-    dprintf( LOG_LV4, "[debug] [ADTS-AAC] detect header. frame_len:%d\n", frame_length );
+    mapi_log( LOG_LV4, "[debug] [ADTS-AAC] detect header. frame_len:%d\n", frame_length );
     /* setup. */
     if( stream_raw_info )
     {
@@ -805,7 +805,7 @@ static int lpcm_header_check( uint8_t *header, mpeg_stream_raw_info_t *stream_ra
     if( bits_per_sample == 0 || bits_per_sample > 3 )
         return -1;
     /* detect header. */
-    dprintf( LOG_LV4, "[debug] [LPCM] detect header.\n" );
+    mapi_log( LOG_LV4, "[debug] [LPCM] detect header.\n" );
     /* setup. */
     if( stream_raw_info )
     {
@@ -869,7 +869,7 @@ static int ac3_header_check( uint8_t *header, mpeg_stream_raw_info_t *stream_raw
                                        + (audio_coding_mode == 0x02) );
     uint8_t  lfe_channel_on      = !!(bsi_data & (0x0100 >> lfe_bit_offset));
     /* detect header. */
-    dprintf( LOG_LV4, "[debug] [AC-3] detect header.\n" );
+    mapi_log( LOG_LV4, "[debug] [AC-3] detect header.\n" );
     /* setup. */
     if( stream_raw_info )
     {
@@ -941,7 +941,7 @@ static int eac3_header_check( uint8_t *header, mpeg_stream_raw_info_t *stream_ra
         }
     }
     /* detect header. */
-    dprintf( LOG_LV4, "[debug] [EAC-3] detect header.\n" );
+    mapi_log( LOG_LV4, "[debug] [EAC-3] detect header.\n" );
     /* setup. */
     if( stream_raw_info )
     {
@@ -1007,7 +1007,7 @@ static int dts_header_check( uint8_t *header, mpeg_stream_raw_info_t *stream_raw
     if( source_pcm_resolution == 4 || source_pcm_resolution == 7 )
         return -1;
     /* detect header. */
-    dprintf( LOG_LV4, "[debug] [DTS] detect header.\n" );
+    mapi_log( LOG_LV4, "[debug] [DTS] detect header.\n" );
     /* setup. */
     if( stream_raw_info )
     {
@@ -1127,9 +1127,9 @@ extern int32_t mpeg_stream_check_header( mpeg_stream_type stream_type, mpeg_stre
             break;
     }
     if( header_offset >= 0 && (stream_judge & STREAM_IS_AUDIO) )
-        dprintf( LOG_LV4, "        check_buffer_size:%d  header_offset:%d\n", buffer_size, header_offset );
+        mapi_log( LOG_LV4, "        check_buffer_size:%d  header_offset:%d\n", buffer_size, header_offset );
     //if( stream_raw_info )
-    //    dprintf( LOG_LV4, "[debug] %6uHz  %7uKbps  %u channel  other:%u\n", stream_raw_info->sampling_frequency, stream_raw_info->bitrate, stream_raw_info->channel, stream_raw_info->layer );
+    //    mapi_log( LOG_LV4, "[debug] %6uHz  %7uKbps  %u channel  other:%u\n", stream_raw_info->sampling_frequency, stream_raw_info->bitrate, stream_raw_info->channel, stream_raw_info->layer );
     return header_offset;
 }
 

@@ -115,7 +115,7 @@ end_first_check:
 
 static int mpeges_parse_stream_type( mpeges_info_t *info )
 {
-    dprintf( LOG_LV2, "[check] mpeges_parse_stream_type()\n" );
+    mapi_log( LOG_LV2, "[check] mpeges_parse_stream_type()\n" );
     int64_t start_position = mpeges_ftell( info );
     /* parse raw data. */
     int64_t dest_size = 0;
@@ -179,15 +179,15 @@ end_parse_stream_type:
 
 static void mpeges_get_stream_timestamp( mpeges_info_t *info, mpeg_timestamp_t *timestamp )
 {
-    dprintf( LOG_LV2, "[check] mpeges_get_stream_timestamp()\n" );
-    dprintf( LOG_LV3, "[debug] fps: %u / %u\n"
-                      "        timestamp_base:%"PRId64"\n"
-                      "        total_picture_num:%d\n"
-                      "        picture_num:%d\n"
-                      "        picture_coding_type:%u\n"
-                      "        temporal_reference:%u\n"
-                      , info->fps_numerator, info->fps_denominator, info->timestamp_base, info->total_picture_num, info->picture_num
-                      , info->video_info->picture.picture_coding_type, info->video_info->picture.temporal_reference );
+    mapi_log( LOG_LV2, "[check] mpeges_get_stream_timestamp()\n" );
+    mapi_log( LOG_LV3, "[debug] fps: %u / %u\n"
+                       "        timestamp_base:%"PRId64"\n"
+                       "        total_picture_num:%d\n"
+                       "        picture_num:%d\n"
+                       "        picture_coding_type:%u\n"
+                       "        temporal_reference:%u\n"
+                       , info->fps_numerator, info->fps_denominator, info->timestamp_base, info->total_picture_num, info->picture_num
+                       , info->video_info->picture.picture_coding_type, info->video_info->picture.temporal_reference );
     /* calculate timestamp. */
     int64_t pts = info->timestamp_base * (info->total_picture_num + info->video_info->picture.temporal_reference);
     int64_t dts = (info->video_info->picture.picture_coding_type != MPEG_VIDEO_B_FRAME
@@ -201,7 +201,7 @@ static void mpeges_get_stream_timestamp( mpeges_info_t *info, mpeg_timestamp_t *
 
 static int mpeges_get_mpeg_video_picture_info( mpeges_info_t *info )
 {
-    dprintf( LOG_LV2, "[check] mpeges_get_mpeg_video_picture_info()\n" );
+    mapi_log( LOG_LV2, "[check] mpeges_get_mpeg_video_picture_info()\n" );
     /* parse raw data. */
     int64_t dest_size = 0;
     uint8_t mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE];
@@ -346,12 +346,12 @@ static int get_sample_data( void *ih, mpeg_sample_type sample_type, uint8_t stre
     uint8_t *buffer = (uint8_t *)malloc( sample_size );
     if( !buffer )
         return -1;
-    dprintf( LOG_LV3, "[debug] buffer_size:%d\n", sample_size );
+    mapi_log( LOG_LV3, "[debug] buffer_size:%d\n", sample_size );
     /* get data. */
     int64_t dest_size = 0;
     mpeges_fread( info, buffer, sample_size, &dest_size );
     uint32_t read_size = (uint32_t)dest_size;
-    dprintf( LOG_LV3, "[debug] read_size:%d\n", read_size );
+    mapi_log( LOG_LV3, "[debug] read_size:%d\n", read_size );
     *dst_buffer    = buffer;
     *dst_read_size = read_size;
     return 0;
@@ -413,7 +413,7 @@ static int get_pcr( void *ih, pcr_info_t *pcr_info )
 
 static int get_video_info( void *ih, uint8_t stream_number, video_sample_info_t *video_sample_info )
 {
-    dprintf( LOG_LV2, "[mpeges_parser] get_video_info()\n" );
+    mapi_log( LOG_LV2, "[mpeges_parser] get_video_info()\n" );
     mpeges_info_t *info = (mpeges_info_t *)ih;
     if( !info || stream_number )
         return -1;
@@ -451,9 +451,9 @@ static int get_video_info( void *ih, uint8_t stream_number, video_sample_info_t 
     video_sample_info->repeat_first_field   = repeat_first_field;
     video_sample_info->top_field_first      = top_field_first;
     static const char frame[4] = { '?', 'I', 'P', 'B' };
-    dprintf( LOG_LV2, "[check] Video PTS:%"PRId64" [%"PRId64"ms], [%c] temporal_reference:%d\n"
-                    , ts.pts, ts.pts / 90, frame[picture_coding_type], temporal_reference );
-    dprintf( LOG_LV2, "[check] file position:%"PRId64"\n", info->read_position );
+    mapi_log( LOG_LV2, "[check] Video PTS:%"PRId64" [%"PRId64"ms], [%c] temporal_reference:%d\n"
+                     , ts.pts, ts.pts / 90, frame[picture_coding_type], temporal_reference );
+    mapi_log( LOG_LV2, "[check] file position:%"PRId64"\n", info->read_position );
     /* ready next. */
     info->video_position = read_last_position;
     return 0;
@@ -481,7 +481,7 @@ static uint16_t get_program_id( void *ih, mpeg_stream_type stream_type )
 
 static int parse( void *ih )
 {
-    dprintf( LOG_LV2, "[mpeges_parser] parse()\n" );
+    mapi_log( LOG_LV2, "[mpeges_parser] parse()\n" );
     mpeges_info_t *info = (mpeges_info_t *)ih;
     if( !info || !info->fr_ctx )
         return -1;
@@ -493,7 +493,7 @@ static int parse( void *ih )
 
 static void *initialize( const char *mpeges, int64_t buffer_size )
 {
-    dprintf( LOG_LV2, "[mpeges_parser] initialize()\n" );
+    mapi_log( LOG_LV2, "[mpeges_parser] initialize()\n" );
     mpeges_info_t     *info       = (mpeges_info_t     *)calloc( sizeof(mpeges_info_t), 1 );
     mpeg_video_info_t *video_info = (mpeg_video_info_t *)malloc( sizeof(mpeg_video_info_t) );
     if( !info || !video_info )
@@ -513,7 +513,7 @@ static void *initialize( const char *mpeges, int64_t buffer_size )
         goto fail_initialize;
     return info;
 fail_initialize:
-    dprintf( LOG_LV2, "[mpeges_parser] failed initialize.\n" );
+    mapi_log( LOG_LV2, "[mpeges_parser] failed initialize.\n" );
     if( video_info )
         free( video_info );
     if( info )
@@ -526,7 +526,7 @@ fail_initialize:
 
 static void release( void *ih )
 {
-    dprintf( LOG_LV2, "[mpeges_parser] release()\n" );
+    mapi_log( LOG_LV2, "[mpeges_parser] release()\n" );
     mpeges_info_t *info = (mpeges_info_t *)ih;
     if( !info )
         return;
