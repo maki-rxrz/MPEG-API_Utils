@@ -1745,10 +1745,11 @@ static int get_specific_stream_data( void *ih, get_sample_data_mode get_mode, ou
                 stream        = &(info->audio_stream[i]);
             }
         /* check start position. */
-        if( file->read_position >= stream->file_read.read_position )
+        if( stream && file->read_position >= stream->file_read.read_position )
             break;
         /* ready next. */
         mpegts_file_seek( file, 0, MPEGTS_SEEK_NEXT );
+        stream = NULL;
     }
     /* output. */
     uint32_t read_size   = 0;
