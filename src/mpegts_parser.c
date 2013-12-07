@@ -1729,6 +1729,7 @@ static int get_specific_stream_data( void *ih, get_sample_data_mode get_mode, ou
             return -1;
         /* seek ts packet head. */
         mpegts_file_seek( file, -(TS_PACKET_HEADER_SIZE), MPEGTS_SEEK_CUR );
+        file->sync_byte_position = 0;
         /* check the target stream. */
         for( uint8_t i = 0; !stream && i < info->video_stream_num; ++i )
             if( h.program_id == info->video_stream[i].program_id )
