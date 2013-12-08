@@ -371,7 +371,7 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
             char *mode = argv[++i];
             output_stream_type output_stream = OUTPUT_STREAM_NONE;
             for( int j = 0; mode[j] != '\0'; ++j )
-                switch( tolower(mode[j]) )
+                switch( tolower((int)mode[j]) )
                 {
                     case 'p' :
                         p->api_type    = USE_MAPI_SEQUENTIAL_READ;

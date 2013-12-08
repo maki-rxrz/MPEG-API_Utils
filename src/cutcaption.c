@@ -926,8 +926,10 @@ static void cut_srt( param_t *p, FILE *input, FILE *output )
 
 #ifdef _MBCS
 #include <mbstring.h>
+#define string_t    unsigned char
 #else
 #define _mbspbrk    strpbrk
+#define string_t    char
 #endif
 static void correct_d2v_input( param_t *p )
 {
@@ -939,11 +941,11 @@ static void correct_d2v_input( param_t *p )
         goto end_correct;
     /* check input path. */
     char *input;
-    unsigned char *str  = NULL;
-    unsigned char *str2 = (unsigned char *)(p->input);
+    string_t *str  = NULL;
+    string_t *str2 = (string_t *)(p->input);
     while( 1 )
     {
-        static const unsigned char sep[] = "\\/";
+        static const string_t sep[] = "\\/";
         str2 = _mbspbrk( str2, sep );
         if( !str2 )
             break;
@@ -958,7 +960,7 @@ static void correct_d2v_input( param_t *p )
     }
     else
     {
-        size_t path_size = str - (unsigned char *)(p->input);
+        size_t path_size = str - (string_t *)(p->input);
         size_t len = path_size + strlen( filename ) + 1;
         input = (char *)malloc( len + 10 );
         if( !input )
@@ -975,6 +977,7 @@ static void correct_d2v_input( param_t *p )
 end_correct:
     d2v_parser.release( d2v_info );
 }
+#undef string_t
 
 typedef struct {
     int64_t video_1st_start;
