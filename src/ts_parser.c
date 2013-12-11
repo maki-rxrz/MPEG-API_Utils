@@ -1548,7 +1548,7 @@ static void demux_all_cb_func( void *cb_params, void *cb_ret )
             if( total_size < 0 )
                 dumper_fwrite( cb_p->fw_ctx, &(buffer[-total_size]), total_size + valid_size, NULL );
             else
-                dumper_fwrite( cb_p->fw_ctx, buffer, valid_size, NULL );
+                dumper_fwrite( cb_p->fw_ctx, &(buffer[read_offset]), valid_size, NULL );
             total_size += valid_size;
         }
         else
