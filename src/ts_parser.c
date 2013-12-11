@@ -1325,7 +1325,7 @@ typedef struct {
     char           *stream_name;
     uint8_t         stream_number;
     uint32_t        count;
-    uint64_t        total_size;
+    int64_t         total_size;
     int64_t         file_size;
     int             percent;
 } demux_cb_param_t;
@@ -1345,7 +1345,7 @@ static void demux_cb_func( void *cb_params, void *cb_ret )
     if( (percent - param->percent) > 0 )
     {
         mapi_log( LOG_LV_PROGRESS, " %s Stream[%3u] [%8u]  total: %14"PRIu64" byte ...[%5.2f%%]\r"
-                                 , param->stream_name, param->stream_number, param->count, param->total_size, percent / 100.0 );
+                                 , param->stream_name, param->stream_number, param->count, (uint64_t)param->total_size, percent / 100.0 );
         param->percent = percent;
     }
     ++ param->count;
@@ -1370,7 +1370,7 @@ static thread_func_ret demux_all( void *args )
     get_stream_data_cb_t cb        = { demux_cb_func, &cb_params };
     mpeg_api_get_stream_all( info, get_type, stream_number, mode, &cb );
     /* finish. */
-    uint64_t total_size = cb_params.total_size;
+    uint64_t total_size = (uint64_t)cb_params.total_size;
     mapi_log( LOG_LV_PROGRESS, "                                                                              \r"
                                " %s Stream[%3u] [demux] end - output: %"PRIu64" byte\n", stream_name, stream_number, total_size );
     return (thread_func_ret)(0);
@@ -1478,7 +1478,7 @@ static void demux_stream_all( param_t *p, void *info, stream_info_t *stream_info
                 demux_cb_param_t     cb_params = { video[i], "Video", i, 0, 0, p->file_size };
                 get_stream_data_cb_t cb        = { demux_cb_func, &cb_params };
                 mpeg_api_get_stream_all( info, SAMPLE_TYPE_VIDEO, i, get_mode, &cb );
-                uint64_t total_size = cb_params.total_size;
+                uint64_t total_size = (uint64_t)cb_params.total_size;
                 dumper_close( &(video[i]) );
                 mapi_log( LOG_LV_PROGRESS, "                                                                              \r" );
                 mapi_log( LOG_LV_PROGRESS, " Video Stream[%3u] [demux] end - output: %"PRIu64" byte\n", i, total_size );
@@ -1492,7 +1492,7 @@ static void demux_stream_all( param_t *p, void *info, stream_info_t *stream_info
                 demux_cb_param_t     cb_params = { audio[i], "Audio", i, 0, 0, p->file_size };
                 get_stream_data_cb_t cb        = { demux_cb_func, &cb_params };
                 mpeg_api_get_stream_all( info, SAMPLE_TYPE_AUDIO, i, get_mode, &cb );
-                uint64_t total_size = cb_params.total_size;
+                uint64_t total_size = (uint64_t)cb_params.total_size;
                 dumper_close( &(audio[i]) );
                 mapi_log( LOG_LV_PROGRESS, "                                                                              \r" );
                 mapi_log( LOG_LV_PROGRESS, " Audio Stream[%3u] [demux] end - output: %"PRIu64" byte\n", i, total_size );
@@ -1565,7 +1565,7 @@ static void demux_all_cb_func( void *cb_params, void *cb_ret )
     if( (percent - cb_p->percent) > 0 )
     {
         mapi_log( LOG_LV_PROGRESS, " %s Stream[%3u] [%8u]  total: %14"PRIu64" byte ...[%5.2f%%]\r"
-                                 , stream_name, stream_number, cb_p->count, total_size, percent / 100.0 );
+                                 , stream_name, stream_number, cb_p->count, (uint64_t)total_size, percent / 100.0 );
         cb_p->percent = percent;
     }
     cb_p->total_size += valid_size;
@@ -1635,7 +1635,7 @@ static void demux_stream_all_in_st( param_t *p, void *info, stream_info_t *strea
                 continue;
             dumper_close( &(video[i]) );
             mapi_log( LOG_LV_PROGRESS, " Video Stream[%3u] [demux] done - output: %"PRIu64" byte\n"
-                                    , i, v_cb_params[i].total_size );
+                                    , i, (uint64_t)v_cb_params[i].total_size );
         }
         for( uint8_t i = 0; i < audio_stream_num; ++i )
         {
@@ -1643,7 +1643,7 @@ static void demux_stream_all_in_st( param_t *p, void *info, stream_info_t *strea
                 continue;
             dumper_close( &(audio[i]) );
             mapi_log( LOG_LV_PROGRESS, " Audio Stream[%3u] [demux] done - output: %"PRIu64" byte\n"
-                                    , i, a_cb_params[i].total_size );
+                                    , i, (uint64_t)a_cb_params[i].total_size );
         }
         mapi_log( LOG_LV_PROGRESS, " %s Stream [demux] end\n", output_stream_name[stream_name_index] );
     }
