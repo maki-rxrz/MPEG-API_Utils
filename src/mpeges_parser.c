@@ -186,7 +186,8 @@ static void mpeges_get_stream_timestamp( mpeges_info_t *info, mpeg_timestamp_t *
                        "        picture_num:%d\n"
                        "        picture_coding_type:%u\n"
                        "        temporal_reference:%u\n"
-                       , info->fps_numerator, info->fps_denominator, info->timestamp_base, info->total_picture_num, info->picture_num
+                       , info->fps_numerator, info->fps_denominator, info->timestamp_base
+                       , info->total_picture_num, info->picture_num
                        , info->video_info->picture.picture_coding_type, info->video_info->picture.temporal_reference );
     /* calculate timestamp. */
     int64_t pts = info->timestamp_base * (info->total_picture_num + info->video_info->picture.temporal_reference);
@@ -307,7 +308,13 @@ static int64_t mpeges_seek_next_start_position( mpeges_info_t *info )
     return mpeges_ftell( info );
 }
 
-static const char *get_stream_information( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, get_information_key_type key )
+static const char *get_stream_information
+(
+    void                       *ih,
+    mpeg_sample_type            sample_type,
+    uint8_t                     stream_number,
+    get_information_key_type    key
+)
 {
     return NULL;
 }
@@ -333,7 +340,18 @@ static void free_sample_buffer( uint8_t **buffer )
     buffer = NULL;
 }
 
-static int get_sample_data( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, int64_t position, uint32_t sample_size, int32_t read_offset, uint8_t **dst_buffer, uint32_t *dst_read_size, get_sample_data_mode get_mode )
+static int get_sample_data
+(
+    void                       *ih,
+    mpeg_sample_type            sample_type,
+    uint8_t                     stream_number,
+    int64_t                     position,
+    uint32_t                    sample_size,
+    int32_t                     read_offset,
+    uint8_t                   **dst_buffer,
+    uint32_t                   *dst_read_size,
+    get_sample_data_mode        get_mode
+)
 {
     mpeges_info_t *info = (mpeges_info_t *)ih;
     if( !info || stream_number || position < 0 )
@@ -388,12 +406,26 @@ static int seek_next_sample_position( void *ih, mpeg_sample_type sample_type, ui
     return 0;
 }
 
-static int get_specific_stream_data( void *ih, get_sample_data_mode get_mode, output_stream_type output_stream, get_stream_data_cb_t *cb )
+static int get_specific_stream_data
+(
+    void                       *ih,
+    get_sample_data_mode        get_mode,
+    output_stream_type          output_stream,
+    get_stream_data_cb_t       *cb
+)
 {
     return -1;
 }
 
-static int get_stream_data( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, int32_t read_offset, get_sample_data_mode get_mode, get_stream_data_cb_t *cb )
+static int get_stream_data
+(
+    void                       *ih,
+    mpeg_sample_type            sample_type,
+    uint8_t                     stream_number,
+    int32_t                     read_offset,
+    get_sample_data_mode        get_mode,
+    get_stream_data_cb_t       *cb
+)
 {
     return -1;
 }

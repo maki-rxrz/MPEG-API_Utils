@@ -162,7 +162,8 @@ static thread_func_ret parse_stream( void *args )
             if( i >= video_list_size )
             {
                 video_list_size += DEFAULT_VIDEO_SAMPLE_NUM;
-                sample_list_data_t *tmp = (sample_list_data_t *)realloc( video_list, sizeof(sample_list_data_t) * video_list_size );
+                sample_list_data_t *tmp = (sample_list_data_t *)realloc( video_list
+                                                                       , sizeof(sample_list_data_t) * video_list_size );
                 if( !tmp )
                     goto fail_parse_stream;
                 video_list = tmp;
@@ -190,14 +191,16 @@ static thread_func_ret parse_stream( void *args )
                     ++wrap_around_count;
                 compare_ts = video_sample_info.pts;
             }
+#define CALCLATE_CORRECTION_TIMESTAMP( _timestamp )     \
+( _timestamp + (wrap_around_count + (compare_ts > _timestamp + info->wrap_around_check_v) ? 1 : 0 ) * MPEG_TIMESTAMP_WRAPAROUND_VALUE )
             /* setup. */
             video_list[i].file_position        = video_sample_info.file_position;
             video_list[i].sample_size          = video_sample_info.sample_size;
             video_list[i].raw_data_size        = video_sample_info.raw_data_size;
             video_list[i].raw_data_read_offset = video_sample_info.raw_data_read_offset;
             video_list[i].gop_number           = video_sample_info.gop_number;
-            video_list[i].timestamp.pts        = video_sample_info.pts + (wrap_around_count + (compare_ts > video_sample_info.pts + info->wrap_around_check_v) ? 1 : 0 ) * MPEG_TIMESTAMP_WRAPAROUND_VALUE;
-            video_list[i].timestamp.dts        = video_sample_info.dts + (wrap_around_count + (compare_ts > video_sample_info.dts + info->wrap_around_check_v) ? 1 : 0 ) * MPEG_TIMESTAMP_WRAPAROUND_VALUE;
+            video_list[i].timestamp.pts        = CALCLATE_CORRECTION_TIMESTAMP( video_sample_info.pts );
+            video_list[i].timestamp.dts        = CALCLATE_CORRECTION_TIMESTAMP( video_sample_info.dts );
             video_list[i].picture_coding_type  = video_sample_info.picture_coding_type;
             video_list[i].temporal_reference   = video_sample_info.temporal_reference;
             video_list[i].progressive_frame    = video_sample_info.progressive_frame;
@@ -209,6 +212,7 @@ static thread_func_ret parse_stream( void *args )
             video_list[i].channel              = 0;
             video_list[i].layer                = 0;
             video_list[i].bit_depth            = 0;
+#undef CALCLATE_CORRECTION_TIMESTAMP
             /* progress. */
             parse_progress( param, video_sample_info.file_position );
         }
@@ -230,8 +234,11 @@ static thread_func_ret parse_stream( void *args )
                 {
                     if( video_list[j].gop_number >= 0 )
                         break;
-                    video_list[j].timestamp.pts += (compare_ts > video_list[j].timestamp.pts + info->wrap_around_check_v) ? MPEG_TIMESTAMP_WRAPAROUND_VALUE : 0;
-                    video_list[j].timestamp.dts += (compare_ts > video_list[j].timestamp.dts + info->wrap_around_check_v) ? MPEG_TIMESTAMP_WRAPAROUND_VALUE : 0;
+#define CHECK_CORRECTION_TIME_VALUE( _timestamp )     \
+( (compare_ts > _timestamp + info->wrap_around_check_v) ? MPEG_TIMESTAMP_WRAPAROUND_VALUE : 0 )
+                    video_list[j].timestamp.pts += CHECK_CORRECTION_TIME_VALUE( video_list[j].timestamp.pts );
+                    video_list[j].timestamp.dts += CHECK_CORRECTION_TIME_VALUE( video_list[j].timestamp.dts );
+#undef CHECK_CORRECTION_TIME_VALUE
                 }
             }
             /* setup video sample list. */
@@ -278,13 +285,15 @@ static thread_func_ret parse_stream( void *args )
                 ++wrap_around_count;
             compare_ts = audio_sample_info.pts;
             /* setup. */
+#define CALCLATE_CORRECTION_TIMESTAMP( _timestamp )     \
+( _timestamp + wrap_around_count * MPEG_TIMESTAMP_WRAPAROUND_VALUE )
             audio_list[i].file_position        = audio_sample_info.file_position;
             audio_list[i].sample_size          = audio_sample_info.sample_size;
             audio_list[i].raw_data_size        = audio_sample_info.raw_data_size;
             audio_list[i].raw_data_read_offset = audio_sample_info.raw_data_read_offset;
             audio_list[i].gop_number           = 0;
-            audio_list[i].timestamp.pts        = audio_sample_info.pts + wrap_around_count * MPEG_TIMESTAMP_WRAPAROUND_VALUE;
-            audio_list[i].timestamp.dts        = audio_sample_info.dts + wrap_around_count * MPEG_TIMESTAMP_WRAPAROUND_VALUE;
+            audio_list[i].timestamp.pts        = CALCLATE_CORRECTION_TIMESTAMP( audio_sample_info.pts );
+            audio_list[i].timestamp.dts        = CALCLATE_CORRECTION_TIMESTAMP( audio_sample_info.dts );
             audio_list[i].picture_coding_type  = 0;
             audio_list[i].temporal_reference   = 0;
             audio_list[i].picture_structure    = 0;
@@ -294,6 +303,7 @@ static thread_func_ret parse_stream( void *args )
             audio_list[i].channel              = audio_sample_info.channel;
             audio_list[i].layer                = audio_sample_info.layer;
             audio_list[i].bit_depth            = audio_sample_info.bit_depth;
+#undef CALCLATE_CORRECTION_TIMESTAMP
             /* progress. */
             parse_progress( param, audio_sample_info.file_position );
         }
@@ -385,7 +395,8 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
         {
             for( uint16_t i = 0; i < thread_index; ++i )
             {
-                //mapi_log( LOG_LV_PROGRESS, "[log] wait %s Stream[%3u]...\n", param[i].stream_name, param[i].stream_number );
+                //mapi_log( LOG_LV_PROGRESS, "[log] wait %s Stream[%3u]...\n"
+                //                         , param[i].stream_name, param[i].stream_number );
                 thread_wait_end( parse_thread[i], NULL );
             }
         }
@@ -439,7 +450,13 @@ MAPI_EXPORT int64_t mpeg_api_get_sample_position( void *ih, mpeg_sample_type sam
     return info->parser->get_sample_position( info->parser_info, sample_type, stream_number );
 }
 
-MAPI_EXPORT int mpeg_api_set_sample_position( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, int64_t position )
+MAPI_EXPORT int mpeg_api_set_sample_position
+(
+    void                       *ih,
+    mpeg_sample_type            sample_type,
+    uint8_t                     stream_number,
+    int64_t                     position
+)
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
@@ -447,7 +464,13 @@ MAPI_EXPORT int mpeg_api_set_sample_position( void *ih, mpeg_sample_type sample_
     return info->parser->set_sample_position( info->parser_info, sample_type, stream_number, position );
 }
 
-MAPI_EXPORT int mpeg_api_get_all_stream_data( void *ih, get_sample_data_mode get_mode, output_stream_type output_stream, get_stream_data_cb_t *cb )
+MAPI_EXPORT int mpeg_api_get_all_stream_data
+(
+    void                       *ih,
+    get_sample_data_mode        get_mode,
+    output_stream_type          output_stream,
+    get_stream_data_cb_t       *cb
+)
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
@@ -481,7 +504,14 @@ MAPI_EXPORT int mpeg_api_get_all_stream_data( void *ih, get_sample_data_mode get
     return 0;
 }
 
-MAPI_EXPORT int mpeg_api_get_stream_all( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, get_sample_data_mode get_mode, get_stream_data_cb_t *cb )
+MAPI_EXPORT int mpeg_api_get_stream_all
+(
+    void                       *ih,
+    mpeg_sample_type            sample_type,
+    uint8_t                     stream_number,
+    get_sample_data_mode        get_mode,
+    get_stream_data_cb_t       *cb
+)
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
@@ -518,7 +548,15 @@ MAPI_EXPORT int mpeg_api_get_stream_all( void *ih, mpeg_sample_type sample_type,
     return 0;
 }
 
-MAPI_EXPORT int mpeg_api_get_stream_data( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, uint8_t **dst_buffer, uint32_t *dst_read_size, get_sample_data_mode get_mode )
+MAPI_EXPORT int mpeg_api_get_stream_data
+(
+    void                       *ih,
+    mpeg_sample_type            sample_type,
+    uint8_t                     stream_number,
+    uint8_t                   **dst_buffer,
+    uint32_t                   *dst_read_size,
+    get_sample_data_mode        get_mode
+)
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
@@ -561,7 +599,9 @@ MAPI_EXPORT int mpeg_api_get_stream_data( void *ih, mpeg_sample_type sample_type
     if( !sample_size )
         return -1;
     int64_t reset_position = parser->get_sample_position( parser_info, sample_type, stream_number );
-    int     result         = parser->get_sample_data( parser_info, sample_type, stream_number, file_position, sample_size, read_offset, dst_buffer, dst_read_size, get_mode );
+    int     result         = parser->get_sample_data( parser_info, sample_type, stream_number
+                                                    , file_position, sample_size, read_offset
+                                                    , dst_buffer, dst_read_size, get_mode );
     parser->set_sample_position( parser_info, sample_type, stream_number, reset_position );
     return result;
 }
@@ -574,7 +614,13 @@ MAPI_EXPORT uint8_t mpeg_api_get_stream_num( void *ih, mpeg_sample_type sample_t
     return info->parser->get_stream_num( info->parser_info, sample_type );
 }
 
-MAPI_EXPORT const char *mpeg_api_get_stream_information( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, get_information_key_type key )
+MAPI_EXPORT const char *mpeg_api_get_stream_information
+(
+    void                       *ih,
+    mpeg_sample_type            sample_type,
+    uint8_t                     stream_number,
+    get_information_key_type    key
+)
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
@@ -582,7 +628,12 @@ MAPI_EXPORT const char *mpeg_api_get_stream_information( void *ih, mpeg_sample_t
     return info->parser->get_stream_information( info->parser_info, sample_type, stream_number, key );
 }
 
-MAPI_EXPORT const char *mpeg_api_get_sample_file_extension( void *ih, mpeg_sample_type sample_type, uint8_t stream_number )
+MAPI_EXPORT const char *mpeg_api_get_sample_file_extension
+(
+    void                       *ih,
+    mpeg_sample_type            sample_type,
+    uint8_t                     stream_number
+)
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
@@ -645,7 +696,12 @@ MAPI_EXPORT const char *mpeg_api_get_sample_file_extension( void *ih, mpeg_sampl
     return raw_ext[sample_type][index];
 }
 
-MAPI_EXPORT mpeg_stream_type mpeg_api_get_sample_stream_type( void *ih, mpeg_sample_type sample_type, uint8_t stream_number )
+MAPI_EXPORT mpeg_stream_type mpeg_api_get_sample_stream_type
+(
+    void                       *ih,
+    mpeg_sample_type            sample_type,
+    uint8_t                     stream_number
+)
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
@@ -653,7 +709,12 @@ MAPI_EXPORT mpeg_stream_type mpeg_api_get_sample_stream_type( void *ih, mpeg_sam
     return info->parser->get_sample_stream_type( info->parser_info, sample_type, stream_number );
 }
 
-MAPI_EXPORT uint32_t mpeg_api_get_sample_num( void *ih, mpeg_sample_type sample_type, uint8_t stream_number )
+MAPI_EXPORT uint32_t mpeg_api_get_sample_num
+(
+    void                       *ih,
+    mpeg_sample_type            sample_type,
+    uint8_t                     stream_number
+)
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
@@ -666,7 +727,14 @@ MAPI_EXPORT uint32_t mpeg_api_get_sample_num( void *ih, mpeg_sample_type sample_
     return sample_num;
 }
 
-MAPI_EXPORT int mpeg_api_get_sample_info( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, uint32_t sample_number, stream_info_t *stream_info )
+MAPI_EXPORT int mpeg_api_get_sample_info
+(
+    void                       *ih,
+    mpeg_sample_type            sample_type,
+    uint8_t                     stream_number,
+    uint32_t                    sample_number,
+    stream_info_t              *stream_info
+)
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info || !stream_info )
@@ -715,7 +783,16 @@ MAPI_EXPORT int mpeg_api_get_sample_info( void *ih, mpeg_sample_type sample_type
     return 0;
 }
 
-MAPI_EXPORT int mpeg_api_get_sample_data( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, uint32_t sample_number, uint8_t **dst_buffer, uint32_t *dst_read_size, get_sample_data_mode get_mode )
+MAPI_EXPORT int mpeg_api_get_sample_data
+(
+    void                       *ih,
+    mpeg_sample_type            sample_type,
+    uint8_t                     stream_number,
+    uint32_t                    sample_number,
+    uint8_t                   **dst_buffer,
+    uint32_t                   *dst_read_size,
+    get_sample_data_mode        get_mode
+)
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info || !dst_buffer || !dst_read_size )
@@ -751,7 +828,9 @@ MAPI_EXPORT int mpeg_api_get_sample_data( void *ih, mpeg_sample_type sample_type
     }
     if( !sample_size )
         return -1;
-    return parser->get_sample_data( parser_info, sample_type, stream_number, file_position, sample_size, read_offset, dst_buffer, dst_read_size, get_mode );
+    return parser->get_sample_data( parser_info, sample_type, stream_number
+                                  , file_position, sample_size, read_offset
+                                  , dst_buffer, dst_read_size, get_mode );
 }
 
 MAPI_EXPORT int mpeg_api_free_sample_buffer( void *ih, uint8_t **buffer )
@@ -833,7 +912,13 @@ MAPI_EXPORT int mpeg_api_parse( void *ih )
     return info->parser->parse( info->parser_info );
 }
 
-MAPI_EXPORT int mpeg_api_get_stream_info( void *ih, stream_info_t *stream_info, int64_t *video_1st_pts, int64_t*video_key_pts )
+MAPI_EXPORT int mpeg_api_get_stream_info
+(
+    void                       *ih,
+    stream_info_t              *stream_info,
+    int64_t                    *video_1st_pts,
+    int64_t                    *video_key_pts
+)
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )

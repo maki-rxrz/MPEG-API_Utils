@@ -125,7 +125,8 @@ extern mpeg_pes_packet_start_code_type mpeg_pes_get_stream_start_code( mpeg_stre
     return start_code;
 }
 
-#define READ_DESCRIPTOR( name )         static void read_##name##_descriptor( uint8_t *descriptor, name##_descriptor_info_t *name )
+#define READ_DESCRIPTOR( name )         \
+static void read_##name##_descriptor( uint8_t *descriptor, name##_descriptor_info_t *name )
 
 READ_DESCRIPTOR( video_stream )
 {
@@ -170,7 +171,10 @@ READ_DESCRIPTOR( hierarchy )
 
 READ_DESCRIPTOR( registration )
 {
-    registration->format_identifier              = (descriptor[2] << 24) | (descriptor[3] << 16) | (descriptor[4] << 8) | descriptor[5];
+    registration->format_identifier              = (descriptor[2] << 24)
+                                                 | (descriptor[3] << 16)
+                                                 | (descriptor[4] <<  8)
+                                                 |  descriptor[5];
     /* additional_identification_info */
     registration->additional_identification_info =  descriptor;        // FIXME
 }
@@ -183,7 +187,9 @@ READ_DESCRIPTOR( data_stream_alignment )
 READ_DESCRIPTOR( target_background_grid )
 {
     target_background_grid->horizontal_size          =  (descriptor[2] << 6) | (descriptor[3] >> 2);
-    target_background_grid->vertical_size            = ((descriptor[3] & 0x02) << 12) | (descriptor[4] << 4) | (descriptor[5] >> 4);
+    target_background_grid->vertical_size            = ((descriptor[3] & 0x02) << 12)
+                                                     |  (descriptor[4]         <<  4)
+                                                     |  (descriptor[5]         >>  4);
     target_background_grid->aspect_ratio_information =   descriptor[5] & 0x04;
 }
 
@@ -214,7 +220,9 @@ READ_DESCRIPTOR( ISO_639_language )
     for( uint8_t i = 0; i < ISO_639_language->data_num; ++i )
     {
         uint8_t index = 2+i;
-        ISO_639_language->data[i].ISO_639_language_code = (descriptor[index+0] << 16) | (descriptor[index+1] << 8) | descriptor[index+2];
+        ISO_639_language->data[i].ISO_639_language_code = (descriptor[index+0] << 16)
+                                                        | (descriptor[index+1] <<  8)
+                                                        |  descriptor[index+2];
         ISO_639_language->data[i].audio_type            =  descriptor[index+3];
     }
 }
@@ -255,7 +263,10 @@ READ_DESCRIPTOR( maximum_bitrate )
 
 READ_DESCRIPTOR( private_data_indicator )
 {
-    private_data_indicator->private_data_indicator = (descriptor[2] << 24) | (descriptor[3] << 16) | (descriptor[4] << 8) | descriptor[5];
+    private_data_indicator->private_data_indicator = (descriptor[2] << 24)
+                                                   | (descriptor[3] << 16)
+                                                   | (descriptor[4] <<  8)
+                                                   |  descriptor[5];
 }
 
 READ_DESCRIPTOR( smoothing_buffer )
@@ -347,7 +358,12 @@ READ_DESCRIPTOR( MultiplexBuffer )
         read_##name##_descriptor( descriptor, &(descriptor_info->name) );   \
         break;                                                              \
 }
-extern void mpeg_stream_get_descriptor_info( mpeg_stream_type stream_type, uint8_t *descriptor, mpeg_descriptor_info_t *descriptor_info )
+extern void mpeg_stream_get_descriptor_info
+(
+    mpeg_stream_type            stream_type,
+    uint8_t                    *descriptor,
+    mpeg_descriptor_info_t     *descriptor_info
+)
 {
     descriptor_info->tag    = descriptor[0];
     descriptor_info->length = descriptor[1];
@@ -598,7 +614,12 @@ extern void mpeg_stream_debug_descriptor_info( mpeg_descriptor_info_t *descripto
 }
 #undef PRINT_DESCRIPTOR_INFO
 
-extern mpeg_stream_group_type mpeg_stream_judge_type( mpeg_stream_type stream_type, uint8_t *descriptor_tags, uint16_t descriptor_num )
+extern mpeg_stream_group_type mpeg_stream_judge_type
+(
+    mpeg_stream_type            stream_type,
+    uint8_t                    *descriptor_tags,
+    uint16_t                    descriptor_num
+)
 {
     mpeg_stream_group_type stream_judge = STREAM_IS_UNKNOWN;
     switch( stream_type )
@@ -736,7 +757,8 @@ static int mpa_header_check( uint8_t *header, mpeg_stream_raw_info_t *stream_raw
                 MPEG_AUDIO_SPEAKER_FRONT_CENTER
             };
         static const uint8_t mpa_layer[4] = { 0, 3, 2, 1 };
-        stream_raw_info->sampling_frequency = sampling_frequency_base[sampling_frequency_index] / ((version_id == 0) ? 4 : (version_id == 2) ? 2 : 1 );
+        stream_raw_info->sampling_frequency = sampling_frequency_base[sampling_frequency_index]
+                                            / ((version_id == 0) ? 4 : (version_id == 2) ? 2 : 1 );
         stream_raw_info->bitrate            = bitrate * 1000;
         stream_raw_info->channel            = speaker_mapping[channel_mode];
         stream_raw_info->layer              = mpa_layer[layer];
@@ -883,7 +905,8 @@ static int ac3_header_check( uint8_t *header, mpeg_stream_raw_info_t *stream_raw
                                             + (sample_rate_code == 0x01 && (frame_size_code & 0x01));
         stream_raw_info->sampling_frequency = ac3_sample_rate[sample_rate_code];
         stream_raw_info->bitrate            = ac3_bitrate[frame_size_code / 2] * 1000;
-        stream_raw_info->channel            = ac3_speaker_mapping[audio_coding_mode] | ((lfe_channel_on) ? MPEG_AUDIO_SPEAKER_LFE_CHANNEL : 0);
+        stream_raw_info->channel            = ac3_speaker_mapping[audio_coding_mode]
+                                            | (lfe_channel_on ? MPEG_AUDIO_SPEAKER_LFE_CHANNEL : 0);
     }
     return 0;
 }
@@ -922,16 +945,20 @@ static int eac3_header_check( uint8_t *header, mpeg_stream_raw_info_t *stream_ra
     {
         if( audio_coding_mode == 0 )
         {
-            /* dialogue_normalization2       =  ((header[header_idx+0] & 0x01) << 4) | (header[header_idx+1] >> 4); */
-            /* compression_gain_word2_exists = !!(header[header_idx+1] & 0x08)              */
+            /* dialogue_normalization2       =  ((header[header_idx+0] & 0x01) << 4)
+                                             |   (header[header_idx+1]         >> 4);   */
+            /* compression_gain_word2_exists = !!(header[header_idx+1] & 0x08)          */
             if( header[header_idx+1] & 0x08 )
             {
-                /* compression_gain_word2    =  ((header[header_idx+1] & 0x07) << 5) | (header[header_idx+2] >> 3);    */
+                /* compression_gain_word2    =  ((header[header_idx+1] & 0x07) << 5)
+                                             |   (header[header_idx+2]         >> 3);   */
                 ++header_idx;
             }
             custom_channel_map_exists        = !!(header[header_idx+1] & 0x04);
             if( custom_channel_map_exists )
-                custom_channel_map           =  ((header[header_idx+1] & 0x03) << 14) | (header[header_idx+2] << 6) | (header[header_idx+2] >> 2);
+                custom_channel_map           =  ((header[header_idx+1] & 0x03) << 14)
+                                             |   (header[header_idx+2]         <<  6)
+                                             |   (header[header_idx+2]         >>  2);
         }
         else
         {
@@ -949,7 +976,8 @@ static int eac3_header_check( uint8_t *header, mpeg_stream_raw_info_t *stream_ra
         stream_raw_info->frame_length       = frame_size + 1;
         stream_raw_info->sampling_frequency = eac3_sample_rate[sample_rate_code + sample_rate_code2];
         stream_raw_info->bitrate            = 0;        // FIXME
-        stream_raw_info->channel            = ac3_speaker_mapping[audio_coding_mode] | ((lfe_channel_on) ? MPEG_AUDIO_SPEAKER_LFE_CHANNEL : 0);
+        stream_raw_info->channel            = ac3_speaker_mapping[audio_coding_mode]
+                                            | (lfe_channel_on ? MPEG_AUDIO_SPEAKER_LFE_CHANNEL : 0);
         if( custom_channel_map_exists )
             stream_raw_info->channel       |= ((custom_channel_map & 0x8000) ? MPEG_AUDIO_SPEAKER_FRONT_LEFT   : 0)
                                             | ((custom_channel_map & 0x4000) ? MPEG_AUDIO_SPEAKER_FRONT_CENTER : 0)
@@ -1048,7 +1076,16 @@ static int dts_header_check( uint8_t *header, mpeg_stream_raw_info_t *stream_raw
     return 0;
 }
 
-extern int32_t mpeg_stream_check_header( mpeg_stream_type stream_type, mpeg_stream_group_type stream_judge, int search_point, uint8_t *buffer, uint32_t buffer_size, mpeg_stream_raw_info_t *stream_raw_info, int32_t *data_offset )
+extern int32_t mpeg_stream_check_header
+(
+    mpeg_stream_type            stream_type,
+    mpeg_stream_group_type      stream_judge,
+    int                         search_point,
+    uint8_t                    *buffer,
+    uint32_t                    buffer_size,
+    mpeg_stream_raw_info_t     *stream_raw_info,
+    int32_t                    *data_offset
+)
 {
     int32_t header_offset = -1;
     if( stream_raw_info )
@@ -1129,7 +1166,9 @@ extern int32_t mpeg_stream_check_header( mpeg_stream_type stream_type, mpeg_stre
     if( header_offset >= 0 && (stream_judge & STREAM_IS_AUDIO) )
         mapi_log( LOG_LV4, "        check_buffer_size:%d  header_offset:%d\n", buffer_size, header_offset );
     //if( stream_raw_info )
-    //    mapi_log( LOG_LV4, "[debug] %6uHz  %7uKbps  %u channel  other:%u\n", stream_raw_info->sampling_frequency, stream_raw_info->bitrate, stream_raw_info->channel, stream_raw_info->layer );
+    //    mapi_log( LOG_LV4, "[debug] %6uHz  %7uKbps  %u channel  other:%u\n"
+    //                     , stream_raw_info->sampling_frequency, stream_raw_info->bitrate, stream_raw_info->channel
+    //                     , stream_raw_info->layer );
     return header_offset;
 }
 

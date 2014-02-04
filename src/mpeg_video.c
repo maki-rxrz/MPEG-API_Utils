@@ -198,7 +198,11 @@ static int32_t read_sequence_extension( uint8_t *data, mpeg_video_sequence_exten
     return MPEG_VIDEO_SEQUENCE_EXTENSION_SIZE;
 }
 
-static int32_t read_sequence_display_extension( uint8_t *data, mpeg_video_sequence_display_extension_t *sequence_display_ext )
+static int32_t read_sequence_display_extension
+(
+    uint8_t                                    *data,
+    mpeg_video_sequence_display_extension_t    *sequence_display_ext
+)
 {
     int32_t check_size = MPEG_VIDEO_SEQUENCE_DISPLAY_EXTENSION_SIZE;
     sequence_display_ext->video_format                 =   (data[0] & 0x0E) >> 1;
@@ -230,7 +234,11 @@ typedef enum {
     temporal_scalability = 0x03
 } scalable_mode;
 
-static int32_t read_sequence_scalable_extension( uint8_t *data, mpeg_video_sequence_scalable_extension_t *sequence_scalable_ext )
+static int32_t read_sequence_scalable_extension
+(
+    uint8_t                                    *data,
+    mpeg_video_sequence_scalable_extension_t   *sequence_scalable_ext
+)
 {
     int32_t check_size = MPEG_VIDEO_SEQUENCE_SCALABLE_EXTENSION_SIZE;
     sequence_scalable_ext->scalable_mode                              =    data[0] & 0x0C >> 2;
@@ -265,7 +273,11 @@ static int32_t read_sequence_scalable_extension( uint8_t *data, mpeg_video_seque
     return check_size;
 }
 
-static int32_t read_picture_coding_extension( uint8_t *data, mpeg_video_picture_coding_extension_t *picture_coding_ext )
+static int32_t read_picture_coding_extension
+(
+    uint8_t                                *data,
+    mpeg_video_picture_coding_extension_t  *picture_coding_ext
+)
 {
     int32_t check_size = MPEG_VIDEO_PICTURE_CODING_EXTENSION_SIZE;
     picture_coding_ext->f_code[0].horizontal       =    data[0] & 0x0F;
@@ -304,7 +316,11 @@ static int32_t read_picture_coding_extension( uint8_t *data, mpeg_video_picture_
     return check_size;
 }
 
-static int32_t read_quant_matrix_extension( uint8_t *data, mpeg_video_quant_matrix_extension_t *quant_matrix_ext )
+static int32_t read_quant_matrix_extension
+(
+    uint8_t                                *data,
+    mpeg_video_quant_matrix_extension_t    *quant_matrix_ext
+)
 {
     int32_t check_size = MPEG_VIDEO_QUANT_MATRIX_EXTENSION_SIZE;
     uint8_t *p = &(data[0]);
@@ -367,7 +383,11 @@ do {                                \
         --getbits_count;            \
     }                               \
 } while( 0 )
-static int32_t read_picture_display_extension( uint8_t *data, mpeg_video_picture_display_extension_t *picture_display_ext )
+static int32_t read_picture_display_extension
+(
+    uint8_t                                    *data,
+    mpeg_video_picture_display_extension_t     *picture_display_ext
+)
 {
     uint8_t number_of_frame_centre_offsets = picture_display_ext->number_of_frame_centre_offsets;
     /* initialize. */
@@ -393,7 +413,11 @@ static int32_t read_picture_display_extension( uint8_t *data, mpeg_video_picture
 #undef bit_shift
 #undef getbits
 
-static int32_t read_picture_temporal_scalable_extension( uint8_t *data, mpeg_video_picture_temporal_scalable_extension_t *picture_temporal_scalable_ext )
+static int32_t read_picture_temporal_scalable_extension
+(
+    uint8_t                                            *data,
+    mpeg_video_picture_temporal_scalable_extension_t   *picture_temporal_scalable_ext
+)
 {
     picture_temporal_scalable_ext->reference_select_code       =   (data[0] & 0x0C) >> 2;
     picture_temporal_scalable_ext->forward_temporal_reference  =  ((data[0] & 0x03) << 8) | data[1];
@@ -402,13 +426,22 @@ static int32_t read_picture_temporal_scalable_extension( uint8_t *data, mpeg_vid
     return MPEG_VIDEO_PICTURE_TEMPORAL_SCALABLE_EXTENSION_SIZE;
 }
 
-static int32_t read_picture_spatial_scalable_extension( uint8_t *data, mpeg_video_picture_spatial_scalable_extension_t *picture_spatial_scalable_ext )
+static int32_t read_picture_spatial_scalable_extension
+(
+    uint8_t                                            *data,
+    mpeg_video_picture_spatial_scalable_extension_t    *picture_spatial_scalable_ext
+)
 {
-    picture_spatial_scalable_ext->lower_layer_temporal_reference           =  ((data[0] & 0x08) << 6) | (data[1] >> 2);
+    picture_spatial_scalable_ext->lower_layer_temporal_reference           =  ((data[0] & 0x08) << 6)
+                                                                           |   (data[1]         >> 2);
     /* marker_bit '1'                                                      = !!(data[1] & 0x02); */
-    picture_spatial_scalable_ext->lower_layer_horizontal_offset            =  ((data[1] & 0x01) << 14) | (data[2] << 6) | (data[3] >> 2);
+    picture_spatial_scalable_ext->lower_layer_horizontal_offset            =  ((data[1] & 0x01) << 14)
+                                                                           |   (data[2]         <<  6)
+                                                                           |   (data[3]         >>  2);
     /* marker_bit '1'                                                      = !!(data[3] & 0x02); */
-    picture_spatial_scalable_ext->lower_layer_vertical_offset              =  ((data[3] & 0x01) << 14) | (data[4] << 6) | (data[5] >> 2);
+    picture_spatial_scalable_ext->lower_layer_vertical_offset              =  ((data[3] & 0x01) << 14)
+                                                                           |   (data[4]         <<  6)
+                                                                           |   (data[5]         >>  2);
     picture_spatial_scalable_ext->spatial_temporal_weight_code_table_index =    data[5] & 0x02;
     picture_spatial_scalable_ext->lower_layer_progressive_frame            = !!(data[6] & 0x80);
     picture_spatial_scalable_ext->lower_layer_deinterlaced_field_select    = !!(data[6] & 0x40);
@@ -570,7 +603,12 @@ static mpeg_video_extension_type mpeg_video_check_extension_start_code_identifie
     return extension_type;
 }
 
-extern int32_t mpeg_video_get_header_info( uint8_t *buf, mpeg_video_start_code_type start_code, mpeg_video_info_t *video_info )
+extern int32_t mpeg_video_get_header_info
+(
+    uint8_t                        *buf,
+    mpeg_video_start_code_type      start_code,
+    mpeg_video_info_t              *video_info
+)
 {
     int32_t check_size = 0;
     switch( start_code )
@@ -600,7 +638,11 @@ extern int32_t mpeg_video_get_header_info( uint8_t *buf, mpeg_video_start_code_t
     return check_size;
 }
 
-extern void mpeg_video_debug_header_info( mpeg_video_info_t *video_info, mpeg_video_start_code_searching_status searching_status )
+extern void mpeg_video_debug_header_info
+(
+    mpeg_video_info_t                          *video_info,
+    mpeg_video_start_code_searching_status      searching_status
+)
 {
     /* debug. */
     switch( searching_status )
@@ -846,7 +888,12 @@ extern void mpeg_video_debug_header_info( mpeg_video_info_t *video_info, mpeg_vi
     }
 }
 
-extern int mpeg_video_judge_start_code( uint8_t *start_code_data, uint8_t identifier, mpeg_video_start_code_info_t *start_code_info )
+extern int mpeg_video_judge_start_code
+(
+    uint8_t                            *start_code_data,
+    uint8_t                             identifier,
+    mpeg_video_start_code_info_t       *start_code_info
+)
 {
     int result = -1;
     static const struct {
@@ -906,7 +953,12 @@ extern int mpeg_video_judge_start_code( uint8_t *start_code_data, uint8_t identi
 
 #define FRAME_RATE_CODE_MAX         (9)
 
-extern void mpeg_video_get_frame_rate( mpeg_video_info_t *video_info, uint32_t *fps_numerator, uint32_t *fps_denominator )
+extern void mpeg_video_get_frame_rate
+(
+    mpeg_video_info_t          *video_info,
+    uint32_t                   *fps_numerator,
+    uint32_t                   *fps_denominator
+)
 {
     uint8_t frame_rate_code        = video_info->sequence.frame_rate_code;
     uint8_t frame_rate_extension_n = video_info->sequence_ext.frame_rate_extension_n;

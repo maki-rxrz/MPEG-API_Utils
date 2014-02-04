@@ -68,27 +68,91 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih );
 
 MAPI_EXPORT int64_t mpeg_api_get_sample_position( void *ih, mpeg_sample_type sample_type, uint8_t stream_number );
 
-MAPI_EXPORT int mpeg_api_set_sample_position( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, int64_t position );
+MAPI_EXPORT int mpeg_api_set_sample_position
+(
+    void                       *ih,
+    mpeg_sample_type            sample_type,
+    uint8_t                     stream_number,
+    int64_t                     position
+);
 
-MAPI_EXPORT int mpeg_api_get_stream_data( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, uint8_t **dst_buffer, uint32_t *dst_read_size, get_sample_data_mode get_mode );
+MAPI_EXPORT int mpeg_api_get_stream_data
+(
+    void                       *ih,
+    mpeg_sample_type            sample_type,
+    uint8_t                     stream_number,
+    uint8_t                   **dst_buffer,
+    uint32_t                   *dst_read_size,
+    get_sample_data_mode        get_mode
+);
 
-MAPI_EXPORT int mpeg_api_get_all_stream_data( void *ih, get_sample_data_mode get_mode, output_stream_type output_stream, get_stream_data_cb_t *cb );
+MAPI_EXPORT int mpeg_api_get_all_stream_data
+(
+    void                       *ih,
+    get_sample_data_mode        get_mode,
+    output_stream_type          output_stream,
+    get_stream_data_cb_t       *cb
+);
 
-MAPI_EXPORT int mpeg_api_get_stream_all( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, get_sample_data_mode get_mode, get_stream_data_cb_t *cb );
+MAPI_EXPORT int mpeg_api_get_stream_all
+(
+    void                       *ih,
+    mpeg_sample_type            sample_type,
+    uint8_t                     stream_number,
+    get_sample_data_mode        get_mode,
+    get_stream_data_cb_t       *cb
+);
 
 MAPI_EXPORT uint8_t mpeg_api_get_stream_num( void *ih, mpeg_sample_type sample_type );
 
-MAPI_EXPORT const char *mpeg_api_get_stream_information( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, get_information_key_type key );
+MAPI_EXPORT const char *mpeg_api_get_stream_information
+(
+    void                       *ih,
+    mpeg_sample_type            sample_type,
+    uint8_t                     stream_number,
+    get_information_key_type    key
+);
 
-MAPI_EXPORT const char *mpeg_api_get_sample_file_extension( void *ih, mpeg_sample_type sample_type, uint8_t stream_number );
+MAPI_EXPORT const char *mpeg_api_get_sample_file_extension
+(
+    void                       *ih,
+    mpeg_sample_type            sample_type,
+    uint8_t                     stream_number
+);
 
-MAPI_EXPORT mpeg_stream_type mpeg_api_get_sample_stream_type( void *ih, mpeg_sample_type sample_type, uint8_t stream_number );
+MAPI_EXPORT mpeg_stream_type mpeg_api_get_sample_stream_type
+(
+    void                       *ih,
+    mpeg_sample_type            sample_type,
+    uint8_t                     stream_number
+);
 
-MAPI_EXPORT uint32_t mpeg_api_get_sample_num( void *ih, mpeg_sample_type sample_type, uint8_t stream_number );
+MAPI_EXPORT uint32_t mpeg_api_get_sample_num
+(
+    void                       *ih,
+    mpeg_sample_type            sample_type,
+    uint8_t                     stream_number
+);
 
-MAPI_EXPORT int mpeg_api_get_sample_info( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, uint32_t sample_number, stream_info_t *stream_info );
+MAPI_EXPORT int mpeg_api_get_sample_info
+(
+    void                       *ih,
+    mpeg_sample_type            sample_type,
+    uint8_t                     stream_number,
+    uint32_t                    sample_number,
+    stream_info_t              *stream_info
+);
 
-MAPI_EXPORT int mpeg_api_get_sample_data( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, uint32_t sample_number, uint8_t **dst_buffer, uint32_t *dst_read_size, get_sample_data_mode get_mode );
+MAPI_EXPORT int mpeg_api_get_sample_data
+(
+    void                       *ih,
+    mpeg_sample_type            sample_type,
+    uint8_t                     stream_number,
+    uint32_t                    sample_number,
+    uint8_t                   **dst_buffer,
+    uint32_t                   *dst_read_size,
+    get_sample_data_mode        get_mode
+);
 
 MAPI_EXPORT int mpeg_api_free_sample_buffer( void *ih, uint8_t **buffer );
 
@@ -100,7 +164,13 @@ MAPI_EXPORT int mpeg_api_get_audio_frame( void *ih, uint8_t stream_number, strea
 
 MAPI_EXPORT int mpeg_api_parse( void *ih );
 
-MAPI_EXPORT int mpeg_api_get_stream_info( void *ih, stream_info_t *stream_info, int64_t *video_1st_pts, int64_t*video_key_pts );
+MAPI_EXPORT int mpeg_api_get_stream_info
+(
+    void                       *ih,
+    stream_info_t              *stream_info,
+    int64_t                    *video_1st_pts,
+    int64_t                    *video_key_pts
+);
 
 MAPI_EXPORT int mpeg_api_set_pmt_target( void *ih, pmt_target_type pmt_target );
 

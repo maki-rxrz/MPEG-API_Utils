@@ -679,7 +679,8 @@ static int get_output_times( param_t *p, int64_t *start, int64_t *end )
             is_output = 1;
             break;
         }
-        mapi_log( LOG_LV4, "[debug] --calc-- s:%f e:%f, cut:%"PRId64", ls:%d le:%d\n", s, e, cut_frames, p->list_data[i].start, p->list_data[i].end );
+        mapi_log( LOG_LV4, "[debug] --calc-- s:%f e:%f, cut:%"PRId64", ls:%d le:%d\n"
+                         , s, e, cut_frames, p->list_data[i].start, p->list_data[i].end );
         cut_start = p->list_data[i].end + 1;
     }
     if( !is_output )
@@ -810,9 +811,9 @@ static void cut_ass( param_t *p, FILE *input, FILE *output )
         char *line_p = strchr( line, ',' );
         ++line_p;
         caption_time_t time_s, time_e;
-        if( sscanf( line_p, time_format,
-                    &time_s.Hrs, &time_s.Mins, &time_s.Secs, &time_s.Msecs,
-                    &time_e.Hrs, &time_e.Mins, &time_e.Secs, &time_e.Msecs ) == 8 )
+        if( sscanf( line_p, time_format
+                  , &time_s.Hrs, &time_s.Mins, &time_s.Secs, &time_s.Msecs
+                  , &time_e.Hrs, &time_e.Mins, &time_e.Secs, &time_e.Msecs ) == 8 )
         {
             /* calculate times. */
             int64_t start = time_to_total( &time_s, 1 );
@@ -824,9 +825,9 @@ static void cut_ass( param_t *p, FILE *input, FILE *output )
             /* write body. */
             total_to_time( &time_s, start, 1 );
             total_to_time( &time_e, end  , 1 );
-            fprintf( output, time_format,
-                     time_s.Hrs, time_s.Mins, time_s.Secs, time_s.Msecs,
-                     time_e.Hrs, time_e.Mins, time_e.Secs, time_e.Msecs );
+            fprintf( output, time_format
+                   , time_s.Hrs, time_s.Mins, time_s.Secs, time_s.Msecs
+                   , time_e.Hrs, time_e.Mins, time_e.Secs, time_e.Msecs );
             /* ready for post process. */
             /* 22: line size. "0:00:00.00,0:00:00.00," */
             line_p += 22;
@@ -842,7 +843,8 @@ static void cut_ass( param_t *p, FILE *input, FILE *output )
                     {
                         for( char *c = line_p; c != ass_pos_p; ++c )
                             fputc( (int)*c, output );
-                        fprintf( output, ass_pos_format, pos_x + ar_shift_x + p->shift_pos_x, pos_y + ar_shift_y + p->shift_pos_y );
+                        fprintf( output, ass_pos_format
+                               , pos_x + ar_shift_x + p->shift_pos_x, pos_y + ar_shift_y + p->shift_pos_y );
                         for( ; *ass_pos_p != ')'; ++ass_pos_p );
                         ++ass_pos_p;
                         line_p = ass_pos_p;
@@ -885,9 +887,9 @@ static void cut_srt( param_t *p, FILE *input, FILE *output )
         static const char *time_format = "%02d:%02d:%02d,%03d --> %02d:%02d:%02d,%03d";
         char *line_p = line;
         caption_time_t time_s, time_e;
-        if( sscanf( line_p, time_format,
-                    &time_s.Hrs, &time_s.Mins, &time_s.Secs, &time_s.Msecs,
-                    &time_e.Hrs, &time_e.Mins, &time_e.Secs, &time_e.Msecs ) == 8 )
+        if( sscanf( line_p, time_format
+                  , &time_s.Hrs, &time_s.Mins, &time_s.Secs, &time_s.Msecs
+                  , &time_e.Hrs, &time_e.Mins, &time_e.Secs, &time_e.Msecs ) == 8 )
         {
             /* calculate times. */
             int64_t start = time_to_total( &time_s, 0 );
@@ -906,9 +908,9 @@ static void cut_srt( param_t *p, FILE *input, FILE *output )
             /* write body. */
             total_to_time( &time_s, start, 0 );
             total_to_time( &time_e, end  , 0 );
-            fprintf( output, time_format,
-                     time_s.Hrs, time_s.Mins, time_s.Secs, time_s.Msecs,
-                     time_e.Hrs, time_e.Mins, time_e.Secs, time_e.Msecs );
+            fprintf( output, time_format
+                   , time_s.Hrs, time_s.Mins, time_s.Secs, time_s.Msecs
+                   , time_e.Hrs, time_e.Mins, time_e.Secs, time_e.Msecs );
             /* ready for post process. */
             /* 29: line size. "00:00:00,000 --> 00:00:00,000" */
             line_p += 29;
@@ -1022,15 +1024,21 @@ static void parse_reader_offset( param_t *p, delay_info_type *delay_info )
         int64_t video_pts     = stream_info->video_pts;
         int64_t audio_pts     = stream_info->audio_pts;
         /* check wrap around. */
-        int64_t video_1st_offset = (pcr > video_1st_pts + p->wrap_around_check_v) ? MPEG_TIMESTAMP_WRAPAROUND_VALUE : 0;
-        int64_t video_key_offset = (pcr > video_key_pts + p->wrap_around_check_v) ? MPEG_TIMESTAMP_WRAPAROUND_VALUE : 0;
-        int64_t video_odr_offset = (pcr > video_pts     + p->wrap_around_check_v) ? MPEG_TIMESTAMP_WRAPAROUND_VALUE : 0;
-        int64_t audio_offset     = (pcr > audio_pts     + p->wrap_around_check_v) ? MPEG_TIMESTAMP_WRAPAROUND_VALUE : 0;
+#define CHECK_OFFSET_VALUE( _timestamp )        \
+( (pcr > _timestamp + p->wrap_around_check_v) ? MPEG_TIMESTAMP_WRAPAROUND_VALUE : 0 )
+        int64_t video_1st_offset = CHECK_OFFSET_VALUE( video_1st_pts );
+        int64_t video_key_offset = CHECK_OFFSET_VALUE( video_key_pts );
+        int64_t video_odr_offset = CHECK_OFFSET_VALUE( video_pts     );
+        int64_t audio_offset     = CHECK_OFFSET_VALUE( audio_pts     );
+#undef CHECK_OFFSET_VALUE
         /* calculate delay. */
-        int64_t video_1st_start = (video_1st_pts >= 0) ? (pcr - (video_1st_pts + video_1st_offset)) / 90 : 0;
-        int64_t video_key_start = (video_key_pts >= 0) ? (pcr - (video_key_pts + video_key_offset)) / 90 : 0;
-        int64_t video_odr_start = (video_pts     >= 0) ? (pcr - (video_pts     + video_odr_offset)) / 90 : 0;
-        int64_t audio_start     = (audio_pts     >= 0) ? (pcr - (audio_pts     + audio_offset)    ) / 90 : 0;
+#define CALCLATE_DELAY_VALUE( _timestamp, _offset )     \
+( (_timestamp >= 0) ? (pcr - (_timestamp + _offset)) / 90 : 0 )
+        int64_t video_1st_start = CALCLATE_DELAY_VALUE( video_1st_pts, video_1st_offset );
+        int64_t video_key_start = CALCLATE_DELAY_VALUE( video_key_pts, video_key_offset );
+        int64_t video_odr_start = CALCLATE_DELAY_VALUE( video_pts    , video_odr_offset );
+        int64_t audio_start     = CALCLATE_DELAY_VALUE( audio_pts    , audio_offset     );
+#undef CALCLATE_DELAY_VALUE
         switch( delay_type )
         {
             case MPEG_READER_DEALY_VIDEO_GOP_KEYFRAME :
@@ -1050,7 +1058,8 @@ static void parse_reader_offset( param_t *p, delay_info_type *delay_info )
                 break;
         }
         mapi_log( LOG_LV2, "[check] [read_delay] video_1st: %"PRId64", video_odr: %"PRId64", video_key: %"PRId64"\n"
-                           "                     audio: %"PRId64"\n", video_1st_start, video_odr_start, video_key_start, audio_start );
+                           "                     audio: %"PRId64"\n"
+                         , video_1st_start, video_odr_start, video_key_start, audio_start );
         mapi_log( LOG_LV1, "[reader] delay: %"PRId64"\n", p->reader_delay );
         /* setup required informations. */
         if( delay_info )
@@ -1108,7 +1117,8 @@ static void output_caption( param_t *p )
             fclose( output );
             fclose( input );
             mapi_log( LOG_LV0, "[log] input: %s%s\n"
-                               "     output: %s%s\n", p->input, input_array[i].ext, p->output, input_array[i].ext );
+                               "     output: %s%s\n"
+                             , p->input, input_array[i].ext, p->output, input_array[i].ext );
         }
     }
 }

@@ -482,17 +482,25 @@ static void dumper_close( void **fw_ctx )
 
 static void get_speaker_mapping_info( uint16_t speaker_mapping, char *mapping_info )
 {
-    uint8_t f_channels = !!(speaker_mapping & MPEG_AUDIO_SPEAKER_FRONT_CENTER) + !!(speaker_mapping & MPEG_AUDIO_SPEAKER_FRONT_LEFT   ) + !!(speaker_mapping & MPEG_AUDIO_SPEAKER_FRONT_RIGHT);
-    uint8_t r_channels = !!(speaker_mapping & MPEG_AUDIO_SPEAKER_REAR_SRROUND) + !!(speaker_mapping & MPEG_AUDIO_SPEAKER_REAR_LEFT    ) + !!(speaker_mapping & MPEG_AUDIO_SPEAKER_REAR_RIGHT )
-                       + !!(speaker_mapping & MPEG_AUDIO_SPEAKER_REAR_LEFT2  ) + !!(speaker_mapping & MPEG_AUDIO_SPEAKER_REAR_RIGHT2  )
-                       + !!(speaker_mapping & MPEG_AUDIO_SPEAKER_OUTSIDE_LEFT) + !!(speaker_mapping & MPEG_AUDIO_SPEAKER_OUTSIDE_RIGHT);
-    uint8_t lfe        = !!(speaker_mapping & MPEG_AUDIO_SPEAKER_LFE_CHANNEL);
+#define CHECK_MAPPING( _output )      ( !!(speaker_mapping & MPEG_AUDIO_SPEAKER_##_output) )
+    uint8_t f_channels = CHECK_MAPPING( FRONT_CENTER ) + CHECK_MAPPING( FRONT_LEFT    ) + CHECK_MAPPING( FRONT_RIGHT );
+    uint8_t r_channels = CHECK_MAPPING( REAR_SRROUND ) + CHECK_MAPPING( REAR_LEFT     ) + CHECK_MAPPING( REAR_RIGHT  )
+                       + CHECK_MAPPING( REAR_LEFT2   ) + CHECK_MAPPING( REAR_RIGHT2   )
+                       + CHECK_MAPPING( OUTSIDE_LEFT ) + CHECK_MAPPING( OUTSIDE_RIGHT );
+    uint8_t lfe        = CHECK_MAPPING( LFE_CHANNEL  );
+#undef CHECK_MAPPING
     sprintf( mapping_info, "%u/%u", f_channels, r_channels );
     if( lfe )
         strcat( mapping_info, "+lfe" );
 }
 
-static void dump_stream_info( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num, uint8_t audio_stream_num )
+static void dump_stream_info
+(
+    param_t                                *p,
+    void                                   *info,
+    stream_info_t                          *stream_info,
+    uint8_t video_stream_num,uint8_t        audio_stream_num
+)
 {
     static const char frame[4] = { '?', 'I', 'P', 'B' };
     int64_t pts_limit = INT64_MAX_VALUE;
@@ -587,7 +595,14 @@ static void dump_stream_info( param_t *p, void *info, stream_info_t *stream_info
     }
 }
 
-static void dump_sample_info( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num, uint8_t audio_stream_num )
+static void dump_sample_info
+(
+    param_t                    *p,
+    void                       *info,
+    stream_info_t              *stream_info,
+    uint8_t                     video_stream_num,
+    uint8_t                     audio_stream_num
+)
 {
     static const char frame[4] = { '?', 'I', 'P', 'B' };
     if( mpeg_api_create_sample_list( info ) )
@@ -685,7 +700,16 @@ static void dump_sample_info( param_t *p, void *info, stream_info_t *stream_info
     }
 }
 
-static void open_file( param_t *p, void *info, mpeg_sample_type sample_type, uint8_t total_stream_num, uint8_t stream_number, void **file, char *add_str )
+static void open_file
+(
+    param_t                    *p,
+    void                       *info,
+    mpeg_sample_type            sample_type,
+    uint8_t                     total_stream_num,
+    uint8_t                     stream_number,
+    void                      **file,
+    char                       *add_str
+)
 {
     int                  get_index = p->output_mode - OUTPUT_GET_SAMPLE_RAW;
     get_sample_data_mode get_mode  = get_sample_list[get_index].get_mode;
@@ -760,7 +784,16 @@ static void open_file( param_t *p, void *info, mpeg_sample_type sample_type, uin
     dumper_open( file, dump_name, p->write_buffer_size );
 }
 
-static void open_file_for_list_api( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num, uint8_t audio_stream_num, void **video, void **audio )
+static void open_file_for_list_api
+(
+    param_t                    *p,
+    void                       *info,
+    stream_info_t              *stream_info,
+    uint8_t                     video_stream_num,
+    uint8_t                     audio_stream_num,
+    void                      **video,
+    void                      **audio
+)
 {
     memset( video, 0, sizeof(void *) * (video_stream_num + 1) );
     memset( audio, 0, sizeof(void *) * (audio_stream_num + 1) );
@@ -781,17 +814,20 @@ static void open_file_for_list_api( param_t *p, void *info, stream_info_t *strea
             {
                 mpeg_reader_delay_type delay_type = p->delay_type;
                 int64_t video_1st_pts = stream_info->video_pts;
-                int64_t video_key_pts = (stream_info->picture_coding_type == MPEG_VIDEO_I_FRAME) ? stream_info->video_pts : -1;
+                int64_t video_key_pts = (stream_info->picture_coding_type == MPEG_VIDEO_I_FRAME)
+                                      ? stream_info->video_pts : -1;
                 uint32_t j = 0;
                 while( stream_info->temporal_reference || video_key_pts < 0 )
                 {
                     ++j;
-                    if( j > PARSE_VIDEO_PTS_LIMIT || mpeg_api_get_sample_info( info, SAMPLE_TYPE_VIDEO, i, j, stream_info ) )
+                    if( j > PARSE_VIDEO_PTS_LIMIT
+                     || mpeg_api_get_sample_info( info, SAMPLE_TYPE_VIDEO, i, j, stream_info ) )
                     {
                         delay_type = MPEG_READER_DEALY_FAST_VIDEO_STREAM;
                         break;
                     }
-                    if( video_1st_pts > stream_info->video_pts && video_1st_pts < stream_info->video_pts + p->wrap_around_check_v )
+                    if( video_1st_pts > stream_info->video_pts
+                     && video_1st_pts < stream_info->video_pts + p->wrap_around_check_v )
                         video_1st_pts = stream_info->video_pts;
                     if( video_key_pts < 0 && stream_info->picture_coding_type == MPEG_VIDEO_I_FRAME )
                         video_key_pts = stream_info->video_pts;
@@ -844,7 +880,16 @@ static void open_file_for_list_api( param_t *p, void *info, stream_info_t *strea
     }
 }
 
-static void open_file_for_stream_api( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num, uint8_t audio_stream_num, void **video, void **audio )
+static void open_file_for_stream_api
+(
+    param_t                    *p,
+    void                       *info,
+    stream_info_t              *stream_info,
+    uint8_t                     video_stream_num,
+    uint8_t                     audio_stream_num,
+    void                      **video,
+    void                      **audio
+)
 {
     memset( video, 0, sizeof(void *) * (video_stream_num + 1) );
     memset( audio, 0, sizeof(void *) * (audio_stream_num + 1) );
@@ -865,17 +910,20 @@ static void open_file_for_stream_api( param_t *p, void *info, stream_info_t *str
             int64_t gop_number     = stream_info->gop_number;
             int64_t start_position = stream_info->file_position;
             int64_t video_1st_pts  = stream_info->video_pts;
-            int64_t video_key_pts  = (stream_info->picture_coding_type == MPEG_VIDEO_I_FRAME) ? stream_info->video_pts : -1;
+            int64_t video_key_pts  = (stream_info->picture_coding_type == MPEG_VIDEO_I_FRAME)
+                                   ? stream_info->video_pts : -1;
             uint32_t parse_count = 0;
             while( stream_info->temporal_reference || video_key_pts < 0 )
             {
                 ++parse_count;
-                if( parse_count > PARSE_VIDEO_PTS_LIMIT || mpeg_api_get_video_frame( info, i, stream_info ) )
+                if( parse_count > PARSE_VIDEO_PTS_LIMIT
+                 || mpeg_api_get_video_frame( info, i, stream_info ) )
                 {
                     delay_type = MPEG_READER_DEALY_FAST_VIDEO_STREAM;
                     break;
                 }
-                if( video_1st_pts > stream_info->video_pts && video_1st_pts < stream_info->video_pts + p->wrap_around_check_v )
+                if( video_1st_pts > stream_info->video_pts
+                 && video_1st_pts < stream_info->video_pts + p->wrap_around_check_v )
                     video_1st_pts = stream_info->video_pts;
                 if( video_key_pts < 0 && stream_info->picture_coding_type == MPEG_VIDEO_I_FRAME )
                     video_key_pts = stream_info->video_pts;
@@ -959,7 +1007,8 @@ static thread_func_ret demux_sample( void *args )
     int64_t               file_size     = param->file_size;
     /* demux */
     uint64_t total_size = 0;
-    mapi_log( LOG_LV_PROGRESS, " %s Stream[%3u] [demux] start - sample_num:%u  start_num:%u\n", stream_name, stream_number, num, start );
+    mapi_log( LOG_LV_PROGRESS, " %s Stream[%3u] [demux] start - sample_num:%u  start_num:%u\n"
+                             , stream_name, stream_number, num, start );
     for( uint32_t i = start; i < num; ++i )
     {
         uint8_t  *buffer    = NULL;
@@ -974,14 +1023,22 @@ static thread_func_ret demux_sample( void *args )
         }
         int64_t progress = mpeg_api_get_sample_position( info, get_type, stream_number );
         mapi_log( LOG_LV_PROGRESS, " %s Stream[%3u] [%8u]  total: %14"PRIu64" byte ...[%5.2f%%]\r"
-                                , stream_name, stream_number, i, total_size, (progress * 100.0 / file_size) );
+                                 , stream_name, stream_number, i, total_size, (progress * 100.0 / file_size) );
     }
     mapi_log( LOG_LV_PROGRESS, "                                                                              \r" );
-    mapi_log( LOG_LV_PROGRESS, " %s Stream[%3u] [demux] end - output: %"PRIu64" byte\n", stream_name, stream_number, total_size );
+    mapi_log( LOG_LV_PROGRESS, " %s Stream[%3u] [demux] end - output: %"PRIu64" byte\n"
+                             , stream_name, stream_number, total_size );
     return (thread_func_ret)(0);
 }
 
-static void demux_sample_data( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num, uint8_t audio_stream_num )
+static void demux_sample_data
+(
+    param_t                    *p,
+    void                       *info,
+    stream_info_t              *stream_info,
+    uint8_t                     video_stream_num,
+    uint8_t                     audio_stream_num
+)
 {
     int                  get_index = p->output_mode - OUTPUT_GET_SAMPLE_RAW;
     get_sample_data_mode get_mode  = get_sample_list[get_index].get_mode;
@@ -1164,11 +1221,19 @@ static thread_func_ret demux_stream( void *args )
                                  , stream_name, stream_number, i, total_size, (progress * 100.0 / file_size) );
     }
     mapi_log( LOG_LV_PROGRESS, "                                                                              \r" );
-    mapi_log( LOG_LV_PROGRESS, " %s Stream[%3u] [demux] end - output: %"PRIu64" byte\n", stream_name, stream_number, total_size );
+    mapi_log( LOG_LV_PROGRESS, " %s Stream[%3u] [demux] end - output: %"PRIu64" byte\n"
+                             , stream_name, stream_number, total_size );
     return (thread_func_ret)(0);
 }
 
-static void demux_stream_data( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num, uint8_t audio_stream_num )
+static void demux_stream_data
+(
+    param_t                    *p,
+    void                       *info,
+    stream_info_t              *stream_info,
+    uint8_t                     video_stream_num,
+    uint8_t                     audio_stream_num
+)
 {
     int                  get_index = p->output_mode - OUTPUT_GET_SAMPLE_RAW;
     get_sample_data_mode get_mode  = get_sample_list[get_index].get_mode;
@@ -1345,7 +1410,8 @@ static void demux_cb_func( void *cb_params, void *cb_ret )
     if( (percent - param->percent) > 0 )
     {
         mapi_log( LOG_LV_PROGRESS, " %s Stream[%3u] [%8u]  total: %14"PRIu64" byte ...[%5.2f%%]\r"
-                                 , param->stream_name, param->stream_number, param->count, (uint64_t)param->total_size, percent / 100.0 );
+                                 , param->stream_name, param->stream_number, param->count
+                                 , (uint64_t)param->total_size, percent / 100.0 );
         param->percent = percent;
     }
     ++ param->count;
@@ -1372,11 +1438,19 @@ static thread_func_ret demux_all( void *args )
     /* finish. */
     uint64_t total_size = (uint64_t)cb_params.total_size;
     mapi_log( LOG_LV_PROGRESS, "                                                                              \r"
-                               " %s Stream[%3u] [demux] end - output: %"PRIu64" byte\n", stream_name, stream_number, total_size );
+                               " %s Stream[%3u] [demux] end - output: %"PRIu64" byte\n"
+                             , stream_name, stream_number, total_size );
     return (thread_func_ret)(0);
 }
 
-static void demux_stream_all( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num, uint8_t audio_stream_num )
+static void demux_stream_all
+(
+    param_t                    *p,
+    void                       *info,
+    stream_info_t              *stream_info,
+    uint8_t                     video_stream_num,
+    uint8_t                     audio_stream_num
+)
 {
     int                  get_index = p->output_mode - OUTPUT_GET_SAMPLE_RAW;
     get_sample_data_mode get_mode  = get_sample_list[get_index].get_mode;
@@ -1573,7 +1647,14 @@ static void demux_all_cb_func( void *cb_params, void *cb_ret )
     ++ param->count;
 }
 
-static void demux_stream_all_in_st( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num, uint8_t audio_stream_num )
+static void demux_stream_all_in_st
+(
+    param_t                *p,
+    void                   *info,
+    stream_info_t          *stream_info,
+    uint8_t                 video_stream_num,
+    uint8_t                 audio_stream_num
+)
 {
     int                  get_index = p->output_mode - OUTPUT_GET_SAMPLE_RAW;
     get_sample_data_mode get_mode  = get_sample_list[get_index].get_mode;
