@@ -2405,7 +2405,7 @@ static int set_pmt_program_id( mpegts_info_t *info, uint16_t program_id )
         info->pid_list_in_pmt = NULL;
     }
     int64_t start_position = mpegts_ftell( &(info->tsf_ctx) );
-    int result = result = parse_pmt_info( info );
+    int result = parse_pmt_info( info );
     if( result )
         goto end_reset;
     mpegts_file_seek( &(info->tsf_ctx), start_position, MPEGTS_SEEK_RESET );
