@@ -2199,6 +2199,22 @@ static int get_audio_info( void *ih, uint8_t stream_number, audio_sample_info_t 
     return 0;
 }
 
+static inline void release_stream_handle( tss_ctx_t **stream_ctxs, uint8_t *stream_num )
+{
+    if( !(*stream_ctxs) )
+        return;
+    for( uint8_t i = 0; i < *stream_num; ++i )
+    {
+        tss_ctx_t *stream = (*stream_ctxs) + i;
+        mpegts_close( &(stream->tsf_ctx) );
+        if( stream->stream_parse_info )
+            free( stream->stream_parse_info );
+    }
+    free( *stream_ctxs );
+    *stream_ctxs = NULL;
+    *stream_num  = 0;
+}
+
 static int set_pmt_stream_info( mpegts_info_t *info )
 {
     mapi_log( LOG_LV2, "[check] [sub] set_pmt_stream_info()\n" );
@@ -2317,22 +2333,9 @@ static int set_pmt_stream_info( mpegts_info_t *info )
     return 0;
 fail_allocate_ctxs:
     /* release. */
-    if( video_ctx )
-        for( uint8_t i = 0; i < video_stream_num; ++i )
-        {
-            tss_ctx_t *stream = &(video_ctx[i]);
-            mpegts_close( &(stream->tsf_ctx) );
-            if( stream->stream_parse_info )
-                free( stream->stream_parse_info );
-        }
-    if( audio_ctx )
-        for( uint8_t i = 0; i < audio_stream_num; ++i )
-        {
-            tss_ctx_t *stream = &(audio_ctx[i]);
-            mpegts_close( &(stream->tsf_ctx) );
-            if( stream->stream_parse_info )
-                free( stream->stream_parse_info );
-        }
+    release_stream_handle( &video_ctx, &video_stream_num );
+    release_stream_handle( &audio_ctx, &audio_stream_num );
+    return -1;
 fail_set_pmt_stream_info:
     if( video_ctx )
         free( video_ctx );
@@ -2341,39 +2344,15 @@ fail_set_pmt_stream_info:
     return -1;
 }
 
-static void release_stream_handle( mpegts_info_t *info )
+static void release_all_stream_handle( mpegts_info_t *info )
 {
-    if( info->video_stream )
-    {
-        for( uint8_t i = 0; i <  info->video_stream_num; ++i )
-        {
-            tss_ctx_t *stream = &(info->video_stream[i]);
-            mpegts_close( &(stream->tsf_ctx) );
-            if( stream->stream_parse_info )
-                free( stream->stream_parse_info );
-        }
-        free( info->video_stream );
-        info->video_stream     = NULL;
-        info->video_stream_num = 0;
-    }
-    if( info->audio_stream )
-    {
-        for( uint8_t i = 0; i <  info->audio_stream_num; ++i )
-        {
-            tss_ctx_t *stream = &(info->audio_stream[i]);
-            mpegts_close( &(stream->tsf_ctx) );
-            if( stream->stream_parse_info )
-                free( stream->stream_parse_info );
-        }
-        free( info->audio_stream );
-        info->audio_stream     = NULL;
-        info->audio_stream_num = 0;
-    }
+    release_stream_handle( &(info->video_stream), &(info->video_stream_num) );
+    release_stream_handle( &(info->audio_stream), &(info->audio_stream_num) );
 }
 
 static void release_pid_list( mpegts_info_t *info )
 {
-    release_stream_handle( info );
+    release_all_stream_handle( info );
     if( info->pid_list_in_pmt )
     {
         free( info->pid_list_in_pmt );
@@ -2419,7 +2398,7 @@ static int set_pmt_program_id( mpegts_info_t *info, uint16_t program_id )
     info->pcr                        = MPEG_TIMESTAMP_INVALID_VALUE;
     info->start_pcr                  = MPEG_TIMESTAMP_INVALID_VALUE;
     info->last_pcr                   = MPEG_TIMESTAMP_INVALID_VALUE;
-    release_stream_handle( info );
+    release_all_stream_handle( info );
     if( info->pid_list_in_pmt )
     {
         free( info->pid_list_in_pmt );
