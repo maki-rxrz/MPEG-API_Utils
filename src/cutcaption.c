@@ -828,7 +828,7 @@ static void cut_ass( param_t *p, FILE *input, FILE *output )
             fprintf( output, time_format
                    , time_s.Hrs, time_s.Mins, time_s.Secs, time_s.Msecs
                    , time_e.Hrs, time_e.Mins, time_e.Secs, time_e.Msecs );
-            /* ready for post process. */
+            /* prepare for post process. */
             /* 22: line size. "0:00:00.00,0:00:00.00," */
             line_p += 22;
             /* change caption layout. */
@@ -911,7 +911,7 @@ static void cut_srt( param_t *p, FILE *input, FILE *output )
             fprintf( output, time_format
                    , time_s.Hrs, time_s.Mins, time_s.Secs, time_s.Msecs
                    , time_e.Hrs, time_e.Mins, time_e.Secs, time_e.Msecs );
-            /* ready for post process. */
+            /* prepare for post process. */
             /* 29: line size. "00:00:00,000 --> 00:00:00,000" */
             line_p += 29;
         }
@@ -1088,7 +1088,7 @@ static void output_caption( param_t *p )
             mapi_log( LOG_LV0, "[log] error, parameters...\n" );
         return;
     }
-    /* ready. */
+    /* prepare. */
     if( load_cut_list( p ) )
     {
         mapi_log( LOG_LV0, "[log] error, list file.\n" );

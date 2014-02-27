@@ -389,7 +389,7 @@ static int mpegts_read_packet_header( tsf_ctx_t *tsf_ctx, tsp_header_t *h )
     mpegts_file_read( tsf_ctx, ts_header, TS_PACKET_HEADER_SIZE );
     /* setup header data. */
     tsp_parse_header( ts_header, h );
-    /* ready next. */
+    /* initialize status. */
     tsf_ctx->sync_byte_position = -1;
     return 0;
 }
@@ -573,7 +573,7 @@ static int mpegts_get_table_section_data
         mpegts_file_read( tsf_ctx, &(section_buffer[read_count]), read_size );
         read_count += read_size;
         mapi_log( LOG_LV4, "[check] section data read:%d, rest_packet:%d\n", read_size, tsf_ctx->ts_packet_length );
-        /* ready next. */
+        /* seek next. */
         mpegts_file_seek( tsf_ctx, 0, MPEGTS_SEEK_NEXT );
     }
     /* reset buffering start packet position. */
@@ -651,7 +651,7 @@ static int mpegts_parse_pat( mpegts_info_t *info )
         mapi_log( LOG_LV2, " %02X", crc_32[i] );
     mapi_log( LOG_LV2, "\n" );
     mapi_log( LOG_LV2, "[check] file position:%"PRId64"\n", read_pos );
-    /* ready next. */
+    /* seek next. */
     mpegts_file_seek( &(info->tsf_ctx), 0, MPEGTS_SEEK_NEXT );
     info->tsf_ctx.sync_byte_position = -1;
     info->tsf_ctx.read_position      = read_pos;
@@ -754,7 +754,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
         if( i == 0 )
             reset_position = read_pos;
         section_lengths[i] = section_length;
-        /* ready next. */
+        /* seek next. */
         mpegts_file_seek( &(info->tsf_ctx), read_pos + check_offset, MPEGTS_SEEK_RESET );
     }
     mpegts_file_seek( &(info->tsf_ctx), reset_position, MPEGTS_SEEK_RESET );
@@ -856,7 +856,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
         mapi_log( LOG_LV2, " %02X", crc_32[i] );
     mapi_log( LOG_LV2, "\n" );
     mapi_log( LOG_LV2, "[check] file position:%"PRId64"\n", read_pos );
-    /* ready next. */
+    /* seek next. */
     mpegts_file_seek( &(info->tsf_ctx), 0, MPEGTS_SEEK_NEXT );
     info->tsf_ctx.sync_byte_position = -1;
     info->tsf_ctx.read_position      = read_pos;
@@ -920,13 +920,13 @@ static int mpegts_get_pcr( mpegts_info_t *info, int64_t *pcr )
 #endif
             }
         }
-        /* ready next. */
+        /* seek next. */
         mpegts_file_seek( &(info->tsf_ctx), 0, MPEGTS_SEEK_NEXT );
     }
     while( *pcr == MPEG_TIMESTAMP_INVALID_VALUE );
     mapi_log( LOG_LV2, "[check] PCR:%"PRId64" [%"PRId64"ms]\n", *pcr, *pcr / 90 );
     mapi_log( LOG_LV2, "[check] file position:%"PRId64"\n", read_pos );
-    /* ready next. */
+    /* prepare for next. */
     info->tsf_ctx.read_position = read_pos;
     return 0;
 }
@@ -1011,7 +1011,7 @@ static int mpegts_get_stream_timestamp
             return -1;
         if( ret > 0 )
         {
-            /* ready next. */
+            /* seek next. */
             mpegts_file_seek( tsf_ctx, 0, MPEGTS_SEEK_NEXT );
             continue;
         }
@@ -1022,7 +1022,7 @@ static int mpegts_get_stream_timestamp
         mpegts_file_read( tsf_ctx, pes_packet_head_data, PES_PACKET_START_CODE_SIZE );
         if( mpeg_pes_check_start_code( pes_packet_head_data, start_code ) )
         {
-            /* ready next. */
+            /* seek next. */
             mpegts_file_seek( tsf_ctx, 0, MPEGTS_SEEK_NEXT );
             continue;
         }
@@ -1036,7 +1036,7 @@ static int mpegts_get_stream_timestamp
                          , pes_info.packet_length, pes_info.pts_flag, pes_info.dts_flag, pes_info.header_length );
         if( !pes_info.pts_flag )
         {
-            /* ready next. */
+            /* seek next. */
             mpegts_file_seek( tsf_ctx, 0, MPEGTS_SEEK_NEXT );
             continue;
         }
@@ -1045,14 +1045,14 @@ static int mpegts_get_stream_timestamp
         pts = pes_info.pts_flag ? mpeg_pes_get_timestamp( &(pes_packet_pts_dts_data[0]) ) : MPEG_TIMESTAMP_INVALID_VALUE;
         dts = pes_info.dts_flag ? mpeg_pes_get_timestamp( &(pes_packet_pts_dts_data[5]) ) : pts;
         mapi_log( LOG_LV2, "[check] PTS:%"PRId64" DTS:%"PRId64"\n", pts, dts );
-        /* ready next. */
+        /* seek next. */
         mpegts_file_seek( tsf_ctx, 0, MPEGTS_SEEK_NEXT );
     }
     while( pts == MPEG_TIMESTAMP_INVALID_VALUE );
     /* setup. */
     timestamp->pts = pts;
     timestamp->dts = dts;
-    /* ready next. */
+    /* prepare for next. */
     mpegts_file_seek( tsf_ctx, read_pos, MPEGTS_SEEK_RESET );       /* reset start position of detect packet. */
     tsf_ctx->read_position      = read_pos;
     tsf_ctx->sync_byte_position = 0;
@@ -1213,7 +1213,7 @@ static int mpegts_get_mpeg_video_picture_info
         }
         mapi_log( LOG_LV4, "[debug] continue next packet. buf:0x%02X 0x%02X 0x%02X 0x--\n"
                          , mpeg_video_head_data[0], mpeg_video_head_data[1], mpeg_video_head_data[2] );
-        /* ready next. */
+        /* seek next. */
         mpegts_file_seek( tsf_ctx, 0, MPEGTS_SEEK_NEXT );
     }
     while( 1 );
@@ -1256,7 +1256,7 @@ static uint32_t mpegts_get_sample_packets_num( tsf_ctx_t *tsf_ctx, uint16_t prog
                                "        PES packet_len:%d, pts_flag:%d, dts_flag:%d, header_len:%d\n"
                              , pes_info.packet_length, pes_info.pts_flag, pes_info.dts_flag, pes_info.header_length );
         }
-        /* ready next. */
+        /* seek next. */
         mpegts_file_seek( tsf_ctx, 0, MPEGTS_SEEK_NEXT );
     }
     while( 1 );
@@ -1319,7 +1319,7 @@ static int mpegts_check_sample_raw_frame_length
             }
         }
         raw_data_size += tsf_ctx->ts_packet_length + read_size + seek_size;
-        /* ready next. */
+        /* seek next. */
         mpegts_file_seek( tsf_ctx, 0, MPEGTS_SEEK_NEXT );
         /* seek next packet. */
         if( mpegts_seek_packet_payload_data( tsf_ctx, &h, program_id, INDICATOR_UNCHECKED ) )
@@ -1368,7 +1368,7 @@ static int mpegts_get_sample_raw_data_info
     mapi_log( LOG_LV3, "[debug] mpegts_get_sample_raw_data_info()\n" );
     uint32_t raw_data_size = 0;
     int32_t  start_point   = -1;
-    /* ready. */
+    /* keep position information. */
     int64_t start_position = mpegts_ftell( tsf_ctx );
     /* search. */
     int     check_start_point        = 0;
@@ -1474,7 +1474,7 @@ static int mpegts_get_sample_raw_data_info
         }
         else
             raw_data_size += tsf_ctx->ts_packet_length;
-        /* ready next. */
+        /* seek next. */
         mpegts_file_seek( tsf_ctx, 0, MPEGTS_SEEK_NEXT );
     }
 end_get_info:
@@ -1551,7 +1551,7 @@ static void mpegts_get_sample_raw_data
                 break;
             }
         }
-        /* ready next. */
+        /* seek next. */
         mpegts_file_seek( tsf_ctx, 0, MPEGTS_SEEK_NEXT );
     }
     return;
@@ -1587,7 +1587,7 @@ static void mpegts_get_sample_pes_packet_data
             mpegts_file_read( tsf_ctx, *buffer + *read_size, read );
             *read_size += read;
         }
-        /* ready next. */
+        /* seek next. */
         mpegts_file_seek( tsf_ctx, 0, MPEGTS_SEEK_NEXT );
     }
 }
@@ -1868,7 +1868,7 @@ static int get_specific_stream_data
         /* check start position. */
         if( stream && tsf_ctx->read_position >= stream->tsf_ctx.read_position )
             break;
-        /* ready next. */
+        /* seek next. */
         mpegts_file_seek( tsf_ctx, 0, MPEGTS_SEEK_NEXT );
         stream = NULL;
     }
@@ -1933,7 +1933,7 @@ static int get_specific_stream_data
         };
         cb->func( cb->params, (void *)&cb_ret );
     }
-    /* ready next. */
+    /* seek next. */
     mpegts_file_seek( tsf_ctx, 0, MPEGTS_SEEK_NEXT );
     return 0;
 }
@@ -2030,7 +2030,7 @@ static int get_stream_data
         };
         cb->func( cb->params, (void *)&cb_ret );
     }
-    /* ready next. */
+    /* seek next. */
     mpegts_file_seek( tsf_ctx, 0, MPEGTS_SEEK_NEXT );
     return read_offset;
 }
@@ -2144,7 +2144,7 @@ static int get_video_info( void *ih, uint8_t stream_number, video_sample_info_t 
     mapi_log( LOG_LV2, "[check] Video PTS:%"PRId64" [%"PRId64"ms], [%c] temporal_reference:%d\n"
                      , ts.pts, ts.pts / 90, frame[picture_coding_type], temporal_reference );
     mapi_log( LOG_LV2, "[check] file position:%"PRId64"\n", start_position );
-    /* ready next. */
+    /* prepare for next. */
     tsf_ctx->sync_byte_position = -1;
     tsf_ctx->read_position      = mpegts_ftell( tsf_ctx );
     return 0;
@@ -2193,9 +2193,9 @@ static int get_audio_info( void *ih, uint8_t stream_number, audio_sample_info_t 
     audio_sample_info->bit_depth            = raw_data_info.stream_raw_info.bit_depth;
     mapi_log( LOG_LV2, "[check] Audio PTS:%"PRId64" [%"PRId64"ms]\n", ts.pts, ts.pts / 90 );
     mapi_log( LOG_LV2, "[check] file position:%"PRId64"\n", start_position );
-    /* ready next. */
+    /* prepare for next. */
     tsf_ctx->sync_byte_position = -1;
-    tsf_ctx->read_position = mpegts_ftell( tsf_ctx );
+    tsf_ctx->read_position      = mpegts_ftell( tsf_ctx );
     return 0;
 }
 

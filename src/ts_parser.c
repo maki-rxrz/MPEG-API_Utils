@@ -1044,7 +1044,7 @@ static void demux_sample_data
     get_sample_data_mode get_mode  = get_sample_list[get_index].get_mode;
     if( mpeg_api_create_sample_list( info ) )
         return;
-    /* ready file. */
+    /* prepare file. */
     void *video[video_stream_num + 1], *audio[audio_stream_num + 1];
     open_file_for_list_api( p, info, stream_info, video_stream_num, audio_stream_num, video, audio );
     /* output. */
@@ -1237,7 +1237,7 @@ static void demux_stream_data
 {
     int                  get_index = p->output_mode - OUTPUT_GET_SAMPLE_RAW;
     get_sample_data_mode get_mode  = get_sample_list[get_index].get_mode;
-    /* ready file. */
+    /* prepare file. */
     void *video[video_stream_num + 1], *audio[audio_stream_num + 1];
     open_file_for_stream_api( p, info, stream_info, video_stream_num, audio_stream_num, video, audio );
     /* output. */
@@ -1454,7 +1454,7 @@ static void demux_stream_all
 {
     int                  get_index = p->output_mode - OUTPUT_GET_SAMPLE_RAW;
     get_sample_data_mode get_mode  = get_sample_list[get_index].get_mode;
-    /* ready file. */
+    /* prepare file. */
     void *video[video_stream_num + 1], *audio[audio_stream_num + 1];
     open_file_for_stream_api( p, info, stream_info, video_stream_num, audio_stream_num, video, audio );
     /* output. */
@@ -1658,7 +1658,7 @@ static void demux_stream_all_in_st
 {
     int                  get_index = p->output_mode - OUTPUT_GET_SAMPLE_RAW;
     get_sample_data_mode get_mode  = get_sample_list[get_index].get_mode;
-    /* ready file. */
+    /* prepare file. */
     void *video[video_stream_num + 1], *audio[audio_stream_num + 1];
     open_file_for_stream_api( p, info, stream_info, video_stream_num, audio_stream_num, video, audio );
     /* output. */

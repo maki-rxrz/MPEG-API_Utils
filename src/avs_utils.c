@@ -317,7 +317,7 @@ extern int avs_string_convert_calculate_string_to_result_number( avs_trim_info_t
     size_t str_len = strlen( info->string );
     if( str_len < 5 )
         return -1;
-    /* ready. */
+    /* prepare. */
     char buf[str_len + 1];
     strcpy( buf, info->string );
     char *c = strchr( buf, ',' );
