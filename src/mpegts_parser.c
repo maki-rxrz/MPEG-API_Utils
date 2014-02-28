@@ -338,7 +338,7 @@ detect_sync_byte:
 static int mpegts_first_check( tsf_ctx_t *tsf_ctx )
 {
     int result = -1;
-    mapi_log( LOG_LV2, "[check] mpegts_first_check()\n" );
+    mapi_log( LOG_LV2, "[check] %s()\n", __func__ );
     for( int i = 0; i < TS_PACKET_TYPE_NUM; ++i )
     {
         static const int32_t tsp_size[TS_PACKET_TYPE_NUM] =
@@ -496,7 +496,7 @@ static int mpegts_get_table_section_header
     uint16_t                    section_header_length
 )
 {
-    mapi_log( LOG_LV4, "[check] mpegts_get_table_section_header()\n" );
+    mapi_log( LOG_LV4, "[check] %s()\n", __func__ );
     do
     {
         int search_result = mpegts_search_program_id_packet( tsf_ctx, h, search_program_id );
@@ -533,7 +533,7 @@ static int mpegts_seek_packet_payload_data
     indicator_check_type        indicator_check
 )
 {
-    mapi_log( LOG_LV4, "[check] mpegts_seek_packet_payload_data()\n" );
+    mapi_log( LOG_LV4, "[check] $s()\n", __func__ );
     if( mpegts_search_program_id_packet( tsf_ctx, h, search_program_id ) )
         return -1;
     show_packet_header_info( h );
@@ -598,7 +598,7 @@ static int mpegts_search_pat_packet( tsf_ctx_t *tsf_ctx, tsp_pat_si_t *pat_si )
 
 static int mpegts_parse_pat( mpegts_info_t *info )
 {
-    mapi_log( LOG_LV2, "[check] mpegts_parse_pat()\n" );
+    mapi_log( LOG_LV2, "[check] %s()\n", __func__ );
     int64_t read_pos = -1;
     /* search. */
     tsp_pat_si_t pat_si;
@@ -690,7 +690,7 @@ static int mpegts_search_pmt_packet( mpegts_info_t *info, tsp_pmt_si_t *pmt_si )
 
 static int mpegts_parse_pmt( mpegts_info_t *info )
 {
-    mapi_log( LOG_LV2, "[check] mpegts_parse_pmt()\n" );
+    mapi_log( LOG_LV2, "[check] %s()\n", __func__ );
     int64_t read_pos = -1;
     /* search. */
     tsp_pmt_si_t pmt_si;
@@ -871,7 +871,7 @@ fail_parse:
 
 static int mpegts_get_pcr( mpegts_info_t *info, int64_t *pcr )
 {
-    mapi_log( LOG_LV2, "[check] mpegts_get_pcr()\n" );
+    mapi_log( LOG_LV2, "[check] %s()\n", __func__ );
     *pcr = MPEG_TIMESTAMP_INVALID_VALUE;
     uint16_t program_id = info->pcr_program_id;
     if( program_id & MPEGTS_ILLEGAL_PROGRAM_ID_MASK )
@@ -933,7 +933,7 @@ static int mpegts_get_pcr( mpegts_info_t *info, int64_t *pcr )
 
 static int mpegts_parse_pcr( mpegts_info_t *info )
 {
-    mapi_log( LOG_LV2, "[check] mpegts_parse_pcr()\n" );
+    mapi_log( LOG_LV2, "[check] %s()\n", __func__ );
     int64_t reset_position = mpegts_ftell( &(info->tsf_ctx) );
     /* get start pcr. */
     if( mpegts_get_pcr( info, &(info->start_pcr) ) )
@@ -974,7 +974,7 @@ static int mpegts_parse_pcr( mpegts_info_t *info )
 
 static uint16_t mpegts_get_program_id( mpegts_info_t *info, mpeg_stream_type stream_type )
 {
-    mapi_log( LOG_LV3, "[check] mpegts_get_program_id()\n" );
+    mapi_log( LOG_LV3, "[check] %s()\n", __func__ );
     /* search program id. */
     int pid_list_index = -1;
     do
@@ -998,7 +998,7 @@ static int mpegts_get_stream_timestamp
     mpeg_timestamp_t                   *timestamp
 )
 {
-    mapi_log( LOG_LV2, "[check] mpegts_get_stream_timestamp()\n" );
+    mapi_log( LOG_LV2, "[check] %s()\n", __func__ );
     tsp_header_t h;
     int64_t read_pos = -1;
     /* search packet data. */
@@ -1158,7 +1158,7 @@ static int mpegts_get_mpeg_video_picture_info
     int64_t                    *gop_number
 )
 {
-    mapi_log( LOG_LV2, "[check] mpegts_get_mpeg_video_picture_info()\n" );
+    mapi_log( LOG_LV2, "[check] %s()\n", __func__ );
     int result = -1;
     /* parse payload data. */
     tsp_header_t h;
@@ -1223,7 +1223,7 @@ end_get_video_picture_info:
 
 static uint32_t mpegts_get_sample_packets_num( tsf_ctx_t *tsf_ctx, uint16_t program_id, mpeg_stream_type stream_type )
 {
-    mapi_log( LOG_LV3, "[debug] mpegts_get_sample_packets_num()\n" );
+    mapi_log( LOG_LV3, "[debug] %s()\n", __func__ );
     tsp_header_t h;
     /* skip first packet. */
     if( mpegts_search_program_id_packet( tsf_ctx, &h, program_id ) )
@@ -1275,7 +1275,7 @@ static int mpegts_check_sample_raw_frame_length
     int32_t                     cache_read_size
 )
 {
-    mapi_log( LOG_LV4, "[debug] mpegts_check_sample_raw_frame_length()\n" );
+    mapi_log( LOG_LV4, "[debug] %s()\n", __func__ );
     int     result                   = -1;
     int64_t start_position           = mpegts_ftell( tsf_ctx );
     int32_t start_rest_packet_length = tsf_ctx->ts_packet_length;
@@ -1365,7 +1365,7 @@ static int mpegts_get_sample_raw_data_info
     sample_raw_data_info_t     *raw_data_info
 )
 {
-    mapi_log( LOG_LV3, "[debug] mpegts_get_sample_raw_data_info()\n" );
+    mapi_log( LOG_LV3, "[debug] %s()\n", __func__ );
     uint32_t raw_data_size = 0;
     int32_t  start_point   = -1;
     /* keep position information. */
@@ -1498,7 +1498,7 @@ static void mpegts_get_sample_raw_data
     uint32_t                   *read_size
 )
 {
-    mapi_log( LOG_LV3, "[check] mpegts_get_sample_raw_data()\n" );
+    mapi_log( LOG_LV3, "[check] %s()\n", __func__ );
     if( !raw_data_size )
         return;
     /* allocate buffer. */
@@ -1566,7 +1566,7 @@ static void mpegts_get_sample_pes_packet_data
     uint32_t                   *read_size
 )
 {
-    mapi_log( LOG_LV3, "[check] mpegts_get_sample_pes_packet_data()\n" );
+    mapi_log( LOG_LV3, "[check] %s()\n", __func__ );
     /* allocate buffer. */
     uint32_t sample_size = ts_packet_count * TS_PACKET_SIZE;
     *buffer = (uint8_t *)malloc( sample_size );
@@ -1601,7 +1601,7 @@ static void mpegts_get_sample_ts_packet_data
     uint32_t                   *read_size
 )
 {
-    mapi_log( LOG_LV3, "[check] mpegts_get_sample_ts_packet_data()\n" );
+    mapi_log( LOG_LV3, "[check] %s()\n", __func__ );
     /* allocate buffer. */
     uint32_t sample_size = ts_packet_count * TS_PACKET_SIZE;
     *buffer = (uint8_t *)malloc( sample_size );
@@ -1918,7 +1918,7 @@ static int get_specific_stream_data
     }
     if( cb && cb->func && read_size )
     {
-        //mapi_log( LOG_LV4, "[mpegts_parser] get_specific_stream_data()  read_size:%u\n", read_size );
+        //mapi_log( LOG_LV4, "[mpegts_parser] %s()  read_size:%u\n", __func__, read_size );
         /* read packet data. */
         uint8_t buffer[256];
         mpegts_file_read( tsf_ctx, buffer, read_size );
@@ -2018,7 +2018,7 @@ static int get_stream_data
     }
     if( cb && cb->func && read_size )
     {
-        //mapi_log( LOG_LV4, "[mpegts_parser] get_stream_data()  read_size:%u\n", read_size );
+        //mapi_log( LOG_LV4, "[mpegts_parser] %s()  read_size:%u\n", __func__, read_size );
         /* read packet data. */
         uint8_t buffer[256];
         mpegts_file_read( tsf_ctx, buffer, read_size );
@@ -2065,7 +2065,7 @@ static int get_pcr( void *ih, pcr_info_t *pcr_info )
 
 static int get_video_info( void *ih, uint8_t stream_number, video_sample_info_t *video_sample_info )
 {
-    mapi_log( LOG_LV2, "[mpegts_parser] get_video_info()\n" );
+    mapi_log( LOG_LV2, "[mpegts_parser] %s()\n", __func__ );
     mpegts_info_t *info = (mpegts_info_t *)ih;
     if( !info || stream_number >= info->video_stream_num )
         return -1;
@@ -2152,7 +2152,7 @@ static int get_video_info( void *ih, uint8_t stream_number, video_sample_info_t 
 
 static int get_audio_info( void *ih, uint8_t stream_number, audio_sample_info_t *audio_sample_info )
 {
-    mapi_log( LOG_LV2, "[mpegts_parser] get_audio_info()\n" );
+    mapi_log( LOG_LV2, "[mpegts_parser] %s()\n", __func__ );
     mpegts_info_t *info = (mpegts_info_t *)ih;
     if( !info || stream_number >= info->audio_stream_num )
         return -1;
@@ -2217,7 +2217,7 @@ static inline void release_stream_handle( tss_ctx_t **stream_ctxs, uint8_t *stre
 
 static int set_pmt_stream_info( mpegts_info_t *info )
 {
-    mapi_log( LOG_LV2, "[check] [sub] set_pmt_stream_info()\n" );
+    mapi_log( LOG_LV2, "[check] [sub] %s()\n", __func__ );
     int64_t start_position = mpegts_ftell( &(info->tsf_ctx) );
     tsp_header_t h;
     /* check stream num. */
@@ -2368,7 +2368,7 @@ static void release_pid_list( mpegts_info_t *info )
 
 static int parse_pmt_info( mpegts_info_t *info )
 {
-    mapi_log( LOG_LV2, "[check] [sub] parse_pmt_info()\n" );
+    mapi_log( LOG_LV2, "[check] [sub] %s()\n", __func__ );
     if( mpegts_parse_pmt( info ) )
         goto fail_parse;
     if( mpegts_parse_pcr( info ) )
@@ -2381,7 +2381,7 @@ fail_parse:
 
 static int set_pmt_program_id( mpegts_info_t *info, uint16_t program_id )
 {
-    mapi_log( LOG_LV2, "[check] set_pmt_program_id()\n" );
+    mapi_log( LOG_LV2, "[check] %s()\n", __func__ );
     if( info->pid_list_in_pat )
         free( info->pid_list_in_pat );
     info->pid_list_in_pat = (uint16_t *)malloc( sizeof(uint16_t) );
@@ -2417,7 +2417,7 @@ end_reset:
 
 static int set_stream_program_id( mpegts_info_t *info, uint16_t program_id )
 {
-    mapi_log( LOG_LV2, "[check] set_stream_program_id()\n" );
+    mapi_log( LOG_LV2, "[check] %s()\n", __func__ );
     /* search program id and stream type. */
     int result = -1;
 #if 0       // FIXME
@@ -2488,7 +2488,7 @@ static uint16_t get_program_id( void *ih, mpeg_stream_type stream_type )
 
 static int parse( void *ih )
 {
-    mapi_log( LOG_LV2, "[mpegts_parser] parse()\n" );
+    mapi_log( LOG_LV2, "[mpegts_parser] %s()\n", __func__ );
     mpegts_info_t *info = (mpegts_info_t *)ih;
     if( !info )
         return -1;
@@ -2514,7 +2514,7 @@ end_parse:
 
 static void *initialize( const char *input_file, int64_t buffer_size )
 {
-    mapi_log( LOG_LV2, "[mpegts_parser] initialize()\n" );
+    mapi_log( LOG_LV2, "[mpegts_parser] %s()\n", __func__ );
     mpegts_info_t *info   = (mpegts_info_t *)calloc( sizeof(mpegts_info_t), 1 );
     char          *mpegts = strdup( input_file );
     if( !info || !mpegts )
@@ -2555,7 +2555,7 @@ fail_initialize:
 
 static void release( void *ih )
 {
-    mapi_log( LOG_LV2, "[mpegts_parser] release()\n" );
+    mapi_log( LOG_LV2, "[mpegts_parser] %s()\n", __func__ );
     mpegts_info_t *info = (mpegts_info_t *)ih;
     if( !info )
         return;

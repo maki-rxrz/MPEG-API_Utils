@@ -115,7 +115,7 @@ end_first_check:
 
 static int mpeges_parse_stream_type( mpeges_info_t *info )
 {
-    mapi_log( LOG_LV2, "[check] mpeges_parse_stream_type()\n" );
+    mapi_log( LOG_LV2, "[check] %s()\n", __func__ );
     int64_t start_position = mpeges_ftell( info );
     /* parse raw data. */
     int64_t dest_size = 0;
@@ -179,7 +179,7 @@ end_parse_stream_type:
 
 static void mpeges_get_stream_timestamp( mpeges_info_t *info, mpeg_timestamp_t *timestamp )
 {
-    mapi_log( LOG_LV2, "[check] mpeges_get_stream_timestamp()\n" );
+    mapi_log( LOG_LV2, "[check] %s()\n", __func__ );
     mapi_log( LOG_LV3, "[debug] fps: %u / %u\n"
                        "        timestamp_base:%"PRId64"\n"
                        "        total_picture_num:%d\n"
@@ -202,7 +202,7 @@ static void mpeges_get_stream_timestamp( mpeges_info_t *info, mpeg_timestamp_t *
 
 static int mpeges_get_mpeg_video_picture_info( mpeges_info_t *info )
 {
-    mapi_log( LOG_LV2, "[check] mpeges_get_mpeg_video_picture_info()\n" );
+    mapi_log( LOG_LV2, "[check] %s()\n", __func__ );
     /* parse raw data. */
     int64_t dest_size = 0;
     uint8_t mpeg_video_head_data[MPEG_VIDEO_START_CODE_SIZE];
@@ -445,7 +445,7 @@ static int get_pcr( void *ih, pcr_info_t *pcr_info )
 
 static int get_video_info( void *ih, uint8_t stream_number, video_sample_info_t *video_sample_info )
 {
-    mapi_log( LOG_LV2, "[mpeges_parser] get_video_info()\n" );
+    mapi_log( LOG_LV2, "[mpeges_parser] %s()\n", __func__ );
     mpeges_info_t *info = (mpeges_info_t *)ih;
     if( !info || stream_number )
         return -1;
@@ -513,7 +513,7 @@ static uint16_t get_program_id( void *ih, mpeg_stream_type stream_type )
 
 static int parse( void *ih )
 {
-    mapi_log( LOG_LV2, "[mpeges_parser] parse()\n" );
+    mapi_log( LOG_LV2, "[mpeges_parser] %s()\n", __func__ );
     mpeges_info_t *info = (mpeges_info_t *)ih;
     if( !info || !info->fr_ctx )
         return -1;
@@ -525,7 +525,7 @@ static int parse( void *ih )
 
 static void *initialize( const char *mpeges, int64_t buffer_size )
 {
-    mapi_log( LOG_LV2, "[mpeges_parser] initialize()\n" );
+    mapi_log( LOG_LV2, "[mpeges_parser] %s()\n", __func__ );
     mpeges_info_t     *info       = (mpeges_info_t     *)calloc( sizeof(mpeges_info_t), 1 );
     mpeg_video_info_t *video_info = (mpeg_video_info_t *)malloc( sizeof(mpeg_video_info_t) );
     if( !info || !video_info )
@@ -558,7 +558,7 @@ fail_initialize:
 
 static void release( void *ih )
 {
-    mapi_log( LOG_LV2, "[mpeges_parser] release()\n" );
+    mapi_log( LOG_LV2, "[mpeges_parser] %s()\n", __func__ );
     mpeges_info_t *info = (mpeges_info_t *)ih;
     if( !info )
         return;
