@@ -645,11 +645,11 @@ static int mpegts_parse_pat( mpegts_info_t *info )
         return -1;
     }
     info->pid_list_num_in_pat = pid_list_num;
-    uint8_t *crc_32 = &(section_buffer[read_count]);
-    mapi_log( LOG_LV2, "[check] CRC32:" );
+    uint8_t *crc32 = &(section_buffer[read_count]);
+    char crc32_str[CRC32_SIZE * 3 + 1] = { 0 };
     for( int i = 0; i < CRC32_SIZE; ++i )
-        mapi_log( LOG_LV2, " %02X", crc_32[i] );
-    mapi_log( LOG_LV2, "\n" );
+        sprintf( &(crc32_str[i * 3]), " %02X", crc32[i] );
+    mapi_log( LOG_LV2, "[check] CRC32:%s\n", crc32_str );
     mapi_log( LOG_LV2, "[check] file position:%"PRId64"\n", read_pos );
     /* seek next. */
     mpegts_file_seek( &(info->tsf_ctx), 0, MPEGTS_SEEK_NEXT );
@@ -850,11 +850,11 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
         read_count += ES_info_length;
         ++pid_list_num;
     }
-    uint8_t *crc_32 = &(section_buffer[read_count]);
-    mapi_log( LOG_LV2, "[check] CRC32:" );
+    uint8_t *crc32 = &(section_buffer[read_count]);
+    char crc32_str[CRC32_SIZE * 3 + 1] = { 0 };
     for( int i = 0; i < CRC32_SIZE; ++i )
-        mapi_log( LOG_LV2, " %02X", crc_32[i] );
-    mapi_log( LOG_LV2, "\n" );
+        sprintf( &(crc32_str[i * 3]), " %02X", crc32[i] );
+    mapi_log( LOG_LV2, "[check] CRC32:%s\n", crc32_str );
     mapi_log( LOG_LV2, "[check] file position:%"PRId64"\n", read_pos );
     /* seek next. */
     mpegts_file_seek( &(info->tsf_ctx), 0, MPEGTS_SEEK_NEXT );
