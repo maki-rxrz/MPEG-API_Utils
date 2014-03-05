@@ -52,38 +52,38 @@ init:
 	@mkdir -p "$(BIN_DIR)" "$(SLIB_DIR)" "$(DLIB_DIR)"
 
 $(STATIC_LIB): $(SLIB_OBJS)
-	@echo "  AR  $(STATIC_LIB)"
+	@echo "  AR        $(STATIC_LIB)"
 	$(AR) rc $(STATIC_LIB) $(SLIB_OBJS)
-	@echo "  RANLIB  $(STATIC_LIB)"
+	@echo "  RANLIB    $(STATIC_LIB)"
 	$(RANLIB) $(STATIC_LIB)
 	$(CP) $(STATIC_LIB) $(BIN_DIR)
 
 $(DYNAMIC_LIB): $(DLIB_OBJS)
-	@echo "  LD  $(DYNAMIC_LIB)"
+	@echo "  LD        $(DYNAMIC_LIB)"
 	$(LD) $(LDFLAGS) $(DLIB_OBJS) $(LIBS) -shared -Wl,--out-implib,$(DYNAMIC_LIB).a -o $(DYNAMIC_LIB)
 	$(CP) $(DYNAMIC_LIB)* $(BIN_DIR)
 	$(STRIP) $(BIN_DIR)/$(DYNAMIC_LIB)
 
 $(SLIB_DIR)/%.o: %.c .depend
-	@echo "  CC  $<"
+	@echo "  CC        $<"
 	$(CC) -c $(CFLAGS) -DMAPI_INTERNAL_CODE_ENABLED $< -o $@
 
 $(DLIB_DIR)/%.o: %.c .depend
-	@echo "  CC  $<"
+	@echo "  CC        $<"
 	$(CC) -c $(CFLAGS) -DMAPI_INTERNAL_CODE_ENABLED -DMAPI_DLL_EXPORT $< -o $@
 
 $(TARGET1): $(OBJS1) $(STATIC_LIB)
-	@echo "  LD  $(TARGET1)"
+	@echo "  LD        $(TARGET1)"
 	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 	$(STRIP) $@
 
 $(TARGET2): $(OBJS2) $(STATIC_LIB)
-	@echo "  LD  $(TARGET2)"
+	@echo "  LD        $(TARGET2)"
 	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 	$(STRIP) $@
 
 %.o: %.c .depend
-	@echo "  CC  $<"
+	@echo "  CC        $<"
 	$(CC) -c $(CFLAGS) -DMAPI_UTILS_CODE_ENABLED $< -o $@
 
 clean:
