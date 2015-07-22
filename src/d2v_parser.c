@@ -358,14 +358,14 @@ static uint8_t *create_keyframe_list(void *h)
     int enable_rff = (info->setting.field_operation == 0);
 
     /* check total frames. */
-    int total_frames = info->order_total_frames;
+    uint32_t total_frames = info->order_total_frames;
 
     /* create keyframe list. */
     uint8_t *keyframe_list= (uint8_t *)calloc(sizeof(uint8_t), total_frames);
     if (!keyframe_list)
         return NULL;
 
-    for (int i = 0, order = 0, rff = 0; i < info->data.total_frames && order < total_frames; i++, order++) {
+    for (uint32_t i = 0, order = 0, rff = 0; i < info->data.total_frames && order < total_frames; i++, order++) {
         keyframe_list[order] = info->data.frames[i].keyframe;
         if (enable_rff && info->data.frames[i].rff) {
             if (info->data.gops[info->data.frames[i].gop_num].progr_seq) {

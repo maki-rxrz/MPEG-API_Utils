@@ -101,7 +101,7 @@ static int fw_fwrite( void *ctx, uint8_t *src_buffer, int64_t src_size, int64_t 
         write_size += fw_ctx->cache.pos;
         fw_flush_buffer( fw_ctx );
 
-        if( size > fw_ctx->buffer_size )
+        if( size > (int64_t)fw_ctx->buffer_size )
         {
             /* Output the data in source. */
             fwrite( buf, 1, size, fw_ctx->fp );

@@ -832,7 +832,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
         uint8_t  *descriptor_data       = &(section_buffer[read_count]);
         while( descriptor_read_count < ES_info_length - 2 )
         {
-            mpeg_stream_get_descriptor_info( stream_type, &(descriptor_data[descriptor_read_count]), descriptor_info );
+            mpeg_stream_get_descriptor_info( /* stream_type, */ &(descriptor_data[descriptor_read_count]), descriptor_info );
             descriptor_tags[descriptor_num] = descriptor_info->tag;
             uint8_t descriptor_length       = descriptor_info->length;
             mapi_log( LOG_LV2, "[check] descriptor_tag:0x%02X, descriptor_length:%u\n"
@@ -923,7 +923,7 @@ static int mpegts_get_pcr( mpegts_info_t *info, int64_t *pcr )
         /* seek next. */
         mpegts_file_seek( &(info->tsf_ctx), 0, MPEGTS_SEEK_NEXT );
     }
-    while( *pcr == MPEG_TIMESTAMP_INVALID_VALUE );
+    while( *pcr == (int64_t)MPEG_TIMESTAMP_INVALID_VALUE );
     mapi_log( LOG_LV2, "[check] PCR:%"PRId64" [%"PRId64"ms]\n", *pcr, *pcr / 90 );
     mapi_log( LOG_LV2, "[check] file position:%"PRId64"\n", read_pos );
     /* prepare for next. */
@@ -1042,13 +1042,13 @@ static int mpegts_get_stream_timestamp
         }
         /* get PTS and DTS value. */
         uint8_t *pes_packet_pts_dts_data = &(pes_header_check_buffer[PES_PACKET_HEADER_CHECK_SIZE]);
-        pts = pes_info.pts_flag ? mpeg_pes_get_timestamp( &(pes_packet_pts_dts_data[0]) ) : MPEG_TIMESTAMP_INVALID_VALUE;
+        pts = pes_info.pts_flag ? mpeg_pes_get_timestamp( &(pes_packet_pts_dts_data[0]) ) : (int64_t)MPEG_TIMESTAMP_INVALID_VALUE;
         dts = pes_info.dts_flag ? mpeg_pes_get_timestamp( &(pes_packet_pts_dts_data[5]) ) : pts;
         mapi_log( LOG_LV2, "[check] PTS:%"PRId64" DTS:%"PRId64"\n", pts, dts );
         /* seek next. */
         mpegts_file_seek( tsf_ctx, 0, MPEGTS_SEEK_NEXT );
     }
-    while( pts == MPEG_TIMESTAMP_INVALID_VALUE );
+    while( pts == (int64_t)MPEG_TIMESTAMP_INVALID_VALUE );
     /* setup. */
     timestamp->pts = pts;
     timestamp->dts = dts;
@@ -1107,7 +1107,7 @@ static int mpegts_read_mpeg_video_picutre_info
     /* get header/extension information. */
     uint8_t buf[read_size];
     uint8_t *buf_p = buf;
-    while( tsf_ctx->ts_packet_length < read_size )
+    while( tsf_ctx->ts_packet_length < (int32_t)read_size )
     {
         if( tsf_ctx->ts_packet_length )
         {
@@ -1122,7 +1122,7 @@ static int mpegts_read_mpeg_video_picutre_info
     }
     mpegts_file_read( tsf_ctx, buf_p, read_size );
     int32_t check_size = mpeg_video_get_header_info( buf, start_code_info.start_code, video_info );
-    if( check_size < start_code_info.read_size )
+    if( check_size < (int32_t)start_code_info.read_size )
     {
         /* reset position. */
         mpegts_file_seek( tsf_ctx, reset_position, MPEGTS_SEEK_SET );
@@ -1223,6 +1223,9 @@ end_get_video_picture_info:
 
 static uint32_t mpegts_get_sample_packets_num( tsf_ctx_t *tsf_ctx, uint16_t program_id, mpeg_stream_type stream_type )
 {
+#if ENABLE_SUPPRESS_WARNINGS
+    (void) stream_type;
+#endif
     mapi_log( LOG_LV3, "[debug] %s()\n", __func__ );
     tsp_header_t h;
     /* skip first packet. */
@@ -1284,7 +1287,7 @@ static int mpegts_check_sample_raw_frame_length
     uint8_t check_buffer[stream_header_check_size];
     int32_t buffer_read_size = 0;
     int32_t raw_data_size    = cache_read_size;
-    if( raw_data_size >= frame_length )
+    if( raw_data_size >= (int32_t)frame_length )
     {
         buffer_read_size = raw_data_size - frame_length;
         if( buffer_read_size > stream_header_check_size )
@@ -1296,9 +1299,9 @@ static int mpegts_check_sample_raw_frame_length
     {
         int32_t read_size = 0;
         int32_t seek_size = 0;
-        if( raw_data_size + tsf_ctx->ts_packet_length > frame_length )
+        if( raw_data_size + tsf_ctx->ts_packet_length > (int32_t)frame_length )
         {
-            if( raw_data_size < frame_length )
+            if( raw_data_size < (int32_t)frame_length )
             {
                 seek_size = frame_length - raw_data_size;
                 mpegts_file_seek( tsf_ctx, seek_size, MPEGTS_SEEK_CUR );
@@ -1324,7 +1327,7 @@ static int mpegts_check_sample_raw_frame_length
         /* seek next packet. */
         if( mpegts_seek_packet_payload_data( tsf_ctx, &h, program_id, INDICATOR_UNCHECKED ) )
         {
-            if( raw_data_size >= frame_length )
+            if( raw_data_size >= (int32_t)frame_length )
                 result = 0;
             goto end_check_frame_length;
         }
@@ -1490,8 +1493,8 @@ static void mpegts_get_sample_raw_data
 (
     tsf_ctx_t                  *tsf_ctx,
     uint16_t                    program_id,
-    mpeg_stream_type            stream_type,
-    mpeg_stream_group_type      stream_judge,
+ /* mpeg_stream_type            stream_type,
+    mpeg_stream_group_type      stream_judge, */
     uint32_t                    raw_data_size,
     int32_t                     read_offset,
     uint8_t                   **buffer,
@@ -1625,7 +1628,7 @@ static void mpegts_get_sample_ts_packet_data
 
 static int mpegts_malloc_stream_parse_ctx
 (
-    mpeg_stream_type            stream_type,
+ /* mpeg_stream_type            stream_type, */
     mpeg_stream_group_type      stream_judge,
     void                      **stream_parse_info
 )
@@ -1704,20 +1707,20 @@ static int get_sample_data
     /* check program id. */
     tsf_ctx_t              *tsf_ctx      = NULL;
     uint16_t                program_id   = TS_PID_ERR;
-    mpeg_stream_type        stream_type  = STREAM_INVALID;
-    mpeg_stream_group_type  stream_judge = STREAM_IS_UNKNOWN;
+ /* mpeg_stream_type        stream_type  = STREAM_INVALID;
+    mpeg_stream_group_type  stream_judge = STREAM_IS_UNKNOWN; */
     if( sample_type == SAMPLE_TYPE_VIDEO && stream_number < info->video_stream_num )
     {
         tsf_ctx      = &(info->video_stream[stream_number].tsf_ctx);
-        stream_judge =   info->video_stream[stream_number].stream_judge;
-        stream_type  =   info->video_stream[stream_number].stream_type;
+     /* stream_judge =   info->video_stream[stream_number].stream_judge;
+        stream_type  =   info->video_stream[stream_number].stream_type; */
         program_id   =   info->video_stream[stream_number].program_id;
     }
     else if( sample_type == SAMPLE_TYPE_AUDIO && stream_number < info->audio_stream_num )
     {
         tsf_ctx      = &(info->audio_stream[stream_number].tsf_ctx);
-        stream_judge =   info->audio_stream[stream_number].stream_judge;
-        stream_type  =   info->audio_stream[stream_number].stream_type;
+     /* stream_judge =   info->audio_stream[stream_number].stream_judge;
+        stream_type  =   info->audio_stream[stream_number].stream_type; */
         program_id   =   info->audio_stream[stream_number].program_id;
     }
     else
@@ -1738,7 +1741,7 @@ static int get_sample_data
             mpegts_get_sample_pes_packet_data( tsf_ctx, program_id, ts_packet_count, &buffer, &read_size );
             break;
         case GET_SAMPLE_DATA_RAW :
-            mpegts_get_sample_raw_data( tsf_ctx, program_id, stream_type, stream_judge
+            mpegts_get_sample_raw_data( tsf_ctx, program_id /*, stream_type, stream_judge */
                                       , sample_size, read_offset, &buffer, &read_size );
         default :
             break;
@@ -2284,7 +2287,7 @@ static int set_pmt_stream_info( mpegts_info_t *info )
                 {
                     /* allocate. */
                     void *stream_parse_info;
-                    if( mpegts_malloc_stream_parse_ctx( stream_type, stream_judge, &stream_parse_info ) )
+                    if( mpegts_malloc_stream_parse_ctx( /* stream_type, */ stream_judge, &stream_parse_info ) )
                     {
                         mpegts_close( &(stream->tsf_ctx) );
                         goto fail_allocate_ctxs;
@@ -2432,6 +2435,9 @@ static int set_stream_program_id( mpegts_info_t *info, uint16_t program_id )
                 result = 0;
         }
     }
+#elif ENABLE_SUPPRESS_WARNINGS
+    (void) info;
+    (void) program_id;
 #endif
     return result;
 }

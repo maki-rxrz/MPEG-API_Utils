@@ -195,6 +195,9 @@ READ_DESCRIPTOR( target_background_grid )
 
 READ_DESCRIPTOR( video_window )
 {
+#if ENABLE_SUPPRESS_WARNINGS
+    (void) descriptor;
+#endif
     video_window->horizontal_offset = 0;
     video_window->vertical_offset   = 0;
     video_window->window_priority   = 0;
@@ -360,7 +363,7 @@ READ_DESCRIPTOR( MultiplexBuffer )
 }
 extern void mpeg_stream_get_descriptor_info
 (
-    mpeg_stream_type            stream_type,
+ /* mpeg_stream_type            stream_type, */
     uint8_t                    *descriptor,
     mpeg_descriptor_info_t     *descriptor_info
 )
@@ -1143,7 +1146,7 @@ extern int32_t mpeg_stream_check_header
                         { eac3_header_check, STREAM_EAC3_HEADER_CHECK_SIZE }
                     };
                 int index = !(stream_type == STREAM_AUDIO_AC3);
-                if( buffer_size >= header_check[index].size )
+                if( (int)buffer_size >= header_check[index].size )
                 {
                     if( !header_check[index].func( buffer, stream_raw_info ) )
                         /* setup. */

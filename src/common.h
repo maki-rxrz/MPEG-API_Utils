@@ -137,4 +137,7 @@ extern void mapi_log( log_level level, const char *format, ... );
 
 #endif
 
+/* Suppress warning by unused parameter. */
+#define ENABLE_SUPPRESS_WARNINGS    1
+
 #endif /* __COMMON_H__ */

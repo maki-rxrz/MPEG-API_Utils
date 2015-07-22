@@ -706,14 +706,15 @@ static int get_output_times( param_t *p, int64_t *start, int64_t *end )
 static int ass_header_change_aspect_ratio( param_t *p, FILE *input, FILE *output, int32_t *shift_x, int32_t *shift_y )
 {
     /* get ass script info section data. */
-    int32_t video_aspect_ratio = 0, aspect_ratio = 0;
+    aspect_ratio_type video_aspect_ratio = ASPECT_RATIO_DEFAULT;
+    aspect_ratio_type aspect_ratio       = ASPECT_RATIO_DEFAULT;
     int32_t play_res_x = 0, play_res_y = 0;
     char line[p->line_max];
     while( fgets( line, p->line_max, input ) )
     {
         if( !strncmp( line, "[Events]", 8 ) )
             break;
-        if( sscanf( line, "Video Aspect Ratio: %d", &video_aspect_ratio ) )
+        if( sscanf( line, "Video Aspect Ratio: %d", (int *)&video_aspect_ratio ) )
             continue;
         else if( sscanf( line, "PlayResX: %d", &play_res_x ) )
             continue;

@@ -161,6 +161,9 @@ static int load_vcf_txt( common_param_t *p, FILE *list, const char *search_word 
 
 static int load_del_txt( common_param_t *p, FILE *list, const char *search_word )
 {
+#if ENABLE_SUPPRESS_WARNINGS
+    (void) search_word;
+#endif
     char line[p->line_max];
     int32_t start, end;
     /* check range. */
@@ -200,6 +203,9 @@ static int load_del_txt( common_param_t *p, FILE *list, const char *search_word 
 
 static int load_keyframe_txt( common_param_t *p, FILE *list, const char *search_word )
 {
+#if ENABLE_SUPPRESS_WARNINGS
+    (void) search_word;
+#endif
     char line[p->line_max];
     /* check 'Trim' style. */
     if( p->list_type == CUT_LIST_KEY_TRIM )

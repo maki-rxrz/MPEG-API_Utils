@@ -172,7 +172,7 @@ static int32_t read_picture_header( uint8_t *data, mpeg_video_picture_header_t *
     return check_size;
 }
 
-static int64_t read_slice_header( uint8_t *data, mpeg_video_slice_header_t *slice )
+static int64_t read_slice_header( /* uint8_t *data, */ mpeg_video_slice_header_t *slice )
 {
     /* No reading header data. */           // FIXME
     slice->slice_vertical_position_extension = 0;
@@ -630,7 +630,7 @@ extern int32_t mpeg_video_get_header_info
             check_size = read_picture_header( buf, &(video_info->picture) );
             break;
         case MPEG_VIDEO_START_CODE_SSC :
-            check_size = read_slice_header( buf, &(video_info->slice) );
+            check_size = read_slice_header( /* buf, */ &(video_info->slice) );
             break;
         default :
             break;

@@ -326,7 +326,7 @@ extern mpeg_pes_packet_start_code_type mpeg_pes_get_stream_start_code( mpeg_stre
 
 extern void mpeg_stream_get_descriptor_info
 (
-    mpeg_stream_type            stream_type,
+ /* mpeg_stream_type            stream_type, */
     uint8_t                    *descriptor,
     mpeg_descriptor_info_t     *descriptor_info
 );

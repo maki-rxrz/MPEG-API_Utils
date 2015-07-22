@@ -316,6 +316,12 @@ static const char *get_stream_information
     get_information_key_type    key
 )
 {
+#if ENABLE_SUPPRESS_WARNINGS
+    (void) ih;
+    (void) sample_type;
+    (void) stream_number;
+    (void) key;
+#endif
     return NULL;
 }
 
@@ -353,6 +359,10 @@ static int get_sample_data
     get_sample_data_mode        get_mode
 )
 {
+#if ENABLE_SUPPRESS_WARNINGS
+    (void) read_offset;
+    (void) get_mode;
+#endif
     mpeges_info_t *info = (mpeges_info_t *)ih;
     if( !info || stream_number || position < 0 )
         return -1;
@@ -414,6 +424,12 @@ static int get_specific_stream_data
     get_stream_data_cb_t       *cb
 )
 {
+#if ENABLE_SUPPRESS_WARNINGS
+    (void) ih;
+    (void) get_mode;
+    (void) output_stream;
+    (void) cb;
+#endif
     return -1;
 }
 
@@ -427,6 +443,14 @@ static int get_stream_data
     get_stream_data_cb_t       *cb
 )
 {
+#if ENABLE_SUPPRESS_WARNINGS
+    (void) ih;
+    (void) sample_type;
+    (void) stream_number;
+    (void) read_offset;
+    (void) get_mode;
+    (void) cb;
+#endif
     return -1;
 }
 
@@ -440,6 +464,10 @@ static uint8_t get_stream_num( void *ih, mpeg_sample_type sample_type )
 
 static int get_pcr( void *ih, pcr_info_t *pcr_info )
 {
+#if ENABLE_SUPPRESS_WARNINGS
+    (void) ih;
+    (void) pcr_info;
+#endif
     return -1;
 }
 
@@ -493,21 +521,39 @@ static int get_video_info( void *ih, uint8_t stream_number, video_sample_info_t 
 
 static int get_audio_info( void *ih, uint8_t stream_number, audio_sample_info_t *audio_sample_info )
 {
+#if ENABLE_SUPPRESS_WARNINGS
+    (void) ih;
+    (void) stream_number;
+    (void) audio_sample_info;
+#endif
     return -1;
 }
 
 static int set_program_target( void *ih, pmt_target_type pmt_target )
 {
+#if ENABLE_SUPPRESS_WARNINGS
+    (void) ih;
+    (void) pmt_target;
+#endif
     return -1;
 }
 
 static int set_program_id( void *ih, mpegts_select_pid_type pid_type, uint16_t program_id )
 {
+#if ENABLE_SUPPRESS_WARNINGS
+    (void) ih;
+    (void) pid_type;
+    (void) program_id;
+#endif
     return -1;
 }
 
 static uint16_t get_program_id( void *ih, mpeg_stream_type stream_type )
 {
+#if ENABLE_SUPPRESS_WARNINGS
+    (void) ih;
+    (void) stream_type;
+#endif
     return -1;
 }
 
