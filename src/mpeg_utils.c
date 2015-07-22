@@ -355,7 +355,7 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
     {
         if( param )
             free( param );
-        if( progress );
+        if( progress )
             free( progress );
         goto fail_create_list;
     }

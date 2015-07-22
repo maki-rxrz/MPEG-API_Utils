@@ -63,7 +63,7 @@ typedef struct {
  *  File Writer functions
  *==========================================================================*/
 
-static void inline fw_flush_buffer( file_write_context_t *fw_ctx )
+static inline void fw_flush_buffer( file_write_context_t *fw_ctx )
 {
     fwrite( fw_ctx->cache.buf, 1, fw_ctx->cache.pos, fw_ctx->fp );
     fw_ctx->cache.pos = 0;
