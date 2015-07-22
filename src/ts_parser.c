@@ -1432,7 +1432,7 @@ static thread_func_ret demux_all( void *args )
     /* demux */
     mapi_log( LOG_LV_PROGRESS, "                                                                              \r"
                                " %s Stream[%3u] [demux] start\n", stream_name, stream_number );
-    demux_cb_param_t     cb_params = { fw_ctx, stream_name, stream_number, 0, 0, file_size };
+    demux_cb_param_t     cb_params = { fw_ctx, stream_name, stream_number, 0, 0, file_size, 0 };
     get_stream_data_cb_t cb        = { demux_cb_func, &cb_params };
     mpeg_api_get_stream_all( info, get_type, stream_number, mode, &cb );
     /* finish. */
@@ -1549,7 +1549,7 @@ static void demux_stream_all
                         break;
                     }
                 }
-                demux_cb_param_t     cb_params = { video[i], "Video", i, 0, 0, p->file_size };
+                demux_cb_param_t     cb_params = { video[i], "Video", i, 0, 0, p->file_size, 0 };
                 get_stream_data_cb_t cb        = { demux_cb_func, &cb_params };
                 mpeg_api_get_stream_all( info, SAMPLE_TYPE_VIDEO, i, get_mode, &cb );
                 uint64_t total_size = (uint64_t)cb_params.total_size;
@@ -1563,7 +1563,7 @@ static void demux_stream_all
             if( audio[i] )
             {
                 mapi_log( LOG_LV_PROGRESS, " Audio Stream[%3u] [demux] start\n", i );
-                demux_cb_param_t     cb_params = { audio[i], "Audio", i, 0, 0, p->file_size };
+                demux_cb_param_t     cb_params = { audio[i], "Audio", i, 0, 0, p->file_size, 0 };
                 get_stream_data_cb_t cb        = { demux_cb_func, &cb_params };
                 mpeg_api_get_stream_all( info, SAMPLE_TYPE_AUDIO, i, get_mode, &cb );
                 uint64_t total_size = (uint64_t)cb_params.total_size;
