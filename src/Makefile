@@ -31,7 +31,7 @@ LIBTOOL = @libtool
 CP      = @cp -p
 RM      = rm -rf
 
-CFLAGS  = -Wall -std=gnu99 $(XCFLAGS)
+CFLAGS  = -Wall -std=c99 $(XCFLAGS)
 LDFLAGS = $(XLDFLAGS)
 LIBS    =
 
@@ -40,6 +40,13 @@ CFLAGS += -DMAPI_WTHREAD_ENABLED
 else
 CFLAGS += -DMAPI_PTHREAD_ENABLED
 LIBS   += -lpthread
+endif
+
+ifeq ($(findstring clang, $(CC)), clang)
+override DEP_CC :=  $(CC)
+override CC     := @$(CC)
+override LD     := @$(LD)
+CFLAGS += -Wno-missing-field-initializers
 endif
 
 .PHONY: all lib init clean

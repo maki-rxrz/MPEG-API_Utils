@@ -192,7 +192,7 @@ static thread_func_ret parse_stream( void *args )
                 compare_ts = video_sample_info.pts;
             }
 #define CALCLATE_CORRECTION_TIMESTAMP( _timestamp )     \
-( _timestamp + (wrap_around_count + (compare_ts > _timestamp + info->wrap_around_check_v) ? 1 : 0 ) * MPEG_TIMESTAMP_WRAPAROUND_VALUE )
+( _timestamp + (wrap_around_count + ((compare_ts > _timestamp + info->wrap_around_check_v) ? 1 : 0)) * MPEG_TIMESTAMP_WRAPAROUND_VALUE )
             /* setup. */
             video_list[i].file_position        = video_sample_info.file_position;
             video_list[i].sample_size          = video_sample_info.sample_size;

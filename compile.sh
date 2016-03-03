@@ -12,6 +12,7 @@ cwd=$(cd $(dirname $0); pwd)
 #-------------------------------------------------------------------------------
 
 BIN_DIR="$cwd/bin"
+COMPILERS=''
 
 # Parse user specified options.
 for opt do
@@ -38,18 +39,26 @@ for opt do
         THREADS=*)
             THREAD_LIBS="$optarg"
         ;;
+        CC=*)
+            CC_EXE="$optarg"
+        ;;
+        LD=*)
+            LD_EXE="$optarg"
+        ;;
     esac
 done
 
 if [ "$#" != "0" ] ; then
     echo "[ User specified options ]"
-    [ "$MAKE_OPT"       != "" ] && echo "MAKE_OPT : $MAKE_OPT"
-    [ "$USER_BINDIR"    != "" ] && echo "BINDIR   : $USER_BINDIR"    && BIN_DIR="$USER_BINDIR"
-    [ "$CROSS_PREFIX"   != "" ] && echo "CROSS    : $CROSS_PREFIX"
-    [ "$EXTRA_CFLAGS"   != "" ] && echo "CFLAGS   : $EXTRA_CFLAGS"
-    [ "$EXTRA_CPPFLAGS" != "" ] && echo "CPPFLAGS : $EXTRA_CPPFLAGS"
-    [ "$EXTRA_LDFLAGS"  != "" ] && echo "LDFLAGS  : $EXTRA_LDFLAGS"
-    [ "$THREAD_LIBS"    != "" ] && echo "THREADS  : $THREAD_LIBS"
+    [ -n "$MAKE_OPT"       ] && echo "MAKE_OPT : $MAKE_OPT"
+    [ -n "$USER_BINDIR"    ] && echo "BINDIR   : $USER_BINDIR"    && BIN_DIR="$USER_BINDIR"
+    [ -n "$CROSS_PREFIX"   ] && echo "CROSS    : $CROSS_PREFIX"
+    [ -n "$EXTRA_CFLAGS"   ] && echo "CFLAGS   : $EXTRA_CFLAGS"
+    [ -n "$EXTRA_CPPFLAGS" ] && echo "CPPFLAGS : $EXTRA_CPPFLAGS"
+    [ -n "$EXTRA_LDFLAGS"  ] && echo "LDFLAGS  : $EXTRA_LDFLAGS"
+    [ -n "$THREAD_LIBS"    ] && echo "THREADS  : $THREAD_LIBS"
+    [ -n "$CC_EXE"         ] && echo "CC       : $CC_EXE"         && COMPILERS+=" CC=$CC_EXE"
+    [ -n "$LD_EXE"         ] && echo "LD       : $LD_EXE"         && COMPILERS+=" LD=$LD_EXE"
     echo ""
 fi
 
@@ -71,8 +80,10 @@ fi
 
 # Make libs and utils.
 make lib \
+    $COMPILERS \
     CROSS="$CROSS_PREFIX" XCFLAGS="$EXTRA_CFLAGS $EXTRA_CPPFLAGS" XLDFLAGS="$EXTRA_LDFLAGS" \
     BIN_DIR="$BIN_DIR" THREAD_LIBS="$THREAD_LIBS" $MAKE_OPT
 make \
+    $COMPILERS \
     CROSS="$CROSS_PREFIX" XCFLAGS="$EXTRA_CFLAGS $EXTRA_CPPFLAGS" XLDFLAGS="$EXTRA_LDFLAGS" \
     BIN_DIR="$BIN_DIR" THREAD_LIBS="$THREAD_LIBS" $MAKE_OPT

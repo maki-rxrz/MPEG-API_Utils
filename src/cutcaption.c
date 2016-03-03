@@ -768,7 +768,7 @@ static int ass_header_change_aspect_ratio( param_t *p, FILE *input, FILE *output
     {
         if( !strncmp( line, "[Events]", 8 ) )
         {
-            fprintf( output, line );
+            fprintf( output, "%s", line );
             break;
         }
         if( !strncmp( line, "Video Aspect Ratio: ", 20 ) )
@@ -777,7 +777,7 @@ static int ass_header_change_aspect_ratio( param_t *p, FILE *input, FILE *output
             sprintf( line, "PlayResX: %d\n", play_res_x + *shift_x );
         else if( !strncmp( line, "PlayResY: ", 10 ) )
             sprintf( line, "PlayResY: %d\n", play_res_y + *shift_y );
-        fprintf( output, line );
+        fprintf( output, "%s", line );
     }
     *shift_x /= 2;
     *shift_y /= 2;
@@ -802,7 +802,7 @@ static void cut_ass( param_t *p, FILE *input, FILE *output )
         int layer;
         if( sscanf( line, diaglogue_format, &layer ) != 1 )
         {
-            fprintf( output, line );
+            fprintf( output, "%s", line );
             continue;
         }
         char line_head[p->line_max];
@@ -822,7 +822,7 @@ static void cut_ass( param_t *p, FILE *input, FILE *output )
             if( get_output_times( p, &start, &end ) )
                 continue;
             /* write head. */
-            fprintf( output, line_head );
+            fprintf( output, "%s", line_head );
             /* write body. */
             total_to_time( &time_s, start, 1 );
             total_to_time( &time_e, end  , 1 );
@@ -853,7 +853,7 @@ static void cut_ass( param_t *p, FILE *input, FILE *output )
                 }
             }
         }
-        fprintf( output, line_p );
+        fprintf( output, "%s", line_p );
         /* post process. */
         /* don't require ASS Subtitle. */
     }
@@ -877,7 +877,7 @@ static void cut_srt( param_t *p, FILE *input, FILE *output )
         if( sscanf( line, "%d\n", &subtitle_number ) != 1 )
         {
             if( subtitle_number )
-                fprintf( output, line );
+                fprintf( output, "%s", line );
             continue;
         }
         char line_head[p->line_max];
@@ -905,7 +905,7 @@ static void cut_srt( param_t *p, FILE *input, FILE *output )
                 continue;
             }
             /* write head. */
-            fprintf( output, line_head );
+            fprintf( output, "%s", line_head );
             /* write body. */
             total_to_time( &time_s, start, 0 );
             total_to_time( &time_e, end  , 0 );
@@ -916,11 +916,11 @@ static void cut_srt( param_t *p, FILE *input, FILE *output )
             /* 29: line size. "00:00:00,000 --> 00:00:00,000" */
             line_p += 29;
         }
-        fprintf( output, line_p );
+        fprintf( output, "%s", line_p );
         /* post process. */
         while( fgets( line, p->line_max, input ) )
         {
-            fprintf( output, line );
+            fprintf( output, "%s", line );
             if( *line == '\n' )
                 break;
         }

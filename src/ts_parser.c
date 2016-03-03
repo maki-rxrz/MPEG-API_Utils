@@ -437,20 +437,24 @@ static inline uint16_t get_output_stream_nums( output_stream_type output, uint8_
 }
 
 /*  */
+#if 0
 static inline int64_t dumper_ftell( void *fw_ctx )
 {
     return file_writer.ftell( fw_ctx );
 }
+#endif
 
 static inline int dumper_fwrite( void *fw_ctx, uint8_t *src_buffer, int64_t src_size, int64_t *dest_size )
 {
     return file_writer.fwrite( fw_ctx, src_buffer, src_size, dest_size );
 }
 
+#if 0
 static inline int dumper_fseek( void *fw_ctx, int64_t seek_offset, int origin )
 {
     return file_writer.fseek( fw_ctx, seek_offset, origin );
 }
+#endif
 
 static int dumper_open( void **fw_ctx, char *file_name, int64_t buffer_size )
 {
