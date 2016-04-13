@@ -59,7 +59,7 @@
     #define MAPI_EXPORT
   #endif
 #else
-  #if __GCC__ >= 4
+  #if __GNUC__ >= 4
     #define MAPI_EXPORT __attribute__((visibility("default")))
   #else
     #define MAPI_EXPORT

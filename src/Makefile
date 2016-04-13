@@ -31,7 +31,7 @@ LIBTOOL = @libtool
 CP      = @cp -p
 RM      = rm -rf
 
-CFLAGS  = -Wall -std=c99 $(XCFLAGS)
+CFLAGS  = -Wall -std=c99 -fvisibility=hidden $(XCFLAGS)
 LDFLAGS = $(XLDFLAGS)
 LIBS    =
 
