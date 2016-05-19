@@ -127,9 +127,13 @@ extern void mapi_log( log_level level, const char *format, ... );
 /* etc */
 #if defined(_WIN32)
 
+#ifdef _MSC_VER
+
 #define strdup    _strdup
 #define wcsstrdup _wcstrdup
 #define mbsdup    _mbsdup
+
+#endif
 
 #ifndef _MBCS
 #define _MBCS
