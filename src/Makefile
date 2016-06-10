@@ -35,6 +35,14 @@ CFLAGS  = -Wall -std=c99 -fvisibility=hidden -D_GNU_SOURCE=1 $(XCFLAGS)
 LDFLAGS = $(XLDFLAGS)
 LIBS    =
 
+ifeq ($(ENABLE_SHARED), yes)
+MAPILIB = $(DYNAMIC_LIB).a
+LIBFALG = -DMAPI_DLL_IMPORT
+else
+MAPILIB = $(STATIC_LIB)
+LIBFALG =
+endif
+
 ifeq ($(THREAD_LIBS), win32)
 CFLAGS += -DMAPI_WTHREAD_ENABLED
 else
@@ -71,6 +79,8 @@ $(DYNAMIC_LIB): $(DLIB_OBJS)
 	$(CP) $(DYNAMIC_LIB)* $(BIN_DIR)
 	$(STRIP) $(BIN_DIR)/$(DYNAMIC_LIB)
 
+$(DYNAMIC_LIB).a: $(DYNAMIC_LIB)
+
 $(SLIB_DIR)/%.o: %.c .depend
 	@echo "  CC        $<"
 	$(CC) -c $(CFLAGS) -DMAPI_INTERNAL_CODE_ENABLED $< -o $@
@@ -79,19 +89,19 @@ $(DLIB_DIR)/%.o: %.c .depend
 	@echo "  CC        $<"
 	$(CC) -c $(CFLAGS) -DMAPI_INTERNAL_CODE_ENABLED -DMAPI_DLL_EXPORT $< -o $@
 
-$(TARGET1): $(OBJS1) $(STATIC_LIB)
+$(TARGET1): $(OBJS1) $(MAPILIB)
 	@echo "  LD        $(TARGET1)"
 	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 	$(STRIP) $@
 
-$(TARGET2): $(OBJS2) $(STATIC_LIB)
+$(TARGET2): $(OBJS2) $(MAPILIB)
 	@echo "  LD        $(TARGET2)"
 	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 	$(STRIP) $@
 
 %.o: %.c .depend
 	@echo "  CC        $<"
-	$(CC) -c $(CFLAGS) -DMAPI_UTILS_CODE_ENABLED $< -o $@
+	$(CC) -c $(CFLAGS) -DMAPI_UTILS_CODE_ENABLED $(LIBFALG) $< -o $@
 
 clean:
 	$(RM) "$(SLIB_DIR)" "$(DLIB_DIR)" *.o config.* .depend *.a *.lib *.dll* *.exp
