@@ -1,12 +1,12 @@
 BIN_DIR  = ../bin
-API_SRCS = mpeg_utils.c mpeges_parser.c mpegts_parser.c mpeg_stream.c mpeg_video.c thread_utils.c file_reader.c file_utils.c
+API_SRCS = common.c mpeg_utils.c mpeges_parser.c mpegts_parser.c mpeg_stream.c mpeg_video.c thread_utils.c file_reader.c
 
 TARGET1 = $(BIN_DIR)/cutcaption.exe
-SRCS1   = cutcaption.c d2v_parser.c text_utils.c avs_utils.c
+SRCS1   = cutcaption.c common.c d2v_parser.c text_utils.c avs_utils.c
 OBJS1   = $(SRCS1:%.c=%.o)
 
 TARGET2 = $(BIN_DIR)/ts_parser.exe
-SRCS2   = ts_parser.c thread_utils.c file_writer.c file_utils.c
+SRCS2   = ts_parser.c common.c thread_utils.c file_writer.c
 OBJS2   = $(SRCS2:%.c=%.o)
 
 LIB_NAME    = libmapi

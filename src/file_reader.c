@@ -208,7 +208,7 @@ static int fr_open( void *ctx, char *file_name, uint64_t buffer_size )
 
     int64_t  file_size = 0;
     uint8_t *buffer    = NULL;
-    FILE    *fp        = fopen( file_name, "rb" );
+    FILE    *fp        = mapi_fopen( file_name, "rb" );
     if( !fp )
         return MAPI_FILE_ERROR;
 

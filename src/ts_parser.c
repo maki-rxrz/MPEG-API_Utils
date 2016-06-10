@@ -341,7 +341,7 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
         }
         else if( !strcasecmp( argv[i], "--log" ) )
         {
-            FILE *log = fopen( argv[++i], "at" );
+            FILE *log = mapi_fopen( argv[++i], "at" );
             if( log )
             {
                 if( p->logfile != stderr )
@@ -1842,6 +1842,9 @@ int main( int argc, char *argv[] )
 {
     if( check_commandline( argc, argv ) )
         return 0;
+    int conv_args = mapi_convert_args_to_utf8( &argc, &argv );
+    if( conv_args < 0 )
+        return -1;
     int i = 1;
     while( i < argc )
     {
@@ -1856,5 +1859,7 @@ int main( int argc, char *argv[] )
             parse_mpeg( &param );
         cleanup_parameter( &param );
     }
+    if( conv_args > 0 )
+        free( argv );
     return 0;
 }

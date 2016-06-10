@@ -27,6 +27,8 @@
  *
  ****************************************************************************/
 
+#include "common.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <windows.h>
@@ -144,7 +146,7 @@ static void *parse(const char *input)
     if (!input)
         return NULL;
 
-    FILE *d2v = fopen( input, "rt" );
+    FILE *d2v = mapi_fopen( input, "rt" );
     if (!d2v)
         return NULL;
 

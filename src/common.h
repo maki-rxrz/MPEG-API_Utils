@@ -124,6 +124,15 @@ extern void mapi_log( log_level level, const char *format, ... );
 
 #endif
 
+/* OS depncdent */
+#ifdef _WIN32
+extern FILE *mapi_fopen( const char *file_name, const char *mode );
+extern int mapi_convert_args_to_utf8( int *argc_p, char ***argv_p );
+#else
+#define mapi_fopen  fopen
+#define mapi_convert_args_to_utf8( argc_p, argv_p ) (0)
+#endif
+
 /* etc */
 #if defined(_WIN32)
 
@@ -133,10 +142,6 @@ extern void mapi_log( log_level level, const char *format, ... );
 #define wcsstrdup _wcstrdup
 #define mbsdup    _mbsdup
 
-#endif
-
-#ifndef _MBCS
-#define _MBCS
 #endif
 
 #endif

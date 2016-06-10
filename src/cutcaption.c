@@ -270,7 +270,7 @@ static FILE *file_open( const char *file, const char *ext, const char *mode )
     strcpy( full_name, file );
     if( ext_len )
         strcat( full_name, ext );
-    FILE *fp = fopen( full_name, mode );
+    FILE *fp = mapi_fopen( full_name, mode );
     return fp;
 }
 
@@ -435,7 +435,7 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
         }
         else if( !strcasecmp( argv[i], "--log" ) )
         {
-            FILE *log = fopen( argv[++i], "at" );
+            FILE *log = mapi_fopen( argv[++i], "at" );
             if( log )
             {
                 if( p->logfile != stderr )
@@ -555,7 +555,7 @@ static int load_cut_list( param_t *p )
 {
     if( !p )
         return -1;
-    FILE *list = fopen( p->list, "rt" );
+    FILE *list = mapi_fopen( p->list, "rt" );
     if( !list )
     {
         /* check user specified delay time. */
@@ -927,13 +927,6 @@ static void cut_srt( param_t *p, FILE *input, FILE *output )
     }
 }
 
-#ifdef _MBCS
-#include <mbstring.h>
-#define string_t    unsigned char
-#else
-#define _mbspbrk    strpbrk
-#define string_t    char
-#endif
 static void correct_d2v_input( param_t *p )
 {
     void *d2v_info = d2v_parser.parse( p->input );
@@ -944,12 +937,12 @@ static void correct_d2v_input( param_t *p )
         goto end_correct;
     /* check input path. */
     char *input;
-    string_t *str  = NULL;
-    string_t *str2 = (string_t *)(p->input);
+    char *str  = NULL;
+    char *str2 = (char *)(p->input);
     while( 1 )
     {
-        static const string_t sep[] = "\\/";
-        str2 = _mbspbrk( str2, sep );
+        static const char sep[] = "\\/";
+        str2 = strpbrk( str2, sep );
         if( !str2 )
             break;
         str2 += 1;
@@ -963,7 +956,7 @@ static void correct_d2v_input( param_t *p )
     }
     else
     {
-        size_t path_size = str - (string_t *)(p->input);
+        size_t path_size = str - (char *)(p->input);
         size_t len = path_size + strlen( filename ) + 1;
         input = (char *)malloc( len + 10 );
         if( !input )
@@ -980,7 +973,6 @@ static void correct_d2v_input( param_t *p )
 end_correct:
     d2v_parser.release( d2v_info );
 }
-#undef string_t
 
 typedef struct {
     int64_t video_1st_start;
@@ -1169,6 +1161,9 @@ int main( int argc, char *argv[] )
 {
     if( check_commandline( argc, argv ) )
         return 0;
+    int conv_args = mapi_convert_args_to_utf8( &argc, &argv );
+    if( conv_args < 0 )
+        return -1;
     int i = 1;
     while( i < argc )
     {
@@ -1185,5 +1180,7 @@ int main( int argc, char *argv[] )
             exec_func[param.execute_mode]( &param );
         cleanup_parameter( &param );
     }
+    if( conv_args > 0 )
+        free( argv );
     return 0;
 }

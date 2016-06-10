@@ -187,7 +187,7 @@ static int fw_open( void *ctx, char *file_name, uint64_t buffer_size )
         return MAPI_FAILURE;
 
     uint8_t *buffer = NULL;
-    FILE    *fp     = fopen( file_name, "wb" );
+    FILE    *fp     = mapi_fopen( file_name, "wb" );
     if( !fp )
         return MAPI_FILE_ERROR;
 
