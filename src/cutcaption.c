@@ -594,7 +594,7 @@ static int64_t time_to_total( caption_time_t *t, int floor )
 
 static void total_to_time( caption_time_t *t, int64_t total, int round )
 {
-    mapi_log( LOG_LV4, "[debug] total:%"PRId64"\n", total );
+    mapi_log( LOG_LV4, "[debug] total:%" PRId64 "\n", total );
     if( round )
         total += 5;
     t->Msecs = total % 1000;
@@ -641,7 +641,7 @@ static int get_output_times( param_t *p, int64_t *start, int64_t *end )
             /* correct end. */
             e = p->list_data[i].end + 1;
             is_output = 1;
-            mapi_log( LOG_LV4, "[debug] correct end time. e:%f cut:%"PRId64"\n", e, cut_frames );
+            mapi_log( LOG_LV4, "[debug] correct end time. e:%f cut:%" PRId64 "\n", e, cut_frames );
             break;
         }
         if( s < p->list_data[i].start && e >= p->list_data[i].start && e <= p->list_data[i].end + 1 )
@@ -649,7 +649,7 @@ static int get_output_times( param_t *p, int64_t *start, int64_t *end )
             /* correct start. */
             s = p->list_data[i].start;
             is_output = 1;
-            mapi_log( LOG_LV4, "[debug] correct start time. e:%f cut:%"PRId64"\n", s, cut_frames );
+            mapi_log( LOG_LV4, "[debug] correct start time. e:%f cut:%" PRId64 "\n", s, cut_frames );
             break;
         }
         if( s < p->list_data[i].start && e >= p->list_data[i].end + 1 )
@@ -658,7 +658,7 @@ static int get_output_times( param_t *p, int64_t *start, int64_t *end )
             s = p->list_data[i].start;
             e = p->list_data[i].end + 1;
             is_output = 1;
-            mapi_log( LOG_LV4, "[debug] correct times. s:%f e:%f cut:%"PRId64"\n", s, e, cut_frames );
+            mapi_log( LOG_LV4, "[debug] correct times. s:%f e:%f cut:%" PRId64 "\n", s, e, cut_frames );
             break;
         }
         if( i < p->list_data_count - 1
@@ -669,17 +669,17 @@ static int get_output_times( param_t *p, int64_t *start, int64_t *end )
             s += middle_cut;
             cut_frames += middle_cut;
             is_output = 1;
-            mapi_log( LOG_LV4, "[debug] middle cut. s:%f e:%f cut:%"PRId64"\n", s, e, cut_frames );
+            mapi_log( LOG_LV4, "[debug] middle cut. s:%f e:%f cut:%" PRId64 "\n", s, e, cut_frames );
             break;
         }
         if( e <= p->list_data[i].end + 1 )
         {
             /* output. */
-            mapi_log( LOG_LV4, "[debug] output. cut:%"PRId64"\n", cut_frames );
+            mapi_log( LOG_LV4, "[debug] output. cut:%" PRId64 "\n", cut_frames );
             is_output = 1;
             break;
         }
-        mapi_log( LOG_LV4, "[debug] --calc-- s:%f e:%f, cut:%"PRId64", ls:%d le:%d\n"
+        mapi_log( LOG_LV4, "[debug] --calc-- s:%f e:%f, cut:%" PRId64 ", ls:%d le:%d\n"
                          , s, e, cut_frames, p->list_data[i].start, p->list_data[i].end );
         cut_start = p->list_data[i].end + 1;
     }
@@ -689,7 +689,7 @@ static int get_output_times( param_t *p, int64_t *start, int64_t *end )
     double time_e = frame_to_time( e - cut_frames, p->frame_rate );
     /* check delay. */
     int64_t delay = p->delay_time + p->reader_delay;
-    mapi_log( LOG_LV3, "[debug] s:%f e:%f d:%"PRId64"\n", time_s, time_e, delay );
+    mapi_log( LOG_LV3, "[debug] s:%f e:%f d:%" PRId64 "\n", time_s, time_e, delay );
     time_e += delay;
     if( time_e < 0 )
         return -1;
@@ -699,7 +699,7 @@ static int get_output_times( param_t *p, int64_t *start, int64_t *end )
     /* setup. */
     *start = (int64_t)(time_s + 0.5);
     *end   = (int64_t)(time_e + 0.5);
-    mapi_log( LOG_LV2, "[debug] out s:%"PRId64" e:%"PRId64"\n", *start, *end );
+    mapi_log( LOG_LV2, "[debug] out s:%" PRId64 " e:%" PRId64 "\n", *start, *end );
     return 0;
 }
 
@@ -1050,10 +1050,10 @@ static void parse_reader_offset( param_t *p, delay_info_type *delay_info )
             default :
                 break;
         }
-        mapi_log( LOG_LV2, "[check] [read_delay] video_1st: %"PRId64", video_odr: %"PRId64", video_key: %"PRId64"\n"
-                           "                     audio: %"PRId64"\n"
+        mapi_log( LOG_LV2, "[check] [read_delay] video_1st: %" PRId64 ", video_odr: %" PRId64 ", video_key: %" PRId64 "\n"
+                           "                     audio: %" PRId64 "\n"
                          , video_1st_start, video_odr_start, video_key_start, audio_start );
-        mapi_log( LOG_LV1, "[reader] delay: %"PRId64"\n", p->reader_delay );
+        mapi_log( LOG_LV1, "[reader] delay: %" PRId64 "\n", p->reader_delay );
         /* setup required informations. */
         if( delay_info )
         {
@@ -1131,10 +1131,10 @@ static void analyze_mpegts( param_t *p )
     mapi_log( LOG_LV_OUTPUT,
         "[analyze_mpegts]  %s.ts\n"
         "[reader's delay]\n"
-        "  MPEG-2 VIDEO VFAPI Plug-In: %"PRId64" msec\n"
-        "  DGIndex and DGDecode      : %"PRId64" msec\n"
-        "  Libav reader              : %"PRId64" msec\n"
-        "  TMPGEnc series            : %"PRId64" msec\n"
+        "  MPEG-2 VIDEO VFAPI Plug-In: %" PRId64 " msec\n"
+        "  DGIndex and DGDecode      : %" PRId64 " msec\n"
+        "  Libav reader              : %" PRId64 " msec\n"
+        "  TMPGEnc series            : %" PRId64 " msec\n"
         "\n"
         , p->input
         , delay_info.video_key_start, delay_info.video_odr_start, delay_info.video_1st_start

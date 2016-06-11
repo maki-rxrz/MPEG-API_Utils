@@ -151,7 +151,7 @@ static inline void tsp_get_pcr( uint8_t *pcr_data, int64_t *pcr_value )
              | (int64_t) pcr_data[4] >> 7;
     pcr_ext  = (int64_t)(pcr_data[4] & 0x01) << 8
              | (int64_t) pcr_data[5];
-    mapi_log( LOG_LV3, "[check] pcr_base:%"PRId64" pcr_ext:%"PRId64"\n", pcr_base, pcr_ext );
+    mapi_log( LOG_LV3, "[check] pcr_base:%" PRId64 " pcr_ext:%" PRId64 "\n", pcr_base, pcr_ext );
     /* set up. */
     *pcr_value = pcr_base + pcr_ext / 300;
 }
@@ -278,7 +278,7 @@ static void mpegts_file_read( tsf_ctx_t *tsf_ctx, uint8_t *read_buffer, int64_t 
 {
     if( read_size > tsf_ctx->ts_packet_length )
     {
-        mapi_log( LOG_LV1, "[log] illegal parameter!!  packet_len:%d  read_size:%"PRId64"\n"
+        mapi_log( LOG_LV1, "[log] illegal parameter!!  packet_len:%d  read_size:%" PRId64 "\n"
                          , tsf_ctx->ts_packet_length, read_size );
         read_size = tsf_ctx->ts_packet_length;
     }
@@ -650,7 +650,7 @@ static int mpegts_parse_pat( mpegts_info_t *info )
     for( int i = 0; i < CRC32_SIZE; ++i )
         sprintf( &(crc32_str[i * 3]), " %02X", crc32[i] );
     mapi_log( LOG_LV2, "[check] CRC32:%s\n", crc32_str );
-    mapi_log( LOG_LV2, "[check] file position:%"PRId64"\n", read_pos );
+    mapi_log( LOG_LV2, "[check] file position:%" PRId64 "\n", read_pos );
     /* seek next. */
     mpegts_file_seek( &(info->tsf_ctx), 0, MPEGTS_SEEK_NEXT );
     info->tsf_ctx.sync_byte_position = -1;
@@ -855,7 +855,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
     for( int i = 0; i < CRC32_SIZE; ++i )
         sprintf( &(crc32_str[i * 3]), " %02X", crc32[i] );
     mapi_log( LOG_LV2, "[check] CRC32:%s\n", crc32_str );
-    mapi_log( LOG_LV2, "[check] file position:%"PRId64"\n", read_pos );
+    mapi_log( LOG_LV2, "[check] file position:%" PRId64 "\n", read_pos );
     /* seek next. */
     mpegts_file_seek( &(info->tsf_ctx), 0, MPEGTS_SEEK_NEXT );
     info->tsf_ctx.sync_byte_position = -1;
@@ -905,7 +905,7 @@ static int mpegts_get_pcr( mpegts_info_t *info, int64_t *pcr )
             {
                 int64_t pcr_value;
                 tsp_get_pcr( &(adpf_data[1]), &pcr_value );
-                mapi_log( LOG_LV3, "[check] PCR_value:%"PRId64"\n", pcr_value );
+                mapi_log( LOG_LV3, "[check] PCR_value:%" PRId64 "\n", pcr_value );
                 /* setup. */
                 *pcr = pcr_value;
             }
@@ -913,7 +913,7 @@ static int mpegts_get_pcr( mpegts_info_t *info, int64_t *pcr )
             {
                 int64_t opcr_value;
                 tsp_get_pcr( &(adpf_data[7]), &opcr_value );
-                mapi_log( LOG_LV3, "[check] OPCR_value:%"PRId64"\n", opcr_value );
+                mapi_log( LOG_LV3, "[check] OPCR_value:%" PRId64 "\n", opcr_value );
 #ifdef NEED_OPCR_VALUE
                 /* setup. */
                 info->opcr = opcr_value;
@@ -924,8 +924,8 @@ static int mpegts_get_pcr( mpegts_info_t *info, int64_t *pcr )
         mpegts_file_seek( &(info->tsf_ctx), 0, MPEGTS_SEEK_NEXT );
     }
     while( *pcr == (int64_t)MPEG_TIMESTAMP_INVALID_VALUE );
-    mapi_log( LOG_LV2, "[check] PCR:%"PRId64" [%"PRId64"ms]\n", *pcr, *pcr / 90 );
-    mapi_log( LOG_LV2, "[check] file position:%"PRId64"\n", read_pos );
+    mapi_log( LOG_LV2, "[check] PCR:%" PRId64 " [%" PRId64 "ms]\n", *pcr, *pcr / 90 );
+    mapi_log( LOG_LV2, "[check] file position:%" PRId64 "\n", read_pos );
     /* prepare for next. */
     info->tsf_ctx.read_position = read_pos;
     return 0;
@@ -967,8 +967,8 @@ static int mpegts_parse_pcr( mpegts_info_t *info )
     }
     /* reset position. */
     mpegts_file_seek( &(info->tsf_ctx), reset_position, MPEGTS_SEEK_RESET );
-    mapi_log( LOG_LV2, "[check] start PCR:%"PRId64" [%"PRId64"ms]\n", info->start_pcr, info->start_pcr / 90 );
-    mapi_log( LOG_LV2, "[check]  last PCR:%"PRId64" [%"PRId64"ms]\n", info->last_pcr, info->last_pcr / 90 );
+    mapi_log( LOG_LV2, "[check] start PCR:%" PRId64 " [%" PRId64 "ms]\n", info->start_pcr, info->start_pcr / 90 );
+    mapi_log( LOG_LV2, "[check]  last PCR:%" PRId64 " [%" PRId64 "ms]\n", info->last_pcr, info->last_pcr / 90 );
     return 0;
 }
 
@@ -1044,7 +1044,7 @@ static int mpegts_get_stream_timestamp
         uint8_t *pes_packet_pts_dts_data = &(pes_header_check_buffer[PES_PACKET_HEADER_CHECK_SIZE]);
         pts = pes_info.pts_flag ? mpeg_pes_get_timestamp( &(pes_packet_pts_dts_data[0]) ) : (int64_t)MPEG_TIMESTAMP_INVALID_VALUE;
         dts = pes_info.dts_flag ? mpeg_pes_get_timestamp( &(pes_packet_pts_dts_data[5]) ) : pts;
-        mapi_log( LOG_LV2, "[check] PTS:%"PRId64" DTS:%"PRId64"\n", pts, dts );
+        mapi_log( LOG_LV2, "[check] PTS:%" PRId64 " DTS:%" PRId64 "\n", pts, dts );
         /* seek next. */
         mpegts_file_seek( tsf_ctx, 0, MPEGTS_SEEK_NEXT );
     }
@@ -2144,9 +2144,9 @@ static int get_video_info( void *ih, uint8_t stream_number, video_sample_info_t 
     video_sample_info->repeat_first_field   = repeat_first_field;
     video_sample_info->top_field_first      = top_field_first;
     static const char frame[4] = { '?', 'I', 'P', 'B' };
-    mapi_log( LOG_LV2, "[check] Video PTS:%"PRId64" [%"PRId64"ms], [%c] temporal_reference:%d\n"
+    mapi_log( LOG_LV2, "[check] Video PTS:%" PRId64 " [%" PRId64 "ms], [%c] temporal_reference:%d\n"
                      , ts.pts, ts.pts / 90, frame[picture_coding_type], temporal_reference );
-    mapi_log( LOG_LV2, "[check] file position:%"PRId64"\n", start_position );
+    mapi_log( LOG_LV2, "[check] file position:%" PRId64 "\n", start_position );
     /* prepare for next. */
     tsf_ctx->sync_byte_position = -1;
     tsf_ctx->read_position      = mpegts_ftell( tsf_ctx );
@@ -2194,8 +2194,8 @@ static int get_audio_info( void *ih, uint8_t stream_number, audio_sample_info_t 
     audio_sample_info->channel              = raw_data_info.stream_raw_info.channel;
     audio_sample_info->layer                = raw_data_info.stream_raw_info.layer;
     audio_sample_info->bit_depth            = raw_data_info.stream_raw_info.bit_depth;
-    mapi_log( LOG_LV2, "[check] Audio PTS:%"PRId64" [%"PRId64"ms]\n", ts.pts, ts.pts / 90 );
-    mapi_log( LOG_LV2, "[check] file position:%"PRId64"\n", start_position );
+    mapi_log( LOG_LV2, "[check] Audio PTS:%" PRId64 " [%" PRId64 "ms]\n", ts.pts, ts.pts / 90 );
+    mapi_log( LOG_LV2, "[check] file position:%" PRId64 "\n", start_position );
     /* prepare for next. */
     tsf_ctx->sync_byte_position = -1;
     tsf_ctx->read_position      = mpegts_ftell( tsf_ctx );

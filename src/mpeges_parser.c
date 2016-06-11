@@ -181,7 +181,7 @@ static void mpeges_get_stream_timestamp( mpeges_info_t *info, mpeg_timestamp_t *
 {
     mapi_log( LOG_LV2, "[check] %s()\n", __func__ );
     mapi_log( LOG_LV3, "[debug] fps: %u / %u\n"
-                       "        timestamp_base:%"PRId64"\n"
+                       "        timestamp_base:%" PRId64 "\n"
                        "        total_picture_num:%d\n"
                        "        picture_num:%d\n"
                        "        picture_coding_type:%u\n"
@@ -511,9 +511,9 @@ static int get_video_info( void *ih, uint8_t stream_number, video_sample_info_t 
     video_sample_info->repeat_first_field   = repeat_first_field;
     video_sample_info->top_field_first      = top_field_first;
     static const char frame[4] = { '?', 'I', 'P', 'B' };
-    mapi_log( LOG_LV2, "[check] Video PTS:%"PRId64" [%"PRId64"ms], [%c] temporal_reference:%d\n"
+    mapi_log( LOG_LV2, "[check] Video PTS:%" PRId64 " [%" PRId64 "ms], [%c] temporal_reference:%d\n"
                      , ts.pts, ts.pts / 90, frame[picture_coding_type], temporal_reference );
-    mapi_log( LOG_LV2, "[check] file position:%"PRId64"\n", info->read_position );
+    mapi_log( LOG_LV2, "[check] file position:%" PRId64 "\n", info->read_position );
     /* ready next. */
     info->video_position = read_last_position;
     return 0;

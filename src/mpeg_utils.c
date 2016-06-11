@@ -122,10 +122,10 @@ static void parse_progress( parse_param_t *param, int64_t position )
         for( uint16_t i = 0; i < param->thread_num; ++i )
             average += param->progress[i];
         average /= param->thread_num;
-        mapi_log( LOG_LV_PROGRESS, "[parse_stream] %14"PRIu64"/%-14"PRIu64"\r", average, param->api_info->file_size );
+        mapi_log( LOG_LV_PROGRESS, "[parse_stream] %14" PRIu64 "/%-14" PRIu64 "\r", average, param->api_info->file_size );
     }
     else
-        mapi_log( LOG_LV_PROGRESS, "[parse_stream] %14"PRIu64"/%-14"PRIu64"\n", position, position );
+        mapi_log( LOG_LV_PROGRESS, "[parse_stream] %14" PRIu64 "/%-14" PRIu64 "\n", position, position );
 }
 
 static thread_func_ret parse_stream( void *args )
