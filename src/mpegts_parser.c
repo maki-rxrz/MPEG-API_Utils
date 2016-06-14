@@ -1271,7 +1271,7 @@ static uint32_t mpegts_get_sample_packets_num( tsf_ctx_t *tsf_ctx, uint16_t prog
         ++ts_packet_count;
         if( mpegts_seek_packet_payload_data( tsf_ctx, &h, program_id, INDICATOR_UNCHECKED ) )
             break;
-        if( h.continuity_counter != ((old_continuity_counter + 1) & 0x0F) )
+        if( h.continuity_counter != ((old_continuity_counter + 1) & 0x0F) && h.adpf_info.discontinuity_indicator == 0 )
             mapi_log( LOG_LV3, "[debug] detect Drop!  ts_packet_count:%u  continuity_counter:%u --> %u\n"
                              , ts_packet_count, old_continuity_counter, h.continuity_counter );
         old_continuity_counter = h.continuity_counter;
