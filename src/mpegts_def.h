@@ -116,6 +116,12 @@ typedef struct {
     uint8_t         transport_scrambling_control;
     uint8_t         adaptation_field_control;
     uint16_t        continuity_counter;
+    struct {
+        uint8_t     adaptation_field_size;
+        uint8_t     discontinuity_indicator;
+        uint8_t     pcr_flag;
+        uint8_t     opcr_flag;
+    } adpf_info;
 } mpegts_packet_header_t;
 
 typedef struct {

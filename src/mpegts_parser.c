@@ -478,14 +478,36 @@ detect:
     return 0;
 }
 
-#define SKIP_ADAPTATION_FIELD( f, h, s )            \
-do {                                                \
-    if( (h).adaptation_field_control > 1 )          \
-    {                                               \
-        mpegts_file_read( f, &s, 1 );               \
-        mpegts_file_seek( f, s, MPEGTS_SEEK_CUR );  \
-    }                                               \
-} while( 0 )
+static void mpegts_get_adaptation_field_data
+(
+    tsf_ctx_t                  *tsf_ctx,
+    tsp_header_t               *h,
+    uint8_t                    *adpf_data,
+    uint8_t                     adaptation_field_size
+)
+{
+    uint8_t discontinuity_indicator = 0;
+    uint8_t pcr_flag                = 0;
+    uint8_t opcr_flag               = 0;
+    /* check adaptation field. */
+    if( h->adaptation_field_control > 1 )
+    {
+        /* check adaptation field data. */
+        mpegts_file_read( tsf_ctx, adpf_data, adaptation_field_size );
+        /* read header. */
+        tsp_adpf_header_t adpf_header;
+        tsp_parse_adpf_header( adpf_data, &adpf_header );
+        /* setup. */
+        discontinuity_indicator = adpf_header.discontinuity_indicator;
+        pcr_flag                = adpf_header.pcr_flag;
+        opcr_flag               = adpf_header.opcr_flag;
+    }
+    /* setup header data. */
+    h->adpf_info.adaptation_field_size   = adaptation_field_size;
+    h->adpf_info.discontinuity_indicator = discontinuity_indicator;
+    h->adpf_info.pcr_flag                = pcr_flag;
+    h->adpf_info.opcr_flag               = opcr_flag;
+}
 
 static int mpegts_get_table_section_header
 (
@@ -506,9 +528,15 @@ static int mpegts_get_table_section_header
     }
     while( !h->payload_unit_start_indicator );
     /* check adaptation field. */
-    uint8_t adaptation_field_size = 0;
-    SKIP_ADAPTATION_FIELD( tsf_ctx, *h, adaptation_field_size );
-    mapi_log( LOG_LV4, "[check] adpf_size:%d\n", adaptation_field_size );
+    if( h->adaptation_field_control > 1 )
+    {
+        uint8_t adaptation_field_size = 0;
+        mpegts_file_read( tsf_ctx, &adaptation_field_size, 1 );
+        mapi_log( LOG_LV4, "[check] adpf_size:%d\n", adaptation_field_size );
+        /* get adaptation field data. */
+        uint8_t adpf_data[adaptation_field_size];
+        mpegts_get_adaptation_field_data( tsf_ctx, h, adpf_data, adaptation_field_size );
+    }
     /* check pointer field. */
     uint8_t pointer_field;
     mpegts_file_read( tsf_ctx, &pointer_field, 1 );
@@ -541,9 +569,15 @@ static int mpegts_seek_packet_payload_data
     if( indicator_check != INDICATOR_UNCHECKED && ((indicator_check == INDICATOR_IS_ON) == h->payload_unit_start_indicator) )
         return 1;
     /* check adaptation field. */
-    uint8_t adaptation_field_size = 0;
-    SKIP_ADAPTATION_FIELD( tsf_ctx, *h, adaptation_field_size );
-    mapi_log( LOG_LV4, "[check] adpf_size:%d\n", adaptation_field_size );
+    if( h->adaptation_field_control > 1 )
+    {
+        uint8_t adaptation_field_size = 0;
+        mpegts_file_read( tsf_ctx, &adaptation_field_size, 1 );
+        mapi_log( LOG_LV4, "[check] adpf_size:%d\n", adaptation_field_size );
+        /* get adaptation field data. */
+        uint8_t adpf_data[adaptation_field_size];
+        mpegts_get_adaptation_field_data( tsf_ctx, h, adpf_data, adaptation_field_size );
+    }
     return 0;
 }
 
@@ -885,23 +919,20 @@ static int mpegts_get_pcr( mpegts_info_t *info, int64_t *pcr )
             return -1;
         show_packet_header_info( &h );
         /* check adaptation field. */
-        uint8_t adaptation_field_size = 0;
         if( h.adaptation_field_control > 1 )
         {
+            uint8_t adaptation_field_size = 0;
             mpegts_file_read( &(info->tsf_ctx), &adaptation_field_size, 1 );
             mapi_log( LOG_LV4, "[check] adpf_size:%d\n", adaptation_field_size );
             if( adaptation_field_size < 7 )
                 continue;
             /* check file position. */
             read_pos = info->tsf_ctx.read_position;
-            /* check adaptation field data. */
+            /* get adaptation field data. */
             uint8_t adpf_data[adaptation_field_size];
-            mpegts_file_read( &(info->tsf_ctx), adpf_data, adaptation_field_size );
-            /* read header. */
-            tsp_adpf_header_t adpf_header;
-            tsp_parse_adpf_header( adpf_data, &adpf_header );
+            mpegts_get_adaptation_field_data( &(info->tsf_ctx), &h, adpf_data, adaptation_field_size );
             /* calculate PCR. */
-            if( adpf_header.pcr_flag )
+            if( h.adpf_info.pcr_flag )
             {
                 int64_t pcr_value;
                 tsp_get_pcr( &(adpf_data[1]), &pcr_value );
@@ -909,7 +940,7 @@ static int mpegts_get_pcr( mpegts_info_t *info, int64_t *pcr )
                 /* setup. */
                 *pcr = pcr_value;
             }
-            if( adpf_header.opcr_flag )
+            if( h.adpf_info.opcr_flag )
             {
                 int64_t opcr_value;
                 tsp_get_pcr( &(adpf_data[7]), &opcr_value );
