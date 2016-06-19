@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 cwd=$(cd $(dirname $0); pwd)
 
-cd $cwd/src
+cd ${cwd}/src
 make clean
