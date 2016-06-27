@@ -109,8 +109,10 @@ static const struct {
 
 static void print_version( void )
 {
+    const char *thread = thread_get_model_name();
     fprintf( stdout,
         PROGRAM_NAME " version " PROGRAM_VERSION "." REVISION_NUMBER "\n"
+        "Thread model: %s\n", thread
     );
 }
 

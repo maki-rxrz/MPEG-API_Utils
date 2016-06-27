@@ -27,10 +27,10 @@
  *
  ****************************************************************************/
 
+//#include "thread_utils.h"
+
 #include <windows.h>
 #include <process.h>
-
-#include "thread_utils.h"
 
 typedef struct {
     HANDLE              thread;

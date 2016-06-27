@@ -41,6 +41,8 @@ extern void *thread_create( thread_func func, void *func_arg );
 
 extern void thread_wait_end( void * th, void **value_ptr );
 
+extern const char *thread_get_model_name( void );
+
 #ifdef __cplusplus
 }
 #endif

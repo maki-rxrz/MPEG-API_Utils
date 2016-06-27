@@ -27,11 +27,11 @@
  *
  ****************************************************************************/
 
+//#include "thread_utils.h"
+
 #define PTW32_STATIC_LIB 1
 
 #include <pthread.h>
-
-#include "thread_utils.h"
 
 typedef struct {
     pthread_t       thread;

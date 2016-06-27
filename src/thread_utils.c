@@ -31,6 +31,15 @@
 
 #include <stdlib.h>
 
+#include "thread_utils.h"
+
+enum {
+    MAPI_MCFGTHREAD    = 0,
+    MAPI_PTHREAD       = 1,
+    MAPI_WIN32THREAD   = 2,
+    MAPI_UNKNOWNTHREAD = 3
+};
+
 #if defined(MAPI_MCFGTHREAD_ENABLED)
 
 #include "thread_mcf.h"
@@ -39,10 +48,26 @@
 
 #include "thread_posix.h"
 
-#elif defined(MAPI_WTHREAD_ENABLED)
+#elif defined(MAPI_WIN32THREAD_ENABLED)
 
 #include "thread_win32.h"
 
 #else
 #error "Need the thread library..."
 #endif
+
+extern const char *thread_get_model_name( void )
+{
+    static const char *model_name[4] = { "mcf", "posix", "win32", "(unknown)" };
+    static int model_type =
+#if defined(MAPI_MCFGTHREAD_ENABLED)
+        MAPI_MCFGTHREAD;
+#elif defined(MAPI_PTHREAD_ENABLED)
+        MAPI_PTHREAD;
+#elif defined(MAPI_WIN32THREAD_ENABLED)
+        MAPI_WIN32THREAD;
+#else
+        MAPI_UNKNOWNTHREAD;
+#endif
+    return model_name[model_type];
+}

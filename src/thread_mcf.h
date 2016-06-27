@@ -27,9 +27,9 @@
  *
  ****************************************************************************/
 
-#include <mcfgthread/gthread.h>
+//#include "thread_utils.h"
 
-#include "thread_utils.h"
+#include <mcfgthread/gthread.h>
 
 typedef struct {
     __gthread_t     thread;
