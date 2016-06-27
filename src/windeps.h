@@ -20,7 +20,7 @@
  *   "AS IS". No warranty of any kind is expressed or implied.
  *   You use AT YOUR OWN RISK.
  *
- * C. Moral rights of author belong to maki. Copyright abandons.
+ * C. Moral rights of author belong to maki. Copyright is abandoned.
  *
  * D. Above three clauses are applied both to source and binary
  *   form of this software.
