@@ -1,5 +1,5 @@
 /*****************************************************************************
- * thread_utils.c
+ * thread_mcf.h
  *****************************************************************************
  *
  * Authors: Masaki Tanaka <maki.rxrz@gmail.com>
@@ -27,22 +27,34 @@
  *
  ****************************************************************************/
 
-#include "common.h"
+#include <mcfgthread/gthread.h>
 
-#include <stdlib.h>
+#include "thread_utils.h"
 
-#if defined(MAPI_MCFGTHREAD_ENABLED)
+typedef struct {
+    __gthread_t     thread;
+} thread_control_t;
 
-#include "thread_mcf.h"
+extern void *thread_create( thread_func func, void *func_arg )
+{
+    thread_control_t *thread_ctrl = (thread_control_t *)malloc( sizeof(thread_control_t) );
+    if( !thread_ctrl )
+        return NULL;
+    int result = __gthread_create( &(thread_ctrl->thread), func, func_arg );
+    if( result )
+    {
+        mapi_log( LOG_LV0, "[log] thread_create()  result:%d\n", result );
+        free( thread_ctrl );
+        thread_ctrl = NULL;
+    }
+    return thread_ctrl;
+}
 
-#elif defined(MAPI_PTHREAD_ENABLED)
-
-#include "thread_posix.h"
-
-#elif defined(MAPI_WTHREAD_ENABLED)
-
-#include "thread_win32.h"
-
-#else
-#error "Need the thread library..."
-#endif
+extern void thread_wait_end( void * th, void **value_ptr )
+{
+    thread_control_t *thread_ctrl = (thread_control_t *)th;
+    int result = __gthread_join( thread_ctrl->thread, value_ptr );
+    if( result )
+        mapi_log( LOG_LV0, "[log] thread_wait_end()  result:%d\n", result );
+    free( thread_ctrl );
+}

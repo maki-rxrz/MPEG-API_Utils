@@ -43,6 +43,10 @@ MAPILIB = $(STATIC_LIB)
 LIBFALG =
 endif
 
+ifeq ($(THREAD_LIBS), mcf)
+CFLAGS += -DMAPI_MCFGTHREAD_ENABLED
+LIBS   += -lmcfgthread
+endif
 ifeq ($(THREAD_LIBS), win32)
 CFLAGS += -DMAPI_WTHREAD_ENABLED
 else
