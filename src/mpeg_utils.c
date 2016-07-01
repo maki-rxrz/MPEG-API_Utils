@@ -219,14 +219,17 @@ static thread_func_ret parse_stream( void *args )
         if( i > 0 )
         {
             /* correct check for no GOP picture. */
-            int16_t temporal_reference = (1 << 16) - 1;
+            int16_t temporal_reference = (int16_t)((1 << 15) - 1);
             compare_ts = 0;
             for( uint32_t j = 0; j < i; ++j )
             {
                 if( video_list[j].gop_number >= 0 )
                     break;
                 if( video_list[j].temporal_reference < temporal_reference )
-                    compare_ts = video_list[j].timestamp.pts;
+                {
+                    compare_ts         = video_list[j].timestamp.pts;
+                    temporal_reference = video_list[j].temporal_reference;
+                }
             }
             if( compare_ts )
             {
