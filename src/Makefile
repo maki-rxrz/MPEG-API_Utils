@@ -31,7 +31,7 @@ LIBTOOL = @libtool
 CP      = @cp -p
 RM      = rm -rf
 
-CFLAGS  = -Wall -std=c99 -fvisibility=hidden -D_GNU_SOURCE=1 $(XCFLAGS)
+CFLAGS  = -Wall -Wextra -std=c99 -fvisibility=hidden -D_GNU_SOURCE=1 $(XCFLAGS)
 LDFLAGS = $(XLDFLAGS)
 LIBS    =
 
