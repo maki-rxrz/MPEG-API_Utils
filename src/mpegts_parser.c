@@ -70,7 +70,7 @@ typedef struct {
     mpeg_stream_group_type      stream_judge;
     void                       *stream_parse_info;
     int64_t                     gop_number;
-    uint32_t                    header_offset;
+    int32_t                     header_offset;
     struct {
         char                    info[16];
     } private_info[GET_INFO_KEY_MAX];
