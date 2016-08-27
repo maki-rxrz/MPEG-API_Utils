@@ -1175,6 +1175,11 @@ extern int32_t mpeg_stream_check_header
     return header_offset;
 }
 
+extern int mpeg_stream_check_header_skip( mpeg_stream_group_type stream_judge )
+{
+    return stream_judge == STREAM_IS_PCM_AUDIO;
+}
+
 extern uint32_t mpeg_stream_get_header_check_size( mpeg_stream_type stream_type, mpeg_stream_group_type stream_judge )
 {
     uint32_t check_size = STREAM_HEADER_CHECK_MAX_SIZE;

@@ -70,6 +70,7 @@ typedef struct {
     mpeg_stream_group_type      stream_judge;
     void                       *stream_parse_info;
     int64_t                     gop_number;
+    uint32_t                    header_offset;
     struct {
         char                    info[16];
     } private_info[GET_INFO_KEY_MAX];
@@ -1930,6 +1931,9 @@ static int get_specific_stream_data
                                                    , stream->stream_type, stream->stream_judge, &raw_data_info ) )
                     return -1;
                 read_offset = raw_data_info.read_offset;
+                /* chcek header skip. */
+                if( mpeg_stream_check_header_skip( stream->stream_judge ) )
+                    stream->header_offset = read_offset;
                 /* reset. */
                 mpegts_file_seek( &(stream->tsf_ctx), reset_position, MPEGTS_SEEK_SET );
                 stream->tsf_ctx.read_position    = reset_position;
@@ -1942,6 +1946,9 @@ static int get_specific_stream_data
             {
                 mpeg_pes_header_info_t pes_info;
                 GET_PES_PACKET_HEADER( tsf_ctx, pes_info );
+                /* check PES packet header and header skip. */
+                if( pes_info.pts_flag && stream->header_offset )
+                    read_offset = stream->header_offset;
                 /* skip PES packet header. */
                 mpegts_file_seek( tsf_ctx, pes_info.header_length, MPEGTS_SEEK_CUR );
             }
@@ -2334,6 +2341,7 @@ static int set_pmt_stream_info( mpegts_info_t *info )
                     stream->stream_judge                   = stream_judge;
                     stream->stream_parse_info              = stream_parse_info;
                     stream->gop_number                     = -1;
+                    stream->header_offset                  = 0;
                     sprintf( stream->private_info[GET_INFO_KEY_ID].info, "PID %x", program_id );
                     mapi_log( LOG_LV2, "[check] %s PID:0x%04X  stream_type:0x%02X\n"
                                      , stream_name[index], program_id, stream_type );

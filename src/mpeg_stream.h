@@ -351,6 +351,8 @@ extern int32_t mpeg_stream_check_header
     int32_t                    *data_offset
 );
 
+extern int mpeg_stream_check_header_skip( mpeg_stream_group_type stream_judge );
+
 extern uint32_t mpeg_stream_get_header_check_size( mpeg_stream_type stream_type, mpeg_stream_group_type stream_judge );
 
 #ifdef __cplusplus
