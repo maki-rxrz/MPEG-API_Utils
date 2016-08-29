@@ -971,17 +971,18 @@ static int mpegts_parse_pcr( mpegts_info_t *info )
     if( mpegts_get_pcr( info, &(info->start_pcr) ) )
         return -1;
     /* get last pcr. */
-    int64_t rewind_size = info->tsf_ctx.packet_size * 100;
-    int64_t seek_offset = info->file_size - reset_position;
+    int64_t start_position = info->tsf_ctx.read_position;
+    int64_t rewind_size    = info->tsf_ctx.packet_size * 200;
+    int64_t seek_offset    = info->file_size - start_position;
     seek_offset -= seek_offset % info->tsf_ctx.packet_size;
-    while( 1 )
+    do
     {
-        int64_t last_pcr = -1;
+        int64_t last_pcr = MPEG_TIMESTAMP_INVALID_VALUE;
         /* seek position. */
         seek_offset -= rewind_size;
         if( seek_offset > 0 )
         {
-            mpegts_file_seek( &(info->tsf_ctx), reset_position + seek_offset, MPEGTS_SEEK_RESET );
+            mpegts_file_seek( &(info->tsf_ctx), start_position + seek_offset, MPEGTS_SEEK_RESET );
             tsp_header_t h;
             if( mpegts_search_program_id_packet( &(info->tsf_ctx), &h, info->pcr_program_id ) )
                 continue;
@@ -989,14 +990,14 @@ static int mpegts_parse_pcr( mpegts_info_t *info )
         }
         else
         {
-            mpegts_file_seek( &(info->tsf_ctx), reset_position, MPEGTS_SEEK_RESET );
+            mpegts_file_seek( &(info->tsf_ctx), start_position + info->tsf_ctx.packet_size, MPEGTS_SEEK_RESET );
             info->last_pcr = info->start_pcr;
         }
         /* search last pcr. */
         while( !mpegts_get_pcr( info, &last_pcr ) )
             info->last_pcr = last_pcr;
-        break;
     }
+    while( info->last_pcr == (int64_t)MPEG_TIMESTAMP_INVALID_VALUE );
     /* reset position. */
     mpegts_file_seek( &(info->tsf_ctx), reset_position, MPEGTS_SEEK_RESET );
     mapi_log( LOG_LV2, "[check] start PCR:%" PRId64 " [%" PRId64 "ms]\n", info->start_pcr, info->start_pcr / 90 );
