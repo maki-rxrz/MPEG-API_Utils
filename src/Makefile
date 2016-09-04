@@ -18,7 +18,7 @@ DLIB_DIR    = .dlib
 SLIB_OBJS   = $(LIB_SRCS:%.c=$(SLIB_DIR)/%.o)
 DLIB_OBJS   = $(LIB_SRCS:%.c=$(DLIB_DIR)/%.o)
 
-SRCS = $(SRCS1) $(SRCS2) $(LIB_SRCS)
+SRCS = $(sort $(LIB_SRCS) $(SRCS1) $(SRCS2))
 
 DEP_CC  =  $(CROSS)gcc
 CC      = @$(CROSS)gcc
