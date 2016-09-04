@@ -138,7 +138,7 @@ static void print_help( void )
         "                                   - m : Multi-thread (--demux-mode 1)\n"
         "                               [ex] --mode pva = Parse v/a streams.\n"
         "                                    --mode da  = Demux audio only.\n"
-        "       --api-type              Specify api type. [0-2]\n"
+        "       --api-type              Specify api type. [0-3]\n"
         "                                   - 0 : Use sequential access.\n"
         "                                   - 1 : Use sample-list access.\n"
         "                                   - 2 : Use sequential access. (Omit parse)\n"
