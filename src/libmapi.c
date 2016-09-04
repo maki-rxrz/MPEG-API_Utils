@@ -49,7 +49,7 @@ extern void mapi_log( log_level level, const char *format, ... )
         return;
     va_list argptr;
     va_start( argptr, format );
-    vfprintf( msg_out, format, argptr );
+    mapi_vfprintf( msg_out, format, argptr );
     va_end( argptr );
 }
 

@@ -236,7 +236,7 @@ extern void mapi_log( log_level level, const char *format, ... )
     va_list argptr;
     va_start( argptr, format );
     for( int i = 0; msg_out[i]; ++i )
-        vfprintf( msg_out[i], format, argptr );
+        mapi_vfprintf( msg_out[i], format, argptr );
     va_end( argptr );
 }
 

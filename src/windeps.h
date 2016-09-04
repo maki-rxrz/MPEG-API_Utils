@@ -98,3 +98,32 @@ fail:
     LocalFree( w_argv );
     return -1;
 }
+
+#ifdef MAPI_UTILS_CODE_ENABLED
+
+#define STRING_BUFFER_SIZE      (4096)
+
+int mapi_vfprintf( FILE *stream, const char *format, va_list arg )
+{
+    if( stream != stdout && stream != stderr )
+        return vfprintf( stream, format, arg );
+    /* check if redirection. */
+    HANDLE console = GetStdHandle( (stream == stdout) ? STD_OUTPUT_HANDLE : STD_ERROR_HANDLE );
+    DWORD  mode;
+    if( !GetConsoleMode( console, &mode ) )
+        return vfprintf( stream, format, arg );
+    /* prepare output strings. */
+    char    utf8_str[STRING_BUFFER_SIZE];
+    wchar_t utf16_str[STRING_BUFFER_SIZE];
+    va_list arg2;
+    va_copy( arg2, arg );
+    int length = vsnprintf( utf8_str, sizeof(utf8_str), format, arg2 );
+    va_end( arg2 );
+    int length_utf16 = MultiByteToWideChar( CP_UTF8, 0, utf8_str, length, utf16_str, sizeof(utf16_str) / sizeof(wchar_t) );
+    /* output. */
+    DWORD written;
+    WriteConsoleW( console, utf16_str, length_utf16, &written, NULL );
+    return length;
+}
+
+#endif

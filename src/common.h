@@ -130,9 +130,15 @@ extern void mapi_log( log_level level, const char *format, ... );
 #ifdef _WIN32
 extern FILE *mapi_fopen( const char *file_name, const char *mode );
 extern int mapi_convert_args_to_utf8( int *argc_p, char ***argv_p );
+#if   defined( MAPI_INTERNAL_CODE_ENABLED )
+#define mapi_vfprintf vfprintf
+#elif defined( MAPI_UTILS_CODE_ENABLED )
+extern int mapi_vfprintf( FILE *stream, const char *format, va_list arg );
+#endif
 #else
 #define mapi_fopen  fopen
 #define mapi_convert_args_to_utf8( argc_p, argv_p ) (0)
+#define mapi_vfprintf vfprintf
 #endif
 
 #endif
