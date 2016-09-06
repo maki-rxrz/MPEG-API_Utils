@@ -562,7 +562,7 @@ static int mpegts_seek_packet_payload_data
     indicator_check_type        indicator_check
 )
 {
-    mapi_log( LOG_LV4, "[check] $s()\n", __func__ );
+    mapi_log( LOG_LV4, "[check] %s()\n", __func__ );
     if( mpegts_search_program_id_packet( tsf_ctx, h, search_program_id ) )
         return -1;
     show_packet_header_info( h );
