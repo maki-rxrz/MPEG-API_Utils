@@ -55,7 +55,7 @@ typedef struct {
     int64_t                 audio_dts;
     uint32_t                sampling_frequency;
     uint32_t                bitrate;
-    uint8_t                 channel;
+    uint16_t                channel;
     uint8_t                 layer;
     uint8_t                 bit_depth;
 } stream_info_t;
