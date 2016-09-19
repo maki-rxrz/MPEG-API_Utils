@@ -486,18 +486,19 @@ static void dumper_close( void **fw_ctx )
     file_writer.release( fw_ctx );
 }
 
-static void get_speaker_mapping_info( uint16_t speaker_mapping, char *mapping_info )
+static void get_channel_info( uint16_t channel, char *channel_info )
 {
-#define CHECK_MAPPING( _output )      ( !!(speaker_mapping & MPEG_AUDIO_SPEAKER_##_output) )
+#define CHECK_MAPPING( _output )      ( !!(channel & MPEG_AUDIO_SPEAKER_##_output) )
     uint8_t f_channels = CHECK_MAPPING( FRONT_CENTER ) + CHECK_MAPPING( FRONT_LEFT    ) + CHECK_MAPPING( FRONT_RIGHT );
     uint8_t r_channels = CHECK_MAPPING( REAR_SRROUND ) + CHECK_MAPPING( REAR_LEFT     ) + CHECK_MAPPING( REAR_RIGHT  )
                        + CHECK_MAPPING( REAR_LEFT2   ) + CHECK_MAPPING( REAR_RIGHT2   )
                        + CHECK_MAPPING( OUTSIDE_LEFT ) + CHECK_MAPPING( OUTSIDE_RIGHT );
     uint8_t lfe        = CHECK_MAPPING( LFE_CHANNEL  );
 #undef CHECK_MAPPING
-    sprintf( mapping_info, "%u/%u", f_channels, r_channels );
     if( lfe )
-        strcat( mapping_info, "+lfe" );
+        sprintf( channel_info, "%u.%uch (%u/%u+LFE)", f_channels + r_channels, lfe, f_channels, r_channels );
+    else
+        sprintf( channel_info, "%u.%uch (%u/%u)", f_channels + r_channels, lfe, f_channels, r_channels );
 }
 
 static void dump_stream_info
@@ -587,10 +588,10 @@ static void dump_stream_info
                 break;
             int64_t pts = stream_info->audio_pts;
             int64_t dts = stream_info->audio_dts;
-            char mapping_info[8];
-            get_speaker_mapping_info( stream_info->channel, mapping_info );
+            char channel_info[20];
+            get_channel_info( stream_info->channel, channel_info );
             mapi_log( LOG_LV_OUTPUT, " [%8u]", j );
-            mapi_log( LOG_LV_OUTPUT, "  %6uHz  %4uKbps  %s channel  layer %1u  %2u bits", stream_info->sampling_frequency, stream_info->bitrate / 1000, mapping_info, stream_info->layer, stream_info->bit_depth );
+            mapi_log( LOG_LV_OUTPUT, "  %6uHz  %4uKbps  %s  layer %1u  %2u bits", stream_info->sampling_frequency, stream_info->bitrate / 1000, channel_info, stream_info->layer, stream_info->bit_depth );
             mapi_log( LOG_LV_OUTPUT, "  POS: %14" PRId64 "", stream_info->file_position );
             mapi_log( LOG_LV_OUTPUT, "  size: %10u  raw_size: %10u", stream_info->sample_size, stream_info->raw_data_size );
             mapi_log( LOG_LV_OUTPUT, "  PTS: %10" PRId64 " [%8" PRId64 "ms]", pts, pts / 90 );
@@ -692,10 +693,10 @@ static void dump_sample_info
                 break;
             int64_t pts = stream_info->audio_pts;
             int64_t dts = stream_info->audio_dts;
-            char mapping_info[8];
-            get_speaker_mapping_info( stream_info->channel, mapping_info );
+            char channel_info[20];
+            get_channel_info( stream_info->channel, channel_info );
             mapi_log( LOG_LV_OUTPUT, " [%8u]", j );
-            mapi_log( LOG_LV_OUTPUT, "  %6uHz  %4uKbps  %s channel  layer %1u  %2u bits", stream_info->sampling_frequency, stream_info->bitrate / 1000, mapping_info, stream_info->layer, stream_info->bit_depth );
+            mapi_log( LOG_LV_OUTPUT, "  %6uHz  %4uKbps  %s  layer %1u  %2u bits", stream_info->sampling_frequency, stream_info->bitrate / 1000, channel_info, stream_info->layer, stream_info->bit_depth );
             mapi_log( LOG_LV_OUTPUT, "  POS: %14" PRId64 "", stream_info->file_position );
             mapi_log( LOG_LV_OUTPUT, "  size: %10u  raw_size: %10u", stream_info->sample_size, stream_info->raw_data_size );
             mapi_log( LOG_LV_OUTPUT, "  PTS: %10" PRId64 " [%8" PRId64 "ms]", pts, pts / 90 );
