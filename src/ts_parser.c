@@ -246,6 +246,19 @@ static void debug_initialize( void )
     debug_setup_mode( LOG_MODE_NORMAL );
 }
 
+static int file_exists( const char *file )
+{
+    if( !file )
+        return 0;
+    FILE *fp = mapi_fopen( file, "rb" );
+    if( fp )
+    {
+        fclose( fp );
+        return 1;
+    }
+    return 0;
+}
+
 static int init_parameter( param_t *p )
 {
     if( !p )
@@ -400,6 +413,20 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
         }
         else if( !strcasecmp( argv[i], "--pcr" ) )
             p->output_stream = OUTPUT_STREAM_NONE_PCR_ONLY;
+        else
+        {
+            /* check invalid parameters. */
+            int invalid_nums = 1;
+            if( (i + 2) < argc && *argv[i + 1] != '-' && !file_exists( argv[i + 1] ) )
+                ++invalid_nums;
+            if( invalid_nums == 2 )
+            {
+                mapi_log( LOG_LV0, "[log] invalid paramters: '%s %s'\n", argv[i], argv[i + 1] );
+                ++i;
+            }
+            else
+                mapi_log( LOG_LV0, "[log] invalid paramter: '%s'\n", argv[i] );
+        }
         ++i;
     }
     if( i < argc )

@@ -260,6 +260,19 @@ static void debug_initialize( void )
     debug_setup_mode( LOG_MODE_NORMAL );
 }
 
+static int file_exists( const char *file )
+{
+    if( !file )
+        return 0;
+    FILE *fp = mapi_fopen( file, "rb" );
+    if( fp )
+    {
+        fclose( fp );
+        return 1;
+    }
+    return 0;
+}
+
 static FILE *file_open( const char *file, const char *ext, const char *mode )
 {
     if( !file || !mode )
@@ -450,6 +463,37 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
             debug_setup_mode( LOG_MODE_OUTPUT_ALL );
         else if( !strcasecmp( argv[i], "--analyze" ) )
             p->execute_mode = EXECUTE_ANALYZE_MPEGTS;
+        else
+        {
+            /* check invalid parameters. */
+            int invalid_nums = 1;
+            if( (i + 2) < argc && *argv[i + 1] != '-' && !file_exists( argv[i + 1] ) )
+            {
+                /* check 'next-argv + input-ext'. */
+                size_t argv_len = strlen( argv[i + 1] );
+                int    ia_idx   = 0;
+                for( ; ia_idx < INPUT_EXT_MAX; ++ia_idx )
+                {
+                    const char *ext     = input_array[ia_idx].ext;
+                    size_t      ext_len = ext ? strlen( ext ) : 0;
+                    char full_name[argv_len + ext_len];
+                    strcpy( full_name, argv[i + 1] );
+                    if( ext_len )
+                        strcat( full_name, ext );
+                    if( file_exists( full_name ) )
+                        break;
+                }
+                if( ia_idx == INPUT_EXT_MAX )
+                    ++invalid_nums;
+            }
+            if( invalid_nums == 2 )
+            {
+                mapi_log( LOG_LV0, "[log] invalid paramters: '%s %s'\n", argv[i], argv[i + 1] );
+                ++i;
+            }
+            else
+                mapi_log( LOG_LV0, "[log] invalid paramter: '%s'\n", argv[i] );
+        }
         ++i;
     }
     if( i < argc )
