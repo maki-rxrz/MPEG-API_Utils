@@ -259,6 +259,16 @@ static int file_exists( const char *file )
     return 0;
 }
 
+static char *search_sepchar_r( const char *str )
+{
+    static const char sep_char[2] = { '/', '\\' };
+    char *sep = NULL;
+    for( int i = 0; i < 2; ++i )
+        if( (sep = strrchr( str, sep_char[i] )) )
+            break;
+    return sep;
+}
+
 static int init_parameter( param_t *p )
 {
     if( !p )
@@ -452,8 +462,9 @@ static int correct_parameter( param_t *p )
         p->output = strdup( p->input );
         if( !p->output )
             return -1;
+        char *sep = search_sepchar_r( p->output );
         char *ext = strrchr( p->output, '.' );
-        if( ext )
+        if( ext && (!sep || sep < ext) )
             *ext = '\0';
     }
     return 0;
@@ -808,8 +819,9 @@ static void open_file
     {
         char outtype_name[outtype_len + 1];
         sprintf( outtype_name, " %s", get_sample_list[get_index].ext );
+        char *sep = search_sepchar_r( dump_name );
         char *ext = strrchr( dump_name, '.' );
-        if( ext )
+        if( ext && (!sep || sep < ext) )
             *ext = '\0';
         strcat( dump_name, outtype_name );
         strcat( dump_name, add_ext );
