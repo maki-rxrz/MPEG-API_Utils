@@ -96,6 +96,7 @@ static int32_t read_sequence_header( uint8_t *data, mpeg_video_sequence_header_t
         check_size -= 64;
     }
     sequence->load_non_intra_quantiser_matrix       = !!(*p & 0x01);
+    ++p;
     if( sequence->load_non_intra_quantiser_matrix )
         for( int i = 0; i < 64; ++i, ++p )
             sequence->non_intra_quantiser_matrix[i] =    *p;
@@ -352,6 +353,7 @@ static int32_t read_quant_matrix_extension
         check_size -= 64;
     }
     quant_matrix_ext->load_chroma_non_intra_quantiser_matrix       = !!(*p & 0x01);
+    ++p;
     if( quant_matrix_ext->load_chroma_non_intra_quantiser_matrix )
         for( int i = 0; i < 64; ++i, ++p )
             quant_matrix_ext->chroma_non_intra_quantiser_matrix[i] =   *p;
