@@ -81,7 +81,7 @@ static int32_t read_sequence_header( uint8_t *data, mpeg_video_sequence_header_t
     sequence->vertical_size               =  ((data[1] & 0x0F) << 8) | (data[2]);
     sequence->aspect_ratio_information    =   (data[3] & 0xF0) >> 4;
     sequence->frame_rate_code             =    data[3] & 0x0F;
-    sequence->bit_rate                    =   (data[4] << 10) | (data[5] << 2) | ((data[6] & 0xC0) >> 6);
+    sequence->bit_rate                    =   (data[4] << 10) | (data[5] << 2) | (data[6] >> 6);
     /* marker_bit '1'                     = !!(data[6] & 0x20); */
     sequence->vbv_buffer_size             =  ((data[6] & 0x1F) << 5) | (data[7] >> 3);
     sequence->constrained_parameters_flag = !!(data[7] & 0x04);
@@ -110,7 +110,7 @@ static int32_t read_sequence_header( uint8_t *data, mpeg_video_sequence_header_t
 
 static int32_t read_gop_header( uint8_t *data, mpeg_video_gop_header_t *gop )
 {
-    gop->time_code   = (data[0] << 17) | (data[1] << 9) | (data[2] << 1) | ((data[3] & 0x80) >> 7);
+    gop->time_code   = (data[0] << 17) | (data[1] << 9) | (data[2] << 1) | (data[3] >> 7);
     gop->closed_gop  = !!(data[3] & 0x40);
     gop->broken_link = !!(data[3] & 0x20);
     return MPEG_VIDEO_GOP_SECTION_HEADER_SIZE;
