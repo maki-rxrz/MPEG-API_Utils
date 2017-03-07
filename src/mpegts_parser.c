@@ -1858,7 +1858,7 @@ static int get_specific_stream_data
     tsp_header_t  h;
     tsf_ctx_t    *tsf_ctx = &(info->tsf_ctx);
 #if 0
-    /* reset start positin. */
+    /* reset start position. */
     mpegts_file_seek( tsf_ctx, 0, MPEGTS_SEEK_RESET );
     tsf_ctx->read_position      = 0;
     tsf_ctx->sync_byte_position = -1;
