@@ -74,6 +74,51 @@ extern int mpeg_video_check_start_code( uint8_t *start_code, mpeg_video_start_co
     return 0;
 }
 
+/*
+  zig-zag scan order:
+     0   1   5   6  14  15  27  28
+     2   4   7  13  16  26  29  42
+     3   8  12  17  25  30  41  43
+     9  11  18  24  31  40  44  53
+    10  19  23  32  39  45  52  54
+    20  22  33  38  46  51  55  60
+    21  34  37  47  50  56  59  61
+    35  36  48  49  57  58  62  63
+*/
+static const uint8_t zigzag_scan_order_idx[64] = {
+     0,  1,  8, 16,  9,  2,  3, 10,
+    17, 24, 32, 25, 18, 11,  4,  5,
+    12, 19, 26, 33, 40, 48, 41, 34,
+    27, 20, 13,  6,  7, 14, 21, 28,
+    35, 42, 49, 56, 57, 50, 43, 36,
+    29, 22, 15, 23, 30, 37, 44, 51,
+    58, 59, 52, 45, 38, 31, 39, 46,
+    53, 60, 61, 54, 47, 55, 62, 63
+};
+/*
+  alternate scan order:
+     0   4   6  20  22  36  38  52
+     1   5   7  21  23  37  39  53
+     2   8  19  24  34  40  50  54
+     3   9  18  25  35  41  51  55
+    10  17  26  30  42  46  56  60
+    11  16  27  31  43  47  57  61
+    12  15  28  32  44  48  58  62
+    13  14  29  33  45  49  59  63
+*/
+#if 0
+static const uint8_t alternate_scan_order_idx[64] = {
+     0,  8, 16, 24,  1,  9,  2, 10,
+    17, 25, 32, 40, 48, 56, 57, 49,
+    41, 33, 26, 18,  3, 11,  4, 12,
+    19, 27, 34, 42, 50, 58, 35, 43,
+    51, 59, 20, 28,  5, 13,  6, 14,
+    21, 29, 36, 44, 52, 60, 37, 45,
+    53, 61, 22, 30,  7, 15, 23, 31,
+    38, 46, 54, 62, 39, 47, 55, 63
+};
+#endif
+
 static int32_t read_sequence_header( uint8_t *data, mpeg_video_sequence_header_t *sequence )
 {
     int32_t check_size = MPEG_VIDEO_SEQUENCE_SECTION_HEADER_SIZE;
@@ -89,17 +134,20 @@ static int32_t read_sequence_header( uint8_t *data, mpeg_video_sequence_header_t
     uint8_t *p = &(data[7]);
     if( sequence->load_intra_quantiser_matrix )
         for( int i = 0; i < 64; ++i, ++p )
-            sequence->intra_quantiser_matrix[i]     =   (*p & 0x01) << 7 | *(p+1) >> 1;
+            sequence->intra_quantiser_matrix[zigzag_scan_order_idx[i]]
+                                          =   (*p & 0x01) << 7 | *(p+1) >> 1;
     else
     {
         memset( sequence->intra_quantiser_matrix, 0, 64 );
         check_size -= 64;
     }
-    sequence->load_non_intra_quantiser_matrix       = !!(*p & 0x01);
+    sequence->load_non_intra_quantiser_matrix
+                                          = !!(*p & 0x01);
     ++p;
     if( sequence->load_non_intra_quantiser_matrix )
         for( int i = 0; i < 64; ++i, ++p )
-            sequence->non_intra_quantiser_matrix[i] =    *p;
+            sequence->non_intra_quantiser_matrix[zigzag_scan_order_idx[i]]
+                                          =    *p;
     else
     {
         memset( sequence->non_intra_quantiser_matrix, 0, 64 );
@@ -325,38 +373,45 @@ static int32_t read_quant_matrix_extension
 {
     int32_t check_size = MPEG_VIDEO_QUANT_MATRIX_EXTENSION_SIZE;
     uint8_t *p = &(data[0]);
-    quant_matrix_ext->load_intra_quantiser_matrix                  = !!(*p & 0x08);
+    quant_matrix_ext->load_intra_quantiser_matrix = !!(*p & 0x08);
     if( quant_matrix_ext->load_intra_quantiser_matrix )
         for( int i = 0; i < 64; ++i, ++p )
-            quant_matrix_ext->intra_quantiser_matrix[i]            =  ((*p & 0x07) << 5) | (*(p+1) >> 3);
+            quant_matrix_ext->intra_quantiser_matrix[zigzag_scan_order_idx[i]]
+                                                  =  ((*p & 0x07) << 5) | (*(p+1) >> 3);
     else
     {
         memset( quant_matrix_ext->intra_quantiser_matrix, 0, 64 );
         check_size -= 64;
     }
-    quant_matrix_ext->load_non_intra_quantiser_matrix              = !!(*p & 0x04);
+    quant_matrix_ext->load_non_intra_quantiser_matrix
+                                                  = !!(*p & 0x04);
     if( quant_matrix_ext->load_non_intra_quantiser_matrix )
         for( int i = 0; i < 64; ++i, ++p )
-            quant_matrix_ext->non_intra_quantiser_matrix[i]        =  ((*p & 0x03) << 6) | (*(p+1) >> 2);
+            quant_matrix_ext->non_intra_quantiser_matrix[zigzag_scan_order_idx[i]]
+                                                  =  ((*p & 0x03) << 6) | (*(p+1) >> 2);
     else
     {
         memset( quant_matrix_ext->non_intra_quantiser_matrix, 0, 64 );
         check_size -= 64;
     }
-    quant_matrix_ext->load_chroma_intra_quantiser_matrix           = !!(*p & 0x02);
+    quant_matrix_ext->load_chroma_intra_quantiser_matrix
+                                                  = !!(*p & 0x02);
     if( quant_matrix_ext->load_chroma_intra_quantiser_matrix )
         for( int i = 0; i < 64; ++i, ++p )
-            quant_matrix_ext->chroma_intra_quantiser_matrix[i]     =  ((*p & 0x01) << 7) | (*(p+1) >> 1);
+            quant_matrix_ext->chroma_intra_quantiser_matrix[zigzag_scan_order_idx[i]]
+                                                  =  ((*p & 0x01) << 7) | (*(p+1) >> 1);
     else
     {
         memset( quant_matrix_ext->chroma_intra_quantiser_matrix, 0, 64 );
         check_size -= 64;
     }
-    quant_matrix_ext->load_chroma_non_intra_quantiser_matrix       = !!(*p & 0x01);
+    quant_matrix_ext->load_chroma_non_intra_quantiser_matrix
+                                                  = !!(*p & 0x01);
     ++p;
     if( quant_matrix_ext->load_chroma_non_intra_quantiser_matrix )
         for( int i = 0; i < 64; ++i, ++p )
-            quant_matrix_ext->chroma_non_intra_quantiser_matrix[i] =   *p;
+            quant_matrix_ext->chroma_non_intra_quantiser_matrix[zigzag_scan_order_idx[i]]
+                                                  =   *p;
     else
     {
         memset( quant_matrix_ext->chroma_non_intra_quantiser_matrix, 0, 64 );
@@ -669,6 +724,40 @@ extern void mpeg_video_debug_header_info
                       , video_info->sequence.constrained_parameters_flag
                       , video_info->sequence.load_intra_quantiser_matrix
                       , video_info->sequence.load_non_intra_quantiser_matrix );
+            if( video_info->sequence.load_intra_quantiser_matrix )
+            {
+                mapi_log( LOG_LV2,
+                      "        intra_quantiser_matrix\n" );
+                for( int i = 0; i < 64; i += 8 )
+                    mapi_log( LOG_LV2,
+                      "          %3u, %3u, %3u, %3u, %3u, %3u, %3u, %3u\n"
+                      , video_info->sequence.intra_quantiser_matrix[i + 0]
+                      , video_info->sequence.intra_quantiser_matrix[i + 1]
+                      , video_info->sequence.intra_quantiser_matrix[i + 2]
+                      , video_info->sequence.intra_quantiser_matrix[i + 3]
+                      , video_info->sequence.intra_quantiser_matrix[i + 4]
+                      , video_info->sequence.intra_quantiser_matrix[i + 5]
+                      , video_info->sequence.intra_quantiser_matrix[i + 6]
+                      , video_info->sequence.intra_quantiser_matrix[i + 7]
+                      );
+            }
+            if( video_info->sequence.load_non_intra_quantiser_matrix )
+            {
+                mapi_log( LOG_LV2,
+                      "        non_intra_quantiser_matrix\n" );
+                for( int i = 0; i < 64; i += 8 )
+                    mapi_log( LOG_LV2,
+                      "          %3u, %3u, %3u, %3u, %3u, %3u, %3u, %3u\n"
+                      , video_info->sequence.non_intra_quantiser_matrix[i + 0]
+                      , video_info->sequence.non_intra_quantiser_matrix[i + 1]
+                      , video_info->sequence.non_intra_quantiser_matrix[i + 2]
+                      , video_info->sequence.non_intra_quantiser_matrix[i + 3]
+                      , video_info->sequence.non_intra_quantiser_matrix[i + 4]
+                      , video_info->sequence.non_intra_quantiser_matrix[i + 5]
+                      , video_info->sequence.non_intra_quantiser_matrix[i + 6]
+                      , video_info->sequence.non_intra_quantiser_matrix[i + 7]
+                      );
+            }
             break;
         case DETECT_SESC :
             mapi_log( LOG_LV2,
@@ -824,6 +913,74 @@ extern void mpeg_video_debug_header_info
                       , video_info->quant_matrix_ext.load_non_intra_quantiser_matrix
                       , video_info->quant_matrix_ext.load_chroma_intra_quantiser_matrix
                       , video_info->quant_matrix_ext.load_chroma_non_intra_quantiser_matrix );
+            if( video_info->quant_matrix_ext.load_intra_quantiser_matrix )
+            {
+                mapi_log( LOG_LV2,
+                      "        intra_quantiser_matrix\n" );
+                for( int i = 0; i < 64; i += 8 )
+                    mapi_log( LOG_LV2,
+                      "          %3u, %3u, %3u, %3u, %3u, %3u, %3u, %3u\n"
+                      , video_info->quant_matrix_ext.intra_quantiser_matrix[i + 0]
+                      , video_info->quant_matrix_ext.intra_quantiser_matrix[i + 1]
+                      , video_info->quant_matrix_ext.intra_quantiser_matrix[i + 2]
+                      , video_info->quant_matrix_ext.intra_quantiser_matrix[i + 3]
+                      , video_info->quant_matrix_ext.intra_quantiser_matrix[i + 4]
+                      , video_info->quant_matrix_ext.intra_quantiser_matrix[i + 5]
+                      , video_info->quant_matrix_ext.intra_quantiser_matrix[i + 6]
+                      , video_info->quant_matrix_ext.intra_quantiser_matrix[i + 7]
+                      );
+            }
+            if( video_info->quant_matrix_ext.load_non_intra_quantiser_matrix )
+            {
+                mapi_log( LOG_LV2,
+                      "        non_intra_quantiser_matrix\n" );
+                for( int i = 0; i < 64; i += 8 )
+                    mapi_log( LOG_LV2,
+                      "          %3u, %3u, %3u, %3u, %3u, %3u, %3u, %3u\n"
+                      , video_info->quant_matrix_ext.non_intra_quantiser_matrix[i + 0]
+                      , video_info->quant_matrix_ext.non_intra_quantiser_matrix[i + 1]
+                      , video_info->quant_matrix_ext.non_intra_quantiser_matrix[i + 2]
+                      , video_info->quant_matrix_ext.non_intra_quantiser_matrix[i + 3]
+                      , video_info->quant_matrix_ext.non_intra_quantiser_matrix[i + 4]
+                      , video_info->quant_matrix_ext.non_intra_quantiser_matrix[i + 5]
+                      , video_info->quant_matrix_ext.non_intra_quantiser_matrix[i + 6]
+                      , video_info->quant_matrix_ext.non_intra_quantiser_matrix[i + 7]
+                      );
+            }
+            if( video_info->quant_matrix_ext.load_chroma_intra_quantiser_matrix )
+            {
+                mapi_log( LOG_LV2,
+                      "        chroma_intra_quantiser_matrix\n" );
+                for( int i = 0; i < 64; i += 8 )
+                    mapi_log( LOG_LV2,
+                      "          %3u, %3u, %3u, %3u, %3u, %3u, %3u, %3u\n"
+                      , video_info->quant_matrix_ext.chroma_intra_quantiser_matrix[i + 0]
+                      , video_info->quant_matrix_ext.chroma_intra_quantiser_matrix[i + 1]
+                      , video_info->quant_matrix_ext.chroma_intra_quantiser_matrix[i + 2]
+                      , video_info->quant_matrix_ext.chroma_intra_quantiser_matrix[i + 3]
+                      , video_info->quant_matrix_ext.chroma_intra_quantiser_matrix[i + 4]
+                      , video_info->quant_matrix_ext.chroma_intra_quantiser_matrix[i + 5]
+                      , video_info->quant_matrix_ext.chroma_intra_quantiser_matrix[i + 6]
+                      , video_info->quant_matrix_ext.chroma_intra_quantiser_matrix[i + 7]
+                      );
+            }
+            if( video_info->quant_matrix_ext.load_chroma_non_intra_quantiser_matrix )
+            {
+                mapi_log( LOG_LV2,
+                      "        chroma_non_intra_quantiser_matrix\n" );
+                for( int i = 0; i < 64; i += 8 )
+                    mapi_log( LOG_LV2,
+                      "          %3u, %3u, %3u, %3u, %3u, %3u, %3u, %3u\n"
+                      , video_info->quant_matrix_ext.chroma_non_intra_quantiser_matrix[i + 0]
+                      , video_info->quant_matrix_ext.chroma_non_intra_quantiser_matrix[i + 1]
+                      , video_info->quant_matrix_ext.chroma_non_intra_quantiser_matrix[i + 2]
+                      , video_info->quant_matrix_ext.chroma_non_intra_quantiser_matrix[i + 3]
+                      , video_info->quant_matrix_ext.chroma_non_intra_quantiser_matrix[i + 4]
+                      , video_info->quant_matrix_ext.chroma_non_intra_quantiser_matrix[i + 5]
+                      , video_info->quant_matrix_ext.chroma_non_intra_quantiser_matrix[i + 6]
+                      , video_info->quant_matrix_ext.chroma_non_intra_quantiser_matrix[i + 7]
+                      );
+            }
             break;
         case DETECT_PDE :
             mapi_log( LOG_LV2,
