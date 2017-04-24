@@ -539,120 +539,17 @@ static void get_channel_info( uint16_t channel, char *channel_info )
         sprintf( channel_info, "%u.%uch (%u/%u)", f_channels + r_channels, lfe, f_channels, r_channels );
 }
 
-static void dump_stream_info
+static void dump_va_info
 (
     param_t                    *p,
     void                       *info,
     stream_info_t              *stream_info,
     uint8_t                     video_stream_num,
-    uint8_t                     audio_stream_num
+    uint8_t                     audio_stream_num,
+    use_mapi_type               api_type
 )
 {
     static const char frame[4] = { '?', 'I', 'P', 'B' };
-    int64_t pts_limit = INT64_MAX_VALUE;
-    int64_t gop_limit = (p->gop_limit > 0) ? p->gop_limit - 1 : INT64_MAX_VALUE;
-    int64_t frm_limit = (p->frm_limit > 0) ? p->frm_limit - 1 : INT64_MAX_VALUE;
-    for( uint8_t i = 0; i < video_stream_num; ++i )
-    {
-        mapi_log( LOG_LV_OUTPUT, "[log] Video Stream[%3u]\n", i );
-        int64_t gop_number = -1;
-        int64_t max_pts    = MPEG_TIMESTAMP_INVALID_VALUE;
-        for( uint32_t j = 0; ; ++j )
-        {
-            if( mpeg_api_get_video_frame( info, i, stream_info ) )
-                break;
-            int64_t pts = stream_info->video_pts;
-            int64_t dts = stream_info->video_dts;
-            if( frm_limit != INT64_MAX_VALUE )
-            {
-                if( j == 0 )
-                    max_pts = pts;
-                else
-                {
-                    int64_t diff = pts - max_pts;
-                    if( llabs(diff) > p->wrap_around_check_v )
-                    {
-                        if( diff < 0 )
-                            max_pts = pts;
-                    }
-                    else
-                    {
-                        if( max_pts < pts )
-                            max_pts = pts;
-                    }
-                }
-            }
-            if( j > frm_limit )
-            {
-                pts_limit = max_pts;
-                break;
-            }
-            if( stream_info->gop_number < 0 )
-            {
-                mapi_log( LOG_LV_OUTPUT, " [no GOP Picture data]" );
-                j = -1;
-            }
-            else
-            {
-                if( gop_number < stream_info->gop_number )
-                {
-                    if( stream_info->gop_number > gop_limit )
-                    {
-                        pts_limit = pts;        // FIXME: This is not best, because don't check 1st frame by temporal_reference.
-                        break;
-                    }
-                    gop_number = stream_info->gop_number;
-                    mapi_log( LOG_LV_OUTPUT, " [GOP:%6" PRId64 "]  progr_sequence:%d  closed_gop:%d\n", gop_number, stream_info->progressive_sequence, stream_info->closed_gop );
-                }
-                mapi_log( LOG_LV_OUTPUT, " [%8u]", j );
-            }
-            mapi_log( LOG_LV_OUTPUT, "  pict_struct:%d  order:%2d  [%c]", stream_info->picture_structure, stream_info->temporal_reference, frame[stream_info->picture_coding_type] );
-            mapi_log( LOG_LV_OUTPUT, "  progr_frame:%d  rff:%d  tff:%d", stream_info->progressive_frame, stream_info->repeat_first_field, stream_info->top_field_first );
-            mapi_log( LOG_LV_OUTPUT, "  POS: %14" PRId64 "", stream_info->file_position );
-            mapi_log( LOG_LV_OUTPUT, "  size: %10u  raw_size: %10u", stream_info->sample_size, stream_info->raw_data_size );
-            mapi_log( LOG_LV_OUTPUT, "  PTS: %10" PRId64 " [%8" PRId64 "ms]", pts, pts / 90 );
-            if( dts != pts )
-                mapi_log( LOG_LV_OUTPUT, "  DTS: %10" PRId64 " [%8" PRId64 "ms]", dts, dts / 90 );
-            mapi_log( LOG_LV_OUTPUT, "\n" );
-        }
-    }
-    for( uint8_t i = 0; i < audio_stream_num; ++i )
-    {
-        mapi_log( LOG_LV_OUTPUT, "[log] Audio Stream[%3u]\n", i );
-        for( uint32_t j = 0; ; ++j )
-        {
-            if( mpeg_api_get_audio_frame( info, i, stream_info ) )
-                break;
-            if( pts_limit < stream_info->audio_pts && (stream_info->audio_pts - pts_limit) < p->wrap_around_check_v )
-                break;
-            int64_t pts = stream_info->audio_pts;
-            int64_t dts = stream_info->audio_dts;
-            char channel_info[20];
-            get_channel_info( stream_info->channel, channel_info );
-            mapi_log( LOG_LV_OUTPUT, " [%8u]", j );
-            mapi_log( LOG_LV_OUTPUT, "  %6uHz  %4uKbps  %s  layer %1u  %2u bits", stream_info->sampling_frequency, stream_info->bitrate / 1000, channel_info, stream_info->layer, stream_info->bit_depth );
-            mapi_log( LOG_LV_OUTPUT, "  POS: %14" PRId64 "", stream_info->file_position );
-            mapi_log( LOG_LV_OUTPUT, "  size: %10u  raw_size: %10u", stream_info->sample_size, stream_info->raw_data_size );
-            mapi_log( LOG_LV_OUTPUT, "  PTS: %10" PRId64 " [%8" PRId64 "ms]", pts, pts / 90 );
-            if( dts != pts )
-                mapi_log( LOG_LV_OUTPUT, "  DTS: %10" PRId64 " [%8" PRId64 "ms]", dts, dts / 90 );
-            mapi_log( LOG_LV_OUTPUT, "\n" );
-        }
-    }
-}
-
-static void dump_sample_info
-(
-    param_t                    *p,
-    void                       *info,
-    stream_info_t              *stream_info,
-    uint8_t                     video_stream_num,
-    uint8_t                     audio_stream_num
-)
-{
-    static const char frame[4] = { '?', 'I', 'P', 'B' };
-    if( mpeg_api_create_sample_list( info ) )
-        return;
     int64_t pts_limit = INT64_MAX_VALUE;
     int64_t gop_limit = (p->gop_limit > 0) ? p->gop_limit - 1 : INT64_MAX_VALUE;
     int64_t frm_limit = (p->frm_limit > 0) ? p->frm_limit - 1 : INT64_MAX_VALUE;
@@ -664,7 +561,10 @@ static void dump_sample_info
         int64_t  max_pts            = MPEG_TIMESTAMP_INVALID_VALUE;
         for( uint32_t j = 0; ; ++j )
         {
-            if( mpeg_api_get_sample_info( info, SAMPLE_TYPE_VIDEO, i, j, stream_info ) )
+            int result = (api_type == USE_MAPI_SAMPLE_LIST)
+                       ? mpeg_api_get_sample_info( info, SAMPLE_TYPE_VIDEO, i, j, stream_info )
+                       : mpeg_api_get_video_frame( info, i, stream_info );
+            if( result )
                 break;
             int64_t pts = stream_info->video_pts;
             int64_t dts = stream_info->video_dts;
@@ -726,7 +626,10 @@ static void dump_sample_info
         mapi_log( LOG_LV_OUTPUT, "[log] Audio Stream[%3u]\n", i );
         for( uint32_t j = 0; ; ++j )
         {
-            if( mpeg_api_get_sample_info( info, SAMPLE_TYPE_AUDIO, i, j, stream_info ) )
+            int result = (api_type == USE_MAPI_SAMPLE_LIST)
+                       ? mpeg_api_get_sample_info( info, SAMPLE_TYPE_AUDIO, i, j, stream_info )
+                       : mpeg_api_get_audio_frame( info, i, stream_info );
+            if( result )
                 break;
             if( pts_limit < stream_info->audio_pts && (stream_info->audio_pts - pts_limit) < p->wrap_around_check_v )
                 break;
@@ -744,6 +647,32 @@ static void dump_sample_info
             mapi_log( LOG_LV_OUTPUT, "\n" );
         }
     }
+}
+
+static void dump_stream_info
+(
+    param_t                    *p,
+    void                       *info,
+    stream_info_t              *stream_info,
+    uint8_t                     video_stream_num,
+    uint8_t                     audio_stream_num
+)
+{
+	dump_va_info( p, info, stream_info, video_stream_num, audio_stream_num, USE_MAPI_SEQUENTIAL_READ );
+}
+
+static void dump_sample_info
+(
+    param_t                    *p,
+    void                       *info,
+    stream_info_t              *stream_info,
+    uint8_t                     video_stream_num,
+    uint8_t                     audio_stream_num
+)
+{
+    if( mpeg_api_create_sample_list( info ) )
+        return;
+	dump_va_info( p, info, stream_info, video_stream_num, audio_stream_num, USE_MAPI_SAMPLE_LIST );
 }
 
 static void open_file
