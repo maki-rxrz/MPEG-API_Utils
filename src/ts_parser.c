@@ -541,10 +541,11 @@ static void get_channel_info( uint16_t channel, char *channel_info )
 
 static void dump_stream_info
 (
-    param_t                                *p,
-    void                                   *info,
-    stream_info_t                          *stream_info,
-    uint8_t video_stream_num,uint8_t        audio_stream_num
+    param_t                    *p,
+    void                       *info,
+    stream_info_t              *stream_info,
+    uint8_t                     video_stream_num,
+    uint8_t                     audio_stream_num
 )
 {
     static const char frame[4] = { '?', 'I', 'P', 'B' };
@@ -1695,11 +1696,11 @@ static void demux_all_cb_func( void *cb_params, void *cb_ret )
 
 static void demux_stream_all_in_st
 (
-    param_t                *p,
-    void                   *info,
-    stream_info_t          *stream_info,
-    uint8_t                 video_stream_num,
-    uint8_t                 audio_stream_num
+    param_t                    *p,
+    void                       *info,
+    stream_info_t              *stream_info,
+    uint8_t                     video_stream_num,
+    uint8_t                     audio_stream_num
 )
 {
     int                  get_index = p->output_mode - OUTPUT_GET_SAMPLE_RAW;
