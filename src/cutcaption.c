@@ -273,7 +273,7 @@ static int file_exists( const char *file )
     return 0;
 }
 
-static FILE *file_open( const char *file, const char *ext, const char *mode )
+static FILE *file_ext_open( const char *file, const char *ext, const char *mode )
 {
     if( !file || !mode )
         return NULL;
@@ -534,7 +534,7 @@ static int correct_parameter( param_t *p )
     for( int i = 0; i < CAPTION_TYPE_MAX; ++i )
     {
         /* check if exist input file. */
-        FILE *input = file_open( p->input, input_array[i].ext, "rb" );
+        FILE *input = file_ext_open( p->input, input_array[i].ext, "rb" );
         if( input )
         {
             fclose( input );
@@ -580,7 +580,7 @@ static int correct_parameter( param_t *p )
         {
             if( !(p->output_mode & input_array[i].mode) )
                 continue;
-            FILE *output = file_open( p->output, input_array[i].ext, "rt" );
+            FILE *output = file_ext_open( p->output, input_array[i].ext, "rt" );
             if( output )
             {
                 fclose( output );
@@ -1139,8 +1139,8 @@ static void output_caption( param_t *p )
         {
             /* open files. */
             FILE *input = NULL, *output = NULL;
-            if( !(input  = file_open( p->input , input_array[i].ext, "rt" ))
-             || !(output = file_open( p->output, input_array[i].ext, "wt" )) )
+            if( !(input  = file_ext_open( p->input , input_array[i].ext, "rt" ))
+             || !(output = file_ext_open( p->output, input_array[i].ext, "wt" )) )
             {
                 if( input )
                     fclose( input );
