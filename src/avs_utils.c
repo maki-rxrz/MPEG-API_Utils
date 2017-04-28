@@ -308,8 +308,8 @@ static int32_t calculate_prn_string_to_number( char **elements_list, int element
 #define LIST_DATA_DEBUG_LOG( list, num )        \
 {                                               \
     mapi_log( LOG_LV4, "[debug]" );             \
-    for( int i = 0; i < num; ++i )              \
-        mapi_log( LOG_LV4, " %s", list[i] );    \
+    for( int j = 0; j < num; ++j )              \
+        mapi_log( LOG_LV4, " %s", list[j] );    \
     mapi_log( LOG_LV4, "\n" );                  \
 }
 extern int avs_string_convert_calculate_string_to_result_number( avs_trim_info_t *info )
