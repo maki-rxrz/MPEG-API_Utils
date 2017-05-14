@@ -134,6 +134,12 @@ typedef enum {
 } mpeg_video_frame_type;
 
 typedef enum {
+    MPEG_VIDEO_TOP_FIELD_STRUCTURE    = 0x01,
+    MPEG_VIDEO_BOTTOM_FIELD_STRUCTURE = 0x02,
+    MPEG_VIDEO_FRAME_STRUCTURE        = 0x03
+} mpeg_video_structure_type;
+
+typedef enum {
     MPEG_AUDIO_SPEAKER_FRONT_CENTER  = 0x0001,
     MPEG_AUDIO_SPEAKER_FRONT_LEFT    = 0x0002,
     MPEG_AUDIO_SPEAKER_FRONT_RIGHT   = 0x0004,

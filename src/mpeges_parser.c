@@ -50,6 +50,7 @@ typedef struct {
     int64_t                 timestamp_base;
     int32_t                 total_picture_num;
     int32_t                 picture_num;
+    int32_t                 field_picture_num;
     mpeg_video_info_t      *video_info;
     void                   *fr_ctx;
 } mpeges_info_t;
@@ -193,7 +194,7 @@ static void mpeges_get_stream_timestamp( mpeges_info_t *info, mpeg_timestamp_t *
     int64_t pts = info->timestamp_base * (info->total_picture_num + info->video_info->picture.temporal_reference);
     int64_t dts = (info->video_info->picture.picture_coding_type != MPEG_VIDEO_B_FRAME
                  && info->video_info->picture.temporal_reference != info->picture_num)
-                ? info->timestamp_base * (info->total_picture_num + info->picture_num - 1)
+                ? info->timestamp_base * (info->total_picture_num + info->picture_num - (info->field_picture_num / 2) - 1)
                 : pts;
     /* setup. */
     timestamp->pts = pts;
@@ -256,8 +257,9 @@ static int mpeges_get_mpeg_video_picture_info( mpeges_info_t *info )
         else if( start_code_info.searching_status == DETECT_GSC )
         {
             ++ info->gop_number;
-            info->total_picture_num += info->picture_num;
-            info->picture_num = -1;
+            info->total_picture_num += info->picture_num - (info->field_picture_num / 2);
+            info->picture_num       = -1;
+            info->field_picture_num = 0;
         }
         else if( start_code_info.searching_status == DETECT_PSC )
         {
@@ -265,6 +267,11 @@ static int mpeges_get_mpeg_video_picture_info( mpeges_info_t *info )
                 read_position = start_code_position;
             ++ info->picture_num;
             result = 0;
+        }
+        else if( start_code_info.searching_status == DETECT_PCESC )
+        {
+            if( info->video_info->picture_coding_ext.picture_structure != MPEG_VIDEO_FRAME_STRUCTURE )
+                ++ info->field_picture_num;
         }
         else if( start_code_info.searching_status == DETECT_SSC
               || start_code_info.searching_status == DETECT_SEC )
