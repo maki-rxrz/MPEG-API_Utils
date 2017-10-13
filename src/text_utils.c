@@ -37,11 +37,11 @@
 #include "avs_utils.h"
 #include "text_utils.h"
 
-typedef int (*load_list_func)( common_param_t *p, FILE *list, const char *search_word, const char *line_ptr );
-static int load_avs_txt( common_param_t *p, FILE *list, const char *search_word, const char *line_ptr );
-static int load_vcf_txt( common_param_t *p, FILE *list, const char *search_word, const char *line_ptr );
-static int load_del_txt( common_param_t *p, FILE *list, const char *search_word, const char *line_ptr );
-static int load_keyframe_txt( common_param_t *p, FILE *list, const char *search_word, const char *line_ptr );
+typedef int (*load_list_func)( common_param_t *p, FILE *list, const char *search_word, char **line_ptr );
+static int load_avs_txt( common_param_t *p, FILE *list, const char *search_word, char **line_ptr );
+static int load_vcf_txt( common_param_t *p, FILE *list, const char *search_word, char **line_ptr );
+static int load_del_txt( common_param_t *p, FILE *list, const char *search_word, char **line_ptr );
+static int load_keyframe_txt( common_param_t *p, FILE *list, const char *search_word, char **line_ptr );
 
 static const struct {
     char               *ext;
@@ -60,9 +60,9 @@ static const struct {
         {  ".keyframe3", CUT_LIST_KEY_TRIM , MPEG_READER_TMPGENC , load_keyframe_txt, NULL                         }
     };
 
-static int load_avs_txt( common_param_t *p, FILE *list, const char *search_word, const char *line_ptr )
+static int load_avs_txt( common_param_t *p, FILE *list, const char *search_word, char **line_ptr )
 {
-    char *line       = (char *)line_ptr;
+    char *line       = (char *)*line_ptr;
     char *cache_line = (char *)malloc( p->line_max );
     if( !cache_line )
         return -1;
@@ -100,10 +100,10 @@ static int load_avs_txt( common_param_t *p, FILE *list, const char *search_word,
             if( line_size < string_len )
             {
                 ++alloc_count;
-                char *tmp = (char *)realloc( line, p->line_max * alloc_count );
+                char *tmp = (char *)realloc( *line_ptr, p->line_max * alloc_count );
                 if( !tmp )
                     goto fail_load;
-                line = tmp;
+                line = *line_ptr = tmp;
             }
             strcat( line, c + 1 );
         }
@@ -140,9 +140,9 @@ fail_load:
     return -1;
 }
 
-static int load_vcf_txt( common_param_t *p, FILE *list, const char *search_word, const char *line_ptr )
+static int load_vcf_txt( common_param_t *p, FILE *list, const char *search_word, char **line_ptr )
 {
-    char *line = (char *)line_ptr;
+    char *line = (char *)*line_ptr;
     /* initialize. */
     size_t sword_len = strlen( search_word );
     char search_format[sword_len + 8];
@@ -159,12 +159,12 @@ static int load_vcf_txt( common_param_t *p, FILE *list, const char *search_word,
     return p->list_data_count ? 0 : -1;
 }
 
-static int load_del_txt( common_param_t *p, FILE *list, const char *search_word, const char *line_ptr )
+static int load_del_txt( common_param_t *p, FILE *list, const char *search_word, char **line_ptr )
 {
 #if ENABLE_SUPPRESS_WARNINGS
     (void) search_word;
 #endif
-    char *line = (char *)line_ptr;
+    char *line = (char *)*line_ptr;
     int32_t start, end;
     /* check range. */
     char *result;
@@ -201,12 +201,12 @@ static int load_del_txt( common_param_t *p, FILE *list, const char *search_word,
     return 0;
 }
 
-static int load_keyframe_txt( common_param_t *p, FILE *list, const char *search_word, const char *line_ptr )
+static int load_keyframe_txt( common_param_t *p, FILE *list, const char *search_word, char **line_ptr )
 {
 #if ENABLE_SUPPRESS_WARNINGS
     (void) search_word;
 #endif
-    char *line = (char *)line_ptr;
+    char *line = (char *)*line_ptr;
     /* check 'Trim' style. */
     if( p->list_type == CUT_LIST_KEY_TRIM )
     {
@@ -277,11 +277,10 @@ static int load_keyframe_txt( common_param_t *p, FILE *list, const char *search_
     return p->list_data_count ? 0 : -1;
 }
 
-static cut_list_data_t *malloc_list_data( common_param_t *p, FILE *list, const char *search_word, const char *line_ptr )
+static cut_list_data_t *malloc_list_data( common_param_t *p, FILE *list, const char *search_word, char *line )
 {
     /* search words. */
     fseeko( list, 0, SEEK_SET );
-    char *line = (char *)line_ptr;
     int search_word_count = 0;
     if( search_word )
     {
@@ -323,7 +322,7 @@ extern int text_load_cut_list( common_param_t *p, FILE *list )
 {
     if( !p || !list )
         return -1;
-    const char *line = (const char *)malloc( p->line_max );
+    char *line = (char *)malloc( p->line_max );
     if( !line )
         return -1;
     int result = -1;
@@ -333,10 +332,10 @@ extern int text_load_cut_list( common_param_t *p, FILE *list )
             const char *search_word = p->list_search_word ? p->list_search_word : list_array[i].search_word;
             p->list_data = malloc_list_data( p, list, search_word, line );
             if( p->list_data )
-                result = list_array[i].load_func( p, list, search_word, line );
+                result = list_array[i].load_func( p, list, search_word, &line );
             break;
         }
-    free( (char *)line );
+    free( line );
     return result;
 }
 
