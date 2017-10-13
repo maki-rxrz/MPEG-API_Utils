@@ -658,7 +658,7 @@ static void dump_stream_info
     uint8_t                     audio_stream_num
 )
 {
-	dump_va_info( p, info, stream_info, video_stream_num, audio_stream_num, USE_MAPI_SEQUENTIAL_READ );
+    dump_va_info( p, info, stream_info, video_stream_num, audio_stream_num, USE_MAPI_SEQUENTIAL_READ );
 }
 
 static void dump_sample_info
@@ -672,7 +672,7 @@ static void dump_sample_info
 {
     if( mpeg_api_create_sample_list( info ) )
         return;
-	dump_va_info( p, info, stream_info, video_stream_num, audio_stream_num, USE_MAPI_SAMPLE_LIST );
+    dump_va_info( p, info, stream_info, video_stream_num, audio_stream_num, USE_MAPI_SAMPLE_LIST );
 }
 
 static void open_file
