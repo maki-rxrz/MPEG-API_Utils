@@ -506,6 +506,8 @@ static int get_video_info( void *ih, uint8_t stream_number, video_sample_info_t 
     video_sample_info->sample_size          = /* raw_data_size */
     video_sample_info->raw_data_size        = read_last_position - info->read_position;
     video_sample_info->raw_data_read_offset = 0;
+    video_sample_info->au_size              = 0;
+    video_sample_info->program_id           = 0;
     video_sample_info->pts                  = ts.pts;
     video_sample_info->dts                  = ts.dts;
     video_sample_info->gop_number           = gop_number;

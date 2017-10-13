@@ -63,6 +63,7 @@ typedef enum {
     OUTPUT_GET_SAMPLE_RAW       = 1,
     OUTPUT_GET_SAMPLE_PES       = 2,
     OUTPUT_GET_SAMPLE_CONTAINER = 3,
+    OUTPUT_MAKE_GOP_LIST        = 4,
     OUTPUT_MODE_MAX
 } output_mode_type;
 
@@ -269,6 +270,20 @@ static char *search_sepchar_r( const char *str )
     return sep;
 }
 
+static FILE *file_ext_open( const char *file, const char *ext, const char *mode )
+{
+    if( !file || !mode )
+        return NULL;
+    size_t len     = strlen( file );
+    size_t ext_len = ext ? strlen( ext ) : 0;
+    char full_name[len + ext_len];
+    strcpy( full_name, file );
+    if( ext_len )
+        strcat( full_name, ext );
+    FILE *fp = mapi_fopen( full_name, mode );
+    return fp;
+}
+
 static int init_parameter( param_t *p )
 {
     if( !p )
@@ -423,6 +438,8 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
         }
         else if( !strcasecmp( argv[i], "--pcr" ) )
             p->output_stream = OUTPUT_STREAM_NONE_PCR_ONLY;
+        else if( !strcasecmp( argv[i], "--gop-list" ) )
+            p->output_mode = OUTPUT_MAKE_GOP_LIST;
         else
         {
             /* check invalid parameters. */
@@ -537,6 +554,99 @@ static void get_channel_info( uint16_t channel, char *channel_info )
         sprintf( channel_info, "%u.%uch (%u/%u+LFE)", f_channels + r_channels, lfe, f_channels, r_channels );
     else
         sprintf( channel_info, "%u.%uch (%u/%u)", f_channels + r_channels, lfe, f_channels, r_channels );
+}
+
+#ifdef DEBUG
+static void output_line( FILE* fp, const char *format, ... )
+{
+    /* output gop-list, and stdout preview. */
+    va_list argptr;
+    va_start( argptr, format );
+    vfprintf( fp, format, argptr );
+    mapi_vfprintf( stdout, format, argptr );
+    va_end( argptr );
+}
+#else
+#define output_line fprintf
+#endif
+
+static void make_gop_list
+(
+    param_t                    *p,
+    void                       *info,
+    stream_info_t              *stream_info,
+    uint8_t                     video_stream_num,
+    int                         api_type
+)
+{
+    int64_t gop_limit = (p->gop_limit > 0) ? p->gop_limit - 1 : INT64_MAX_VALUE;
+    int64_t frm_limit = (p->frm_limit > 0) ? p->frm_limit - 1 : INT64_MAX_VALUE;
+    for( uint8_t i = 0; i < video_stream_num; ++i )
+    {
+        int64_t gop_number = -1;
+        /* prepare. */
+        char ext[10] = { 0 };
+        if( i > 0 )
+            sprintf( ext, ".v%d", i );
+        strcat( ext, ".txt" );
+        FILE *gop_list = file_ext_open( p->input, ext, "w" );
+        if( !gop_list )
+            return;
+        mapi_log( LOG_LV_OUTPUT, "\n" );
+        /* head */
+        static const char *TS_CUT_NO = "2.1";
+        output_line( gop_list, "TS_CUT%s\n", TS_CUT_NO );
+        output_line( gop_list, "\n" );
+        /* main */
+        for( uint32_t j = 0; j < frm_limit; ++j )
+        {
+            int result = (api_type == 1)
+                       ? mpeg_api_get_sample_info( info, SAMPLE_TYPE_VIDEO, i, j, stream_info )
+                       : mpeg_api_get_video_frame( info, i, stream_info );
+            if( result )
+                break;
+            if( stream_info->gop_number >= gop_limit )
+                break;
+            if( stream_info->gop_number < 0 )
+                continue;
+            if( stream_info->gop_number <= gop_number )
+                continue;
+            gop_number   = stream_info->gop_number;
+            int64_t  pts = stream_info->video_pts;
+            uint16_t pid = stream_info->video_program_id;
+            /* gop information */
+            output_line( gop_list, "%04x,,,%" PRId64 ",%" PRIu64 "\n", pid, pts, stream_info->file_position / stream_info->au_size );
+        }
+        /* end */
+        output_line( gop_list, "LAST       ,%" PRIu64 "\n", p->file_size / stream_info->au_size );
+        output_line( gop_list, "PID_VIDEO,0000\n" );
+        output_line( gop_list, "TSPAC_TYPE,%d\n", stream_info->au_size );
+        output_line( gop_list, "END\n" );
+        fclose( gop_list );
+    }
+}
+
+static void make_stream_gop_list
+(
+    param_t                    *p,
+    void                       *info,
+    stream_info_t              *stream_info,
+    uint8_t                     video_stream_num
+)
+{
+    make_gop_list( p, info, stream_info, video_stream_num, 0 );
+}
+
+static void make_sample_gop_list
+(
+    param_t                    *p,
+    void                       *info,
+    stream_info_t              *stream_info,
+    uint8_t                     video_stream_num
+)
+{
+    if( !mpeg_api_create_sample_list( info ) )
+        make_gop_list( p, info, stream_info, video_stream_num, 1 );
 }
 
 static void dump_va_info
@@ -1765,12 +1875,13 @@ static void parse_mpeg( param_t *p )
         static const struct {
             void (*dump )( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num, uint8_t audio_stream_num );
             void (*demux)( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num, uint8_t audio_stream_num );
+            void (*index)( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num );
         } output_func[USE_MAPI_TYPE_MAX] =
             {
-                { dump_stream_info, demux_stream_data      },
-                { dump_sample_info, demux_sample_data      },
-                { dump_stream_info, demux_stream_all       },
-                { dump_stream_info, demux_stream_all_in_st }
+                { dump_stream_info, demux_stream_data     , make_stream_gop_list },
+                { dump_sample_info, demux_sample_data     , make_sample_gop_list },
+                { dump_stream_info, demux_stream_all      , make_stream_gop_list },
+                { dump_stream_info, demux_stream_all_in_st, make_stream_gop_list }
             };
         switch( p->output_mode )
         {
@@ -1781,6 +1892,9 @@ static void parse_mpeg( param_t *p )
             case OUTPUT_GET_SAMPLE_PES :
             case OUTPUT_GET_SAMPLE_CONTAINER :
                 output_func[p->api_type].demux( p, info, stream_info, video_stream_num, audio_stream_num );
+                break;
+            case OUTPUT_MAKE_GOP_LIST :
+                output_func[p->api_type].index( p, info, stream_info, video_stream_num );
                 break;
             default :
                 mapi_log( LOG_LV0, "[log] Specified output mode is invalid value...\n" );

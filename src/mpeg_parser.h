@@ -48,6 +48,8 @@ typedef struct {
     uint32_t                sample_size;
     uint32_t                raw_data_size;
     int32_t                 raw_data_read_offset;
+    uint32_t                au_size;
+    uint16_t                program_id;
     int64_t                 pts;
     int64_t                 dts;
     int64_t                 gop_number;
@@ -66,6 +68,8 @@ typedef struct {
     uint32_t                sample_size;
     uint32_t                raw_data_size;
     int32_t                 raw_data_read_offset;
+    uint32_t                au_size;
+    uint16_t                program_id;
     int64_t                 pts;
     int64_t                 dts;
     uint32_t                sampling_frequency;

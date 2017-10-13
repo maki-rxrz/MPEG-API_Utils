@@ -2171,6 +2171,8 @@ static int get_video_info( void *ih, uint8_t stream_number, video_sample_info_t 
     video_sample_info->sample_size          = TS_PACKET_SIZE * ts_packet_count;
     video_sample_info->raw_data_size        = raw_data_info.data_size;
     video_sample_info->raw_data_read_offset = raw_data_info.read_offset;
+    video_sample_info->au_size              = tsf_ctx->packet_size;
+    video_sample_info->program_id           = program_id;
     video_sample_info->pts                  = ts.pts;
     video_sample_info->dts                  = ts.dts;
     video_sample_info->gop_number           = gop_number;
@@ -2226,6 +2228,8 @@ static int get_audio_info( void *ih, uint8_t stream_number, audio_sample_info_t 
     audio_sample_info->sample_size          = TS_PACKET_SIZE * ts_packet_count;
     audio_sample_info->raw_data_size        = raw_data_info.data_size;
     audio_sample_info->raw_data_read_offset = raw_data_info.read_offset;
+    audio_sample_info->au_size              = tsf_ctx->packet_size;
+    audio_sample_info->program_id           = program_id;
     audio_sample_info->pts                  = ts.pts;
     audio_sample_info->dts                  = ts.dts;
     audio_sample_info->sampling_frequency   = raw_data_info.stream_raw_info.sampling_frequency;

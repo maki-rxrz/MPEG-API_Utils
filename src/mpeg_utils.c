@@ -53,6 +53,8 @@ typedef struct {
     uint32_t                sample_size;
     uint32_t                raw_data_size;
     int32_t                 raw_data_read_offset;
+    uint32_t                au_size;
+    uint16_t                program_id;
     /* video. */
     int64_t                 gop_number;
     timestamp_t             timestamp;
@@ -198,6 +200,8 @@ static thread_func_ret parse_stream( void *args )
             video_list[i].sample_size          = video_sample_info.sample_size;
             video_list[i].raw_data_size        = video_sample_info.raw_data_size;
             video_list[i].raw_data_read_offset = video_sample_info.raw_data_read_offset;
+            video_list[i].au_size              = video_sample_info.au_size;
+            video_list[i].program_id           = video_sample_info.program_id;
             video_list[i].gop_number           = video_sample_info.gop_number;
             video_list[i].timestamp.pts        = CALCLATE_CORRECTION_TIMESTAMP( video_sample_info.pts );
             video_list[i].timestamp.dts        = CALCLATE_CORRECTION_TIMESTAMP( video_sample_info.dts );
@@ -294,6 +298,8 @@ static thread_func_ret parse_stream( void *args )
             audio_list[i].sample_size          = audio_sample_info.sample_size;
             audio_list[i].raw_data_size        = audio_sample_info.raw_data_size;
             audio_list[i].raw_data_read_offset = audio_sample_info.raw_data_read_offset;
+            audio_list[i].au_size              = audio_sample_info.au_size;
+            audio_list[i].program_id           = audio_sample_info.program_id;
             audio_list[i].gop_number           = 0;
             audio_list[i].timestamp.pts        = CALCLATE_CORRECTION_TIMESTAMP( audio_sample_info.pts );
             audio_list[i].timestamp.dts        = CALCLATE_CORRECTION_TIMESTAMP( audio_sample_info.dts );
@@ -752,8 +758,10 @@ MAPI_EXPORT int mpeg_api_get_sample_info
         stream_info->file_position        = list[sample_number].file_position;
         stream_info->sample_size          = list[sample_number].sample_size;
         stream_info->raw_data_size        = list[sample_number].raw_data_size;
+        stream_info->au_size              = list[sample_number].au_size;
         stream_info->video_pts            = list[sample_number].timestamp.pts;
         stream_info->video_dts            = list[sample_number].timestamp.dts;
+        stream_info->video_program_id     = list[sample_number].program_id;
         stream_info->gop_number           = list[sample_number].gop_number;
         stream_info->progressive_sequence = gop->progressive_sequence;
         stream_info->closed_gop           = gop->closed_gop;
@@ -773,8 +781,10 @@ MAPI_EXPORT int mpeg_api_get_sample_info
         stream_info->file_position      = list[sample_number].file_position;
         stream_info->sample_size        = list[sample_number].sample_size;
         stream_info->raw_data_size      = list[sample_number].raw_data_size;
+        stream_info->au_size            = list[sample_number].au_size;
         stream_info->audio_pts          = list[sample_number].timestamp.pts;
         stream_info->audio_dts          = list[sample_number].timestamp.dts;
+        stream_info->audio_program_id   = list[sample_number].program_id;
         stream_info->sampling_frequency = list[sample_number].sampling_frequency;
         stream_info->bitrate            = list[sample_number].bitrate;
         stream_info->channel            = list[sample_number].channel;
@@ -868,8 +878,10 @@ MAPI_EXPORT int mpeg_api_get_video_frame( void *ih, uint8_t stream_number, strea
     stream_info->file_position        = video_sample_info.file_position;
     stream_info->sample_size          = video_sample_info.sample_size;
     stream_info->raw_data_size        = video_sample_info.raw_data_size;
+    stream_info->au_size              = video_sample_info.au_size;
     stream_info->video_pts            = video_sample_info.pts;
     stream_info->video_dts            = video_sample_info.dts;
+    stream_info->video_program_id     = video_sample_info.program_id;
     stream_info->gop_number           = video_sample_info.gop_number;
     stream_info->progressive_sequence = video_sample_info.progressive_sequence;
     stream_info->closed_gop           = video_sample_info.closed_gop;
@@ -897,8 +909,10 @@ MAPI_EXPORT int mpeg_api_get_audio_frame( void *ih, uint8_t stream_number, strea
     stream_info->file_position      = audio_sample_info.file_position;
     stream_info->sample_size        = audio_sample_info.sample_size;
     stream_info->raw_data_size      = audio_sample_info.raw_data_size;
+    stream_info->au_size            = audio_sample_info.au_size;
     stream_info->audio_pts          = audio_sample_info.pts;
     stream_info->audio_dts          = audio_sample_info.dts;
+    stream_info->audio_program_id   = audio_sample_info.program_id;
     stream_info->sampling_frequency = audio_sample_info.sampling_frequency;
     stream_info->bitrate            = audio_sample_info.bitrate;
     stream_info->channel            = audio_sample_info.channel;
