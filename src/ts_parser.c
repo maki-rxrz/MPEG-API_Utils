@@ -549,6 +549,11 @@ static void dump_va_info
     use_mapi_type               api_type
 )
 {
+    if( p->output_stream == OUTPUT_STREAM_VIDEO )
+        audio_stream_num = 0;
+    else if( p->output_stream == OUTPUT_STREAM_AUDIO )
+        video_stream_num = 0;
+    /* dump */
     static const char frame[4] = { '?', 'I', 'P', 'B' };
     int64_t pts_limit = INT64_MAX_VALUE;
     int64_t gop_limit = (p->gop_limit > 0) ? p->gop_limit - 1 : INT64_MAX_VALUE;
