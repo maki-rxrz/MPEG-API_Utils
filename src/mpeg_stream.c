@@ -495,8 +495,8 @@ extern void mpeg_stream_debug_descriptor_info( mpeg_descriptor_info_t *descripto
             )
             break;
         PRINT_DESCRIPTOR_INFO( conditional_access,
-                "        CA_system_ID:%u\n"
-                "        CA_PID:%u\n"
+                "        CA_system_ID:0x%04X\n"
+                "        CA_PID:0x%04X\n"
                 , descriptor_info->conditional_access.CA_system_ID
                 , descriptor_info->conditional_access.CA_PID
             )
@@ -620,11 +620,12 @@ extern void mpeg_stream_debug_descriptor_info( mpeg_descriptor_info_t *descripto
 extern mpeg_stream_group_type mpeg_stream_judge_type
 (
     mpeg_stream_type            stream_type,
-    uint8_t                    *descriptor_tags,
-    uint16_t                    descriptor_num
+    uint16_t                    descriptor_num,
+    uint8_t                    *descriptor_data
 )
 {
     mpeg_stream_group_type stream_judge = STREAM_IS_UNKNOWN;
+    uint16_t idx = 0;
     switch( stream_type )
     {
         case STREAM_VIDEO_MPEG1 :
@@ -655,12 +656,15 @@ extern mpeg_stream_group_type mpeg_stream_judge_type
         case STREAM_AUDIO_LPCM :
             for( uint16_t i = 0; i < descriptor_num; ++i )
             {
-                if( descriptor_tags[i] == video_stream_descriptor )
+                if( descriptor_data[idx + 0] == video_stream_descriptor )
                     stream_judge = STREAM_IS_PRIVATE_VIDEO;
-                else if( descriptor_tags[i] == registration_descriptor )
+                else if( descriptor_data[idx + 0] == registration_descriptor )
                     stream_judge = STREAM_IS_PCM_AUDIO;
                 else
+                {
+                    idx += 2 + descriptor_data[idx + 1];
                     continue;
+                }
                 break;
             }
             break;

@@ -95,6 +95,7 @@ typedef struct {
     uint32_t                    packet_check_retry_num;
     uint16_t                    pmt_program_id;
     uint16_t                    pcr_program_id;
+    uint16_t                    ecm_program_id;
     mpegts_stream_ctx_t        *video_stream;
     mpegts_stream_ctx_t        *audio_stream;
     uint8_t                     video_stream_num;
@@ -721,17 +722,50 @@ static int mpegts_search_pmt_packet( mpegts_info_t *info, tsp_pmt_si_t *pmt_si )
     return 0;
 }
 
+static uint16_t mpegts_parse_descriptor( uint8_t *descriptor_data, int data_length, mpeg_descriptor_info_t *descriptor_info )
+{
+    uint8_t  descriptor_tags[(data_length + 1) / 2];
+    uint16_t descriptor_num = 0;
+    uint16_t read_count     = 0;
+    /* parse. */
+    while( read_count < data_length - 2 )
+    {
+        mpeg_stream_get_descriptor_info( /* stream_type, */ &(descriptor_data[read_count]), descriptor_info );
+        descriptor_tags[descriptor_num] = descriptor_info->tag;
+        uint8_t descriptor_length       = descriptor_info->length;
+        char descriptor_data_str[descriptor_length * 2 + 1]; //= { 0 };
+        descriptor_data_str[descriptor_length * 2] = 0;
+        for( int i = 0; i < descriptor_length; ++i )
+            sprintf( &(descriptor_data_str[i * 2]), "%02X", descriptor_data[read_count + i + 2] );
+        mapi_log( LOG_LV2, "[check] descriptor_tag:0x%02X, descriptor_length:%u, [%s]\n"
+                         , descriptor_tags[descriptor_num], descriptor_length, descriptor_data_str );
+        mpeg_stream_debug_descriptor_info( descriptor_info );       // FIXME
+        /* next descriptor. */
+        read_count += descriptor_length + 2;
+        ++descriptor_num;
+    }
+    return descriptor_num;
+}
+
 #define PMT_PARSE_COUNT_NUM     (9)
 
 static int mpegts_parse_pmt( mpegts_info_t *info )
 {
     mapi_log( LOG_LV2, "[check] %s()\n", __func__ );
     int64_t read_pos = -1;
-    /* search. */
-    tsp_pmt_si_t pmt_si;
+    /* prepare. */
     uint8_t *buffer_data = (uint8_t *)malloc( PMT_PARSE_COUNT_NUM * TS_PACKET_TABLE_SECTION_SIZE_MAX );
     if( !buffer_data )
         return -1;
+    mpeg_descriptor_info_t *descriptor_info = (mpeg_descriptor_info_t *)malloc( sizeof(mpeg_descriptor_info_t) );
+    if( !descriptor_info )
+    {
+        free( buffer_data );
+        return -1;
+    }
+    /* search. */
+    tsp_pmt_si_t pmt_si;
+    int      prg_inf_lengths[PMT_PARSE_COUNT_NUM] = { 0 };
     int      section_lengths[PMT_PARSE_COUNT_NUM] = { 0 };
     uint8_t *section_buffers[PMT_PARSE_COUNT_NUM];
     int32_t  section_pid_num[PMT_PARSE_COUNT_NUM] = { 0 };
@@ -743,7 +777,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
     for( int i = 0; i < PMT_PARSE_COUNT_NUM; ++i )
     {
         /* search. */
-        int section_length = 0;
+        int section_length = 0, prg_inf_length = 0;
         int retry_count = info->packet_check_retry_num;
         while( retry_count )
         {
@@ -757,8 +791,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
             }
             /* get section length. */
             section_length = pmt_si.section_length - 9;         /* 9: section_header[3]-[11] */
-            mpegts_file_seek( &(info->tsf_ctx), pmt_si.program_info_length, MPEGTS_SEEK_CUR );
-            section_length -= pmt_si.program_info_length;
+            prg_inf_length = pmt_si.program_info_length;
             mapi_log( LOG_LV4, "[check] section_length:%d\n", section_length );
             /* check file position. */
             read_pos = info->tsf_ctx.read_position;
@@ -766,7 +799,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
             if( mpegts_get_table_section_data( &(info->tsf_ctx), info->pmt_program_id, section_buffers[i], section_length ) )
                 continue;
             /* check pid list num. */
-            int32_t pid_list_num = 0, read_count = 0;
+            int32_t pid_list_num = 0, read_count = prg_inf_length;
             while( read_count < section_length - CRC32_SIZE )
             {
                 uint8_t *section_data = &(section_buffers[i][read_count]);
@@ -789,6 +822,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
         if( i == 0 )
             reset_position = read_pos;
         section_lengths[i] = section_length;
+        prg_inf_lengths[i] = prg_inf_length;
         /* seek next. */
         mpegts_file_seek( &(info->tsf_ctx), read_pos + check_offset, MPEGTS_SEEK_RESET );
     }
@@ -837,6 +871,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
         }
     }
     mapi_log( LOG_LV2, "[check] target_pmt:%d\n", target_pmt );
+    int      prg_inf_length = prg_inf_lengths[target_pmt];
     int      section_length = section_lengths[target_pmt];
     uint8_t *section_buffer = section_buffers[target_pmt];
     int      pid_num_in_pmt = section_pid_num[target_pmt];
@@ -845,10 +880,20 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
     info->pid_list_in_pmt     = (mpegts_pid_in_pmt_t *)malloc( sizeof(mpegts_pid_in_pmt_t) * pid_num_in_pmt );
     if( !info->pid_list_in_pmt )
         goto fail_parse;
-    mpeg_descriptor_info_t *descriptor_info = (mpeg_descriptor_info_t *)malloc( sizeof(mpeg_descriptor_info_t) );
-    if( !descriptor_info )
-        goto fail_parse;
     int32_t pid_list_num = 0, read_count = 0;
+    memset( descriptor_info, 0, sizeof(mpeg_descriptor_info_t) );
+    if( prg_inf_length )
+    {
+        /* parse descriptor. */
+        uint8_t  *descriptor_data = &(section_buffer[read_count]);
+        uint16_t  descriptor_num  = mpegts_parse_descriptor( descriptor_data, prg_inf_length, descriptor_info );
+        if( descriptor_num && descriptor_info->conditional_access.CA_system_ID )
+        {
+            info->ecm_program_id = descriptor_info->conditional_access.CA_PID;
+            mapi_log( LOG_LV2, "[check] ecm_PID:0x%04X\n", info->ecm_program_id );
+        }
+        read_count += prg_inf_length;
+    }
     while( read_count < section_length - CRC32_SIZE )
     {
         uint8_t *section_data        = &(section_buffer[read_count]);
@@ -860,25 +905,11 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
         mapi_log( LOG_LV2, "[check] stream_type:0x%02X, elementary_PID:0x%04X, ES_info_length:%u\n"
                          , stream_type, elementary_PID, ES_info_length );
         read_count += TS_PACKET_PMT_SECTION_DATA_SIZE;
-        /* check descriptor. */
-        uint8_t descriptor_tags[(ES_info_length + 1) / 2];
-        uint16_t  descriptor_num        = 0;
-        uint16_t  descriptor_read_count = 0;
-        uint8_t  *descriptor_data       = &(section_buffer[read_count]);
-        while( descriptor_read_count < ES_info_length - 2 )
-        {
-            mpeg_stream_get_descriptor_info( /* stream_type, */ &(descriptor_data[descriptor_read_count]), descriptor_info );
-            descriptor_tags[descriptor_num] = descriptor_info->tag;
-            uint8_t descriptor_length       = descriptor_info->length;
-            mapi_log( LOG_LV2, "[check] descriptor_tag:0x%02X, descriptor_length:%u\n"
-                             , descriptor_tags[descriptor_num], descriptor_length );
-            mpeg_stream_debug_descriptor_info( descriptor_info );       // FIXME
-            /* next descriptor. */
-            descriptor_read_count += descriptor_length + 2;
-            ++descriptor_num;
-        }
+        /* parse descriptor. */
+        uint8_t  *descriptor_data = &(section_buffer[read_count]);
+        uint16_t  descriptor_num  = mpegts_parse_descriptor( descriptor_data, ES_info_length, descriptor_info );
         /* setup stream type and PID. */
-        info->pid_list_in_pmt[pid_list_num].stream_judge = mpeg_stream_judge_type( stream_type, descriptor_tags, descriptor_num );
+        info->pid_list_in_pmt[pid_list_num].stream_judge = mpeg_stream_judge_type( stream_type, descriptor_num, descriptor_data );
         info->pid_list_in_pmt[pid_list_num].stream_type  = stream_type;
         info->pid_list_in_pmt[pid_list_num].program_id   = elementary_PID;
         /* seek next section. */
@@ -900,6 +931,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
     free( buffer_data );
     return 0;
 fail_parse:
+    free( descriptor_info );
     free( buffer_data );
     return -1;
 }
@@ -2442,6 +2474,7 @@ static int set_pmt_program_id( mpegts_info_t *info, uint16_t program_id )
     info->tsf_ctx.sync_byte_position = 0;
     info->tsf_ctx.read_position      = -1;
     info->pcr_program_id             = TS_PID_ERR;
+    info->ecm_program_id             = TS_PID_ERR;
     info->pcr                        = MPEG_TIMESTAMP_INVALID_VALUE;
     info->start_pcr                  = MPEG_TIMESTAMP_INVALID_VALUE;
     info->last_pcr                   = MPEG_TIMESTAMP_INVALID_VALUE;
@@ -2584,6 +2617,7 @@ static void *initialize( const char *input_file, int64_t buffer_size )
     info->tsf_ctx.packet_check_count_num = TS_PACKET_SEARCH_CHECK_COUNT_NUM;
     info->packet_check_retry_num         = TS_PACKET_SEARCH_RETRY_COUNT_NUM;
     info->pcr_program_id                 = TS_PID_ERR;
+    info->ecm_program_id                 = TS_PID_ERR;
     info->pcr                            = MPEG_TIMESTAMP_INVALID_VALUE;
     info->start_pcr                      = MPEG_TIMESTAMP_INVALID_VALUE;
     info->last_pcr                       = MPEG_TIMESTAMP_INVALID_VALUE;

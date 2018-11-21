@@ -336,8 +336,8 @@ extern void mpeg_stream_debug_descriptor_info( mpeg_descriptor_info_t *descripto
 extern mpeg_stream_group_type mpeg_stream_judge_type
 (
     mpeg_stream_type            stream_type,
-    uint8_t                    *descriptor_tags,
-    uint16_t                    descriptor_num
+    uint16_t                    descriptor_num,
+    uint8_t                    *descriptor_data
 );
 
 extern int32_t mpeg_stream_check_header
