@@ -355,6 +355,8 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
                 p->output_stream = OUTPUT_STREAM_AUDIO;
             else if( !strncasecmp( c, "p", 1 ) )
                 p->output_stream = OUTPUT_STREAM_NONE_PCR_ONLY;
+            else if( !strncasecmp( c, "c", 1 ) )
+                p->output_stream = OUTPUT_STREAM_CAPTION;
             else
                 p->output_stream = OUTPUT_STREAM_NONE;
         }
@@ -426,6 +428,9 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
                         break;
                     case 'a' :
                         output_stream |= OUTPUT_STREAM_AUDIO;
+                        break;
+                    case 'c' :
+                        output_stream |= OUTPUT_STREAM_CAPTION;
                         break;
                     case 'm' :
                         p->api_type   = USE_MAPI_DEMUX_ALL;

@@ -650,7 +650,9 @@ MAPI_EXPORT const char *mpeg_api_get_sample_file_extension
     static const char *raw_ext[SAMPLE_TYPE_MAX][6] =
         {
             { NULL, ".m1v", ".m2v", ".avc", ".vc1", NULL   },
-            { NULL, ".mpa", ".aac", ".pcm", ".ac3", ".dts" }
+            { NULL, ".mpa", ".aac", ".pcm", ".ac3", ".dts" },
+            { NULL, NULL  , NULL  , NULL  , NULL  , NULL   },
+            { NULL, NULL  , NULL  , NULL  , NULL  , NULL   }
         };
     int index = 0;
     mpeg_stream_type stream_type = info->parser->get_sample_stream_type( info->parser_info, sample_type, stream_number );

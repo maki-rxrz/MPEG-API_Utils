@@ -638,6 +638,7 @@ extern mpeg_stream_group_type mpeg_stream_judge_type
         case STREAM_VIDEO_MPEG2_B :
         case STREAM_VIDEO_MPEG2_C :
         case STREAM_VIDEO_MPEG2_D :
+            stream_judge = STREAM_IS_DSMCC;
             break;
         case STREAM_VIDEO_MP4 :
         case STREAM_VIDEO_AVC :
@@ -679,6 +680,21 @@ extern mpeg_stream_group_type mpeg_stream_judge_type
         case STREAM_AUDIO_DTS_HD_XLL :
         case STREAM_AUDIO_DTS_HD_SUB :
             stream_judge = STREAM_IS_DTS_AUDIO;
+            break;
+        case STREAM_PES_PRIVATE_DATA :
+            for( uint16_t i = 0; i < descriptor_num; ++i )
+            {
+                if( descriptor_data[idx + 0] == 0x52 && descriptor_data[idx + 1] == 1 )
+                {
+                    if( descriptor_data[idx + 2] == 0x30 )
+                        stream_judge = STREAM_IS_ARIB_CAPTION;
+                    else if( descriptor_data[idx + 2] == 0x38 )
+                        stream_judge = STREAM_IS_ARIB_STRING_SUPER;
+                }
+                if( stream_judge != STREAM_IS_UNKNOWN )
+                    break;
+                idx += 2 + descriptor_data[idx + 1];
+            }
             break;
         default :
             break;

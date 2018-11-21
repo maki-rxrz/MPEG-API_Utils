@@ -33,13 +33,48 @@
 
 #define MPEGTS_ILLEGAL_PROGRAM_ID_MASK      (0xE000)
 
+#define MPEGTS_PID_SYSTEM_RESERVED_MAX      (0x000F)
+#define MPEGTS_PID_DVB_RESERVED_MAX         (0x001F)
+#define MPEGTS_PID_ISDB_RESERVED_MAX        (0x002F)
+#define MPEGTS_PID_RESERVED_CHECK_VALUE     (MPEGTS_PID_ISDB_RESERVED_MAX + 0x0001)
+
 typedef enum {
-    TS_PID_PAT = 0x0000,
-    TS_PID_CAT = 0x0001,
-    TS_PID_NIT = 0x0010,
-    TS_PID_SDT = 0x0011,
-    TS_PID_BAT = 0x0011,
-    TS_PID_EIT = 0x0012,
+    TS_PID_PAT   = 0x0000,
+    TS_PID_CAT   = 0x0001,
+    TS_PID_TSDT  = 0x0002,
+    /*  Reserved : 0x0003 = for IPMP control information table (ISO/IEC 13818-11) */
+    /*  Reserved : 0x0004 - 0x000F  */
+    TS_PID_NIT   = 0x0010,
+    /* DVB systems and ARIB STD-B10 */
+    TS_PID_SDT   = 0x0011,
+    TS_PID_BAT   = 0x0011,
+    TS_PID_EIT   = 0x0012,
+    TS_PID_RST   = 0x0013,
+    TS_PID_TDT   = 0x0014,
+    TS_PID_TOT   = 0x0014,
+    /*           : 0x0015 = network synchronization */
+    TS_PID_RNT   = 0x0016,
+    TS_PID_DCT   = 0x0017,          /* ARIB STD-B10 */
+    /*  Reserved : 0x0017 - 0x001B                  */
+    /*           : 0x001C = inband signalling       */
+    /*           : 0x001D = measurement             */
+    TS_PID_DIT   = 0x001E,
+    TS_PID_SIT   = 0x001F,
+    /* ARIB STD-B10     */
+    TS_PID_LIT   = 0x0020,
+    TS_PID_ERT   = 0x0021,
+    TS_PID_PCAT  = 0x0022,
+    TS_PID_SDTT  = 0x0023,
+    TS_PID_BIT   = 0x0024,
+    TS_PID_NBIT  = 0x0025,
+    TS_PID_LDT   = 0x0025,
+    TS_PID_EIT2  = 0x0026,
+    TS_PID_EIT3  = 0x0027,
+    TS_PID_SDTT2 = 0x0028,
+    TS_PID_CDT   = 0x0029,
+    TS_PID_TLV   = 0x002D,
+    TS_PID_AMT   = 0x002E,
+    TS_PID_TSMF  = 0x002F,
     /* ERR: 0x1FFF over */
     TS_PID_ERR = 0xFFFF
 } mpegts_pid_type;

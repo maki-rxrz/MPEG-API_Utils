@@ -40,6 +40,9 @@
 typedef enum {
     SAMPLE_TYPE_VIDEO,
     SAMPLE_TYPE_AUDIO,
+    SAMPLE_TYPE_CAPTION,
+    SAMPLE_TYPE_DSMCC,
+    SAMPLE_TYPE_PSI,
     SAMPLE_TYPE_MAX
 } mpeg_sample_type;
 
@@ -54,7 +57,9 @@ typedef enum {
     OUTPUT_STREAM_VIDEO         = 0x01,
     OUTPUT_STREAM_AUDIO         = 0x02,
     OUTPUT_STREAM_BOTH_VA       = 0x03,
-    OUTPUT_STREAM_NONE_PCR_ONLY = 0x04
+    OUTPUT_STREAM_NONE_PCR_ONLY = 0x04,
+    OUTPUT_STREAM_CAPTION       = 0x08,
+    OUTPUT_STREAM_DSMCC         = 0x10
 } output_stream_type;
 
 typedef enum {
@@ -77,21 +82,25 @@ typedef enum {
 } pmt_target_type;
 
 typedef enum {
-    STREAM_IS_UNKNOWN       = 0x0000                       ,
-    STREAM_IS_VIDEO         = 0x0001                       ,
-    STREAM_IS_MPEG_VIDEO    = 0x0002 | STREAM_IS_VIDEO     ,
-    STREAM_IS_MPEG1_VIDEO   =          STREAM_IS_MPEG_VIDEO,
-    STREAM_IS_MPEG2_VIDEO   = 0x0004 | STREAM_IS_MPEG_VIDEO,
-    STREAM_IS_MPEG4_VIDEO   = 0x0008 | STREAM_IS_VIDEO     ,
-    STREAM_IS_PRIVATE_VIDEO = 0x0010 | STREAM_IS_VIDEO     ,
-    STREAM_IS_AUDIO         = 0x0100                       ,
-    STREAM_IS_MPEG_AUDIO    = 0x0200 | STREAM_IS_AUDIO     ,
-    STREAM_IS_MPEG1_AUDIO   = 0x0400 | STREAM_IS_MPEG_AUDIO,
-    STREAM_IS_MPEG2_AUDIO   = 0x0800 | STREAM_IS_MPEG_AUDIO,
-    STREAM_IS_AAC_AUDIO     = 0x1000 | STREAM_IS_MPEG_AUDIO,
-    STREAM_IS_PCM_AUDIO     = 0x2000 | STREAM_IS_AUDIO     ,
-    STREAM_IS_DOLBY_AUDIO   = 0x4000 | STREAM_IS_AUDIO     ,
-    STREAM_IS_DTS_AUDIO     = 0x8000 | STREAM_IS_AUDIO
+    STREAM_IS_UNKNOWN           = 0x00000000                       ,
+    STREAM_IS_VIDEO             = 0x00000001                       ,
+    STREAM_IS_MPEG_VIDEO        = 0x00000002 | STREAM_IS_VIDEO     ,
+    STREAM_IS_MPEG1_VIDEO       =              STREAM_IS_MPEG_VIDEO,
+    STREAM_IS_MPEG2_VIDEO       = 0x00000004 | STREAM_IS_MPEG_VIDEO,
+    STREAM_IS_MPEG4_VIDEO       = 0x00000008 | STREAM_IS_VIDEO     ,
+    STREAM_IS_PRIVATE_VIDEO     = 0x00000010 | STREAM_IS_VIDEO     ,
+    STREAM_IS_AUDIO             = 0x00000100                       ,
+    STREAM_IS_MPEG_AUDIO        = 0x00000200 | STREAM_IS_AUDIO     ,
+    STREAM_IS_MPEG1_AUDIO       = 0x00000400 | STREAM_IS_MPEG_AUDIO,
+    STREAM_IS_MPEG2_AUDIO       = 0x00000800 | STREAM_IS_MPEG_AUDIO,
+    STREAM_IS_AAC_AUDIO         = 0x00001000 | STREAM_IS_MPEG_AUDIO,
+    STREAM_IS_PCM_AUDIO         = 0x00002000 | STREAM_IS_AUDIO     ,
+    STREAM_IS_DOLBY_AUDIO       = 0x00004000 | STREAM_IS_AUDIO     ,
+    STREAM_IS_DTS_AUDIO         = 0x00008000 | STREAM_IS_AUDIO     ,
+    STREAM_IS_CAPTION           = 0x00010000                       ,
+    STREAM_IS_ARIB_CAPTION      = 0x00020000 | STREAM_IS_CAPTION   ,
+    STREAM_IS_ARIB_STRING_SUPER = 0x00040000 | STREAM_IS_CAPTION   ,
+    STREAM_IS_DSMCC             = 0x00100000
 } mpeg_stream_group_type;
 
 typedef enum {

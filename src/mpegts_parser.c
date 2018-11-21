@@ -98,8 +98,12 @@ typedef struct {
     uint16_t                    ecm_program_id;
     mpegts_stream_ctx_t        *video_stream;
     mpegts_stream_ctx_t        *audio_stream;
+    mpegts_stream_ctx_t        *caption_stream;
+    mpegts_stream_ctx_t        *dsmcc_stream;
     uint8_t                     video_stream_num;
     uint8_t                     audio_stream_num;
+    uint8_t                     caption_stream_num;
+    uint8_t                     dsmcc_stream_num;
     int64_t                     pcr;
 #ifdef NEED_OPCR_VALUE
     int64_t                     opcr;
@@ -1725,6 +1729,10 @@ static const char *get_stream_information
         stream = &(info->video_stream[stream_number]);
     else if( sample_type == SAMPLE_TYPE_AUDIO && stream_number < info->audio_stream_num )
         stream = &(info->audio_stream[stream_number]);
+    else if( sample_type == SAMPLE_TYPE_CAPTION && stream_number < info->caption_stream_num )
+        stream = &(info->caption_stream[stream_number]);
+    else if( sample_type == SAMPLE_TYPE_DSMCC && stream_number < info->dsmcc_stream_num )
+        stream = &(info->dsmcc_stream[stream_number]);
     else
         return NULL;
     return stream->private_info[key].info;
@@ -1741,6 +1749,8 @@ static mpeg_stream_type get_sample_stream_type( void *ih, mpeg_sample_type sampl
         stream_type = info->video_stream[stream_number].stream_type;
     else if( sample_type == SAMPLE_TYPE_AUDIO && stream_number < info->audio_stream_num )
         stream_type = info->audio_stream[stream_number].stream_type;
+    else if( sample_type == SAMPLE_TYPE_DSMCC && stream_number < info->dsmcc_stream_num )
+        stream_type = info->dsmcc_stream[stream_number].stream_type;
     return stream_type;
 }
 
@@ -1788,6 +1798,20 @@ static int get_sample_data
         stream_type  =   info->audio_stream[stream_number].stream_type; */
         program_id   =   info->audio_stream[stream_number].program_id;
     }
+    else if( sample_type == SAMPLE_TYPE_CAPTION && stream_number < info->caption_stream_num )
+    {
+        tsf_ctx      = &(info->caption_stream[stream_number].tsf_ctx);
+     /* stream_judge =   info->caption_stream[stream_number].stream_judge;
+        stream_type  =   info->caption_stream[stream_number].stream_type; */
+        program_id   =   info->caption_stream[stream_number].program_id;
+    }
+    else if( sample_type == SAMPLE_TYPE_DSMCC && stream_number < info->dsmcc_stream_num )
+    {
+        tsf_ctx      = &(info->dsmcc_stream[stream_number].tsf_ctx);
+     /* stream_judge =   info->dsmcc_stream[stream_number].stream_judge;
+        stream_type  =   info->dsmcc_stream[stream_number].stream_type; */
+        program_id   =   info->dsmcc_stream[stream_number].program_id;
+    }
     else
         return -1;
     /* seek reading start position. */
@@ -1829,6 +1853,10 @@ static int64_t get_sample_position( void *ih, mpeg_sample_type sample_type, uint
         tsf_ctx = &(info->video_stream[stream_number].tsf_ctx);
     else if( sample_type == SAMPLE_TYPE_AUDIO && stream_number < info->audio_stream_num )
         tsf_ctx = &(info->audio_stream[stream_number].tsf_ctx);
+    else if( sample_type == SAMPLE_TYPE_CAPTION && stream_number < info->caption_stream_num )
+        tsf_ctx = &(info->caption_stream[stream_number].tsf_ctx);
+    else if( sample_type == SAMPLE_TYPE_DSMCC && stream_number < info->dsmcc_stream_num )
+        tsf_ctx = &(info->dsmcc_stream[stream_number].tsf_ctx);
     else
         return -1;
     //return mpegts_ftell( tsf_ctx );
@@ -1845,6 +1873,10 @@ static int set_sample_position( void *ih, mpeg_sample_type sample_type, uint8_t 
         tsf_ctx = &(info->video_stream[stream_number].tsf_ctx);
     else if( sample_type == SAMPLE_TYPE_AUDIO && stream_number < info->audio_stream_num )
         tsf_ctx = &(info->audio_stream[stream_number].tsf_ctx);
+    else if( sample_type == SAMPLE_TYPE_CAPTION && stream_number < info->caption_stream_num )
+        tsf_ctx = &(info->caption_stream[stream_number].tsf_ctx);
+    else if( sample_type == SAMPLE_TYPE_DSMCC && stream_number < info->dsmcc_stream_num )
+        tsf_ctx = &(info->dsmcc_stream[stream_number].tsf_ctx);
     else
         return -1;
     mpegts_file_seek( tsf_ctx, position, MPEGTS_SEEK_SET );
@@ -1869,6 +1901,16 @@ static int seek_next_sample_position( void *ih, mpeg_sample_type sample_type, ui
     {
         tsf_ctx       = &(info->audio_stream[stream_number].tsf_ctx);
         seek_position =   info->audio_stream[stream_number].tsf_ctx.read_position;
+    }
+    else if( sample_type == SAMPLE_TYPE_CAPTION && stream_number < info->caption_stream_num )
+    {
+        tsf_ctx       = &(info->caption_stream[stream_number].tsf_ctx);
+        seek_position =   info->caption_stream[stream_number].tsf_ctx.read_position;
+    }
+    else if( sample_type == SAMPLE_TYPE_DSMCC && stream_number < info->dsmcc_stream_num )
+    {
+        tsf_ctx       = &(info->dsmcc_stream[stream_number].tsf_ctx);
+        seek_position =   info->dsmcc_stream[stream_number].tsf_ctx.read_position;
     }
     if( seek_position < 0 )
         return -1;
@@ -1895,20 +1937,55 @@ static int get_specific_stream_data
     tsf_ctx->read_position      = 0;
     tsf_ctx->sync_byte_position = -1;
 #endif
+    /* check output mode. */
+    int psi_required = get_mode == GET_SAMPLE_DATA_CONTAINER;
     /* list up the targets. */
-    uint16_t total_stream_num = ((output_stream & OUTPUT_STREAM_VIDEO) ? info->video_stream_num : 0)
-                              + ((output_stream & OUTPUT_STREAM_AUDIO) ? info->audio_stream_num : 0);
+    uint8_t video_stream_num   = (output_stream & OUTPUT_STREAM_VIDEO  ) ? info->video_stream_num   : 0;
+    uint8_t audio_stream_num   = (output_stream & OUTPUT_STREAM_AUDIO  ) ? info->audio_stream_num   : 0;
+    uint8_t caption_stream_num = (output_stream & OUTPUT_STREAM_CAPTION) ? info->caption_stream_num : 0;
+    uint8_t dsmcc_stream_num   = (output_stream & OUTPUT_STREAM_DSMCC  ) ? info->dsmcc_stream_num   : 0;
+    uint16_t total_stream_num;
+    if( psi_required )
+        /*  N : Video, Audio, Caption, DSM-CC   */
+        /* 47 : PAT, CAT, NIT, ... , TSMF       */
+        /*  3 : PMT, PCR, ECM (+1: EMM)         */      // FIXME
+        total_stream_num = video_stream_num + audio_stream_num + caption_stream_num + dsmcc_stream_num + 50;
+    else
+        /*  N : Video, Audio */
+        total_stream_num = video_stream_num + audio_stream_num;
     uint16_t pid_list[total_stream_num + 1];
     memset( pid_list, 0, sizeof(uint16_t) * (total_stream_num + 1) );
     uint16_t pid_idx = 0;
-    if( output_stream & OUTPUT_STREAM_VIDEO )
-        for( uint8_t i = 0; i < info->video_stream_num; ++i, ++pid_idx )
-            pid_list[pid_idx] = info->video_stream[i].program_id;
-    if( output_stream & OUTPUT_STREAM_AUDIO )
-        for( uint8_t i = 0; i < info->audio_stream_num; ++i, ++pid_idx )
-            pid_list[pid_idx] = info->audio_stream[i].program_id;
+    /* Video */
+    for( uint8_t i = 0; i < video_stream_num; ++i, ++pid_idx )
+        pid_list[pid_idx] = info->video_stream[i].program_id;
+    /* Audio */
+    for( uint8_t i = 0; i < audio_stream_num; ++i, ++pid_idx )
+        pid_list[pid_idx] = info->audio_stream[i].program_id;
+    if( psi_required )
+    {
+        /* Caption */
+        for( uint8_t i = 0; i < caption_stream_num; ++i, ++pid_idx )
+            pid_list[pid_idx] = info->caption_stream[i].program_id;
+        /* DSM-CC */
+        for( uint8_t i = 0; i < dsmcc_stream_num; ++i, ++pid_idx )
+            pid_list[pid_idx] = info->dsmcc_stream[i].program_id;
+        /* PMT, PCR, ECM */
+        pid_list[pid_idx++] = info->pmt_program_id;
+        pid_list[pid_idx++] = info->pcr_program_id;
+        if( info->ecm_program_id != TS_PID_ERR )
+            pid_list[pid_idx++] = info->ecm_program_id;
+        /* PAT, etc */
+        for( uint16_t i = TS_PID_PAT; i < MPEGTS_PID_RESERVED_CHECK_VALUE; i++ )
+            pid_list[pid_idx++] = i;
+    }
+#ifdef DEBUG
+    mapi_log( LOG_LV1, "[debug] pid_list_num:%d\n", total_stream_num );
+    for( uint8_t i = 0; i < total_stream_num; ++i )
+        mapi_log( LOG_LV1, "  pid=0x%04X\n", pid_list[i] );
+#endif
     /* search. */
-    mpeg_sample_type  sample_type   = SAMPLE_TYPE_VIDEO;
+    mpeg_sample_type  sample_type   = SAMPLE_TYPE_PSI;
     uint8_t           stream_number = 0;
     tss_ctx_t        *stream        = NULL;
     while( 1 )
@@ -1919,22 +1996,39 @@ static int get_specific_stream_data
         mpegts_file_seek( tsf_ctx, -(TS_PACKET_HEADER_SIZE), MPEGTS_SEEK_CUR );
         tsf_ctx->sync_byte_position = 0;
         /* check the target stream. */
-        for( uint8_t i = 0; !stream && i < info->video_stream_num; ++i )
+        for( uint8_t i = 0; !stream && i < video_stream_num; ++i )
             if( h.program_id == info->video_stream[i].program_id )
             {
                 sample_type   = SAMPLE_TYPE_VIDEO;
                 stream_number = i;
                 stream        = &(info->video_stream[i]);
             }
-        for( uint8_t i = 0; !stream && i < info->audio_stream_num; ++i )
+        for( uint8_t i = 0; !stream && i < audio_stream_num; ++i )
             if( h.program_id == info->audio_stream[i].program_id )
             {
                 sample_type   = SAMPLE_TYPE_AUDIO;
                 stream_number = i;
                 stream        = &(info->audio_stream[i]);
             }
+        for( uint8_t i = 0; !stream && i < caption_stream_num; ++i )
+            if( h.program_id == info->caption_stream[i].program_id )
+            {
+                sample_type   = SAMPLE_TYPE_CAPTION;
+                stream_number = i;
+                stream        = &(info->caption_stream[i]);
+            }
+        for( uint8_t i = 0; !stream && i < dsmcc_stream_num; ++i )
+            if( h.program_id == info->dsmcc_stream[i].program_id )
+            {
+                sample_type   = SAMPLE_TYPE_DSMCC;
+                stream_number = i;
+                stream        = &(info->dsmcc_stream[i]);
+            }
         /* check start position. */
         if( stream && tsf_ctx->read_position >= stream->tsf_ctx.read_position )
+            break;
+        /* check psi packcet. */
+        if( psi_required && !stream /* && h.program_id < MPEGTS_PID_RESERVED_CHECK_VALUE */ )   // FIXME
             break;
         /* seek next. */
         mpegts_file_seek( tsf_ctx, 0, MPEGTS_SEEK_NEXT );
@@ -2038,6 +2132,16 @@ static int get_stream_data
         tsf_ctx    = &(info->audio_stream[stream_number].tsf_ctx);
         program_id =   info->audio_stream[stream_number].program_id;
     }
+    else if( sample_type == SAMPLE_TYPE_CAPTION && stream_number < info->caption_stream_num )
+    {
+        tsf_ctx    = &(info->caption_stream[stream_number].tsf_ctx);
+        program_id =   info->caption_stream[stream_number].program_id;
+    }
+    else if( sample_type == SAMPLE_TYPE_DSMCC && stream_number < info->dsmcc_stream_num )
+    {
+        tsf_ctx    = &(info->dsmcc_stream[stream_number].tsf_ctx);
+        program_id =   info->dsmcc_stream[stream_number].program_id;
+    }
     else
         return -1;
     /* search. */
@@ -2119,6 +2223,10 @@ static uint8_t get_stream_num( void *ih, mpeg_sample_type sample_type )
         stream_num = info->video_stream_num;
     else if( sample_type == SAMPLE_TYPE_AUDIO )
         stream_num = info->audio_stream_num;
+    else if( sample_type == SAMPLE_TYPE_CAPTION )
+        stream_num = info->caption_stream_num;
+    else if( sample_type == SAMPLE_TYPE_DSMCC )
+        stream_num = info->dsmcc_stream_num;
     return stream_num;
 }
 
@@ -2299,7 +2407,7 @@ static int set_pmt_stream_info( mpegts_info_t *info )
     int64_t start_position = mpegts_ftell( &(info->tsf_ctx) );
     tsp_header_t h;
     /* check stream num. */
-    uint8_t video_stream_num = 0, audio_stream_num = 0;
+    uint8_t video_stream_num = 0, audio_stream_num = 0, caption_stream_num = 0, dsmcc_stream_num = 0;
     for( int32_t pid_list_index = 0; pid_list_index < info->pid_list_num_in_pmt; ++pid_list_index )
     {
         mpeg_stream_group_type stream_judge = info->pid_list_in_pmt[pid_list_index].stream_judge;
@@ -2307,17 +2415,27 @@ static int set_pmt_stream_info( mpegts_info_t *info )
             ++video_stream_num;
         else if( stream_judge & STREAM_IS_AUDIO )
             ++audio_stream_num;
+        else if( stream_judge & STREAM_IS_CAPTION )
+            ++caption_stream_num;
+        else if( stream_judge & STREAM_IS_DSMCC )
+            ++dsmcc_stream_num;
     }
-    if( !video_stream_num && !audio_stream_num )
+    if( !video_stream_num && !audio_stream_num && !caption_stream_num && !dsmcc_stream_num )
         return -1;
     /* allocate streams context. */
-    tss_ctx_t *video_ctx = NULL, *audio_ctx = NULL;
+    tss_ctx_t *video_ctx = NULL, *audio_ctx = NULL, *caption_ctx = NULL, *dsmcc_ctx = NULL;
     if( video_stream_num )
         video_ctx = (tss_ctx_t *)malloc( sizeof(tss_ctx_t) * video_stream_num );
     if( audio_stream_num )
         audio_ctx = (tss_ctx_t *)malloc( sizeof(tss_ctx_t) * audio_stream_num );
+    if( caption_stream_num )
+        caption_ctx = (tss_ctx_t *)malloc( sizeof(tss_ctx_t) * caption_stream_num );
+    if( dsmcc_stream_num )
+        dsmcc_ctx = (tss_ctx_t *)malloc( sizeof(tss_ctx_t) * dsmcc_stream_num );
     if( (video_stream_num && !video_ctx)
-     || (audio_stream_num && !audio_ctx) )
+     || (audio_stream_num && !audio_ctx)
+     || (caption_stream_num && !caption_ctx)
+     || (dsmcc_stream_num && !dsmcc_ctx) )
         goto fail_set_pmt_stream_info;
     /* initialize context items. */
     for( uint8_t i = 0; i < video_stream_num; ++i )
@@ -2330,15 +2448,25 @@ static int set_pmt_stream_info( mpegts_info_t *info )
         tss_ctx_t *stream = &(audio_ctx[i]);
         stream->stream_parse_info = NULL;
     }
+    for( uint8_t i = 0; i < caption_stream_num; ++i )
+    {
+        tss_ctx_t *stream = &(caption_ctx[i]);
+        stream->stream_parse_info = NULL;
+    }
+    for( uint8_t i = 0; i < dsmcc_stream_num; ++i )
+    {
+        tss_ctx_t *stream = &(dsmcc_ctx[i]);
+        stream->stream_parse_info = NULL;
+    }
     /* check exist. */
-    video_stream_num = audio_stream_num = 0;
+    video_stream_num = audio_stream_num = caption_stream_num = dsmcc_stream_num = 0;
     for( int32_t pid_list_index = 0; pid_list_index < info->pid_list_num_in_pmt; ++pid_list_index )
     {
         uint16_t               program_id   = info->pid_list_in_pmt[pid_list_index].program_id;
         mpeg_stream_type       stream_type  = info->pid_list_in_pmt[pid_list_index].stream_type;
         mpeg_stream_group_type stream_judge = info->pid_list_in_pmt[pid_list_index].stream_judge;
         /*  */
-        static const char *stream_name[2] = { "video", "audio" };
+        static const char *stream_name[4] = { " video ", " audio ", "caption", " dsm-cc" };
         tss_ctx_t *stream     = NULL;
         uint8_t   *stream_num = NULL;
         int                  index      = 0;
@@ -2353,6 +2481,18 @@ static int set_pmt_stream_info( mpegts_info_t *info )
             stream     = &(audio_ctx[audio_stream_num]);
             stream_num = &audio_stream_num;
             index      = 1;
+        }
+        else if( stream_judge & STREAM_IS_CAPTION )
+        {
+            stream     = &(caption_ctx[caption_stream_num]);
+            stream_num = &caption_stream_num;
+            index      = 2;
+        }
+        else if( stream_judge & STREAM_IS_DSMCC )
+        {
+            stream     = &(dsmcc_ctx[dsmcc_stream_num]);
+            stream_num = &dsmcc_stream_num;
+            index      = 3;
         }
         if( stream )
         {
@@ -2380,14 +2520,14 @@ static int set_pmt_stream_info( mpegts_info_t *info )
                     stream->gop_number                     = -1;
                     stream->header_offset                  = 0;
                     sprintf( stream->private_info[GET_INFO_KEY_ID].info, "PID %x", program_id );
-                    mapi_log( LOG_LV2, "[check] %s PID:0x%04X  stream_type:0x%02X\n"
+                    mapi_log( LOG_LV2, "[check] %s PID:0x%04X, stream_type:0x%02X\n"
                                      , stream_name[index], program_id, stream_type );
                     mpegts_file_seek( &(stream->tsf_ctx), info->tsf_ctx.read_position, MPEGTS_SEEK_SET );
                     ++(*stream_num);
                 }
             }
             else
-                mapi_log( LOG_LV2, "[check] Undetected - %s PID:0x%04X  stream_type:0x%02X\n"
+                mapi_log( LOG_LV2, "[check] Undetected - %s PID:0x%04X, stream_type:0x%02X\n"
                                  , stream_name[index], program_id, stream_type );
             mpegts_file_seek( &(info->tsf_ctx), start_position, MPEGTS_SEEK_RESET );
         }
@@ -2402,24 +2542,44 @@ static int set_pmt_stream_info( mpegts_info_t *info )
         free( audio_ctx );
         audio_ctx = NULL;
     }
-    if( !video_ctx && !audio_ctx )
+    if( !caption_stream_num )
+    {
+        free( caption_ctx );
+        caption_ctx = NULL;
+    }
+    if( !dsmcc_stream_num )
+    {
+        free( dsmcc_ctx );
+        dsmcc_ctx = NULL;
+    }
+    if( !video_ctx && !audio_ctx && !caption_ctx && !dsmcc_ctx )
         return -1;
     /* setup. */
-    info->video_stream     = video_ctx;
-    info->audio_stream     = audio_ctx;
-    info->video_stream_num = video_stream_num;
-    info->audio_stream_num = audio_stream_num;
+    info->video_stream       = video_ctx;
+    info->audio_stream       = audio_ctx;
+    info->caption_stream     = caption_ctx;
+    info->dsmcc_stream       = dsmcc_ctx;
+    info->video_stream_num   = video_stream_num;
+    info->audio_stream_num   = audio_stream_num;
+    info->caption_stream_num = caption_stream_num;
+    info->dsmcc_stream_num   = dsmcc_stream_num;
     return 0;
 fail_allocate_ctxs:
     /* release. */
-    release_stream_handle( &video_ctx, &video_stream_num );
-    release_stream_handle( &audio_ctx, &audio_stream_num );
+    release_stream_handle( &video_ctx  , &video_stream_num   );
+    release_stream_handle( &audio_ctx  , &audio_stream_num   );
+    release_stream_handle( &caption_ctx, &caption_stream_num );
+    release_stream_handle( &dsmcc_ctx  , &dsmcc_stream_num   );
     return -1;
 fail_set_pmt_stream_info:
     if( video_ctx )
         free( video_ctx );
     if( audio_ctx )
         free( audio_ctx );
+    if( caption_ctx )
+        free( caption_ctx );
+    if( dsmcc_ctx )
+        free( dsmcc_ctx );
     return -1;
 }
 
