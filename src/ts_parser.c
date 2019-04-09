@@ -63,7 +63,8 @@ typedef enum {
     OUTPUT_GET_SAMPLE_RAW       = 1,
     OUTPUT_GET_SAMPLE_PES       = 2,
     OUTPUT_GET_SAMPLE_CONTAINER = 3,
-    OUTPUT_MAKE_GOP_LIST        = 4,
+    OUTPUT_SPLIT_CONTAINER      = 4,
+    OUTPUT_MAKE_GOP_LIST        = 5,
     OUTPUT_MODE_MAX
 } output_mode_type;
 
@@ -94,11 +95,12 @@ typedef struct {
 static const struct {
     get_sample_data_mode  get_mode;
     const char           *ext;
-} get_sample_list[3] =
+} get_sample_list[4] =
     {
         { GET_SAMPLE_DATA_RAW       , "[raw]" },
         { GET_SAMPLE_DATA_PES_PACKET, "[pes]" },
         { GET_SAMPLE_DATA_CONTAINER , "[ts]"  },
+        { GET_SAMPLE_DATA_CONTAINER , "[ts]"  }
     };
 
 #define INT64_MAX_VALUE                         (0x7FFFFFFFFFFFFFFFLL)
@@ -411,17 +413,36 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
         else if( !strcasecmp( argv[i], "--mode" ) )
         {
             char *mode = argv[++i];
+            int mode_specified = 0;
             output_stream_type output_stream = OUTPUT_STREAM_NONE;
             for( int j = 0; mode[j] != '\0'; ++j )
                 switch( tolower((int)mode[j]) )
                 {
                     case 'p' :
-                        p->api_type    = USE_MAPI_SEQUENTIAL_READ;
-                        p->output_mode = OUTPUT_GET_INFO;
+                        if( !mode_specified )
+                        {
+                            p->api_type    = USE_MAPI_SEQUENTIAL_READ;
+                            p->output_mode = OUTPUT_GET_INFO;
+                            mode_specified = 1;
+                        }
                         break;
                     case 'd' :
-                        p->api_type    = USE_MAPI_DEMUX_ALL_ST;
-                        p->output_mode = OUTPUT_GET_SAMPLE_RAW;
+                        if( !mode_specified )
+                        {
+                            p->api_type    = USE_MAPI_DEMUX_ALL_ST;
+                            p->output_mode = OUTPUT_GET_SAMPLE_RAW;
+                            mode_specified = 1;
+                        }
+                        else
+                            output_stream |= OUTPUT_STREAM_DSMCC;
+                        break;
+                    case 's' :
+                        if( !mode_specified )
+                        {
+                         /* p->api_type    = USE_MAPI_DEMUX_ALL_ST; */
+                            p->output_mode = OUTPUT_SPLIT_CONTAINER;
+                            mode_specified = 1;
+                        }
                         break;
                     case 'v' :
                         output_stream |= OUTPUT_STREAM_VIDEO;
@@ -492,10 +513,12 @@ static int correct_parameter( param_t *p )
     return 0;
 }
 
-static inline uint16_t get_output_stream_nums( output_stream_type output, uint8_t v_num, uint8_t a_num )
+static inline uint16_t get_output_stream_nums( output_stream_type output, uint8_t v_num, uint8_t a_num, uint8_t c_num, uint8_t d_num )
 {
-    return ((output & OUTPUT_STREAM_VIDEO) ? v_num : 0)
-         + ((output & OUTPUT_STREAM_AUDIO) ? a_num : 0);
+    return ((output & OUTPUT_STREAM_VIDEO  ) ? v_num : 0)
+         + ((output & OUTPUT_STREAM_AUDIO  ) ? a_num : 0)
+         + ((output & OUTPUT_STREAM_CAPTION) ? c_num : 0)
+         + ((output & OUTPUT_STREAM_DSMCC  ) ? d_num : 0);
 }
 
 /*  */
@@ -1145,7 +1168,7 @@ static void demux_sample_data
     open_file_for_list_api( p, info, stream_info, video_stream_num, audio_stream_num, video, audio );
     /* output. */
     mapi_log( LOG_LV_PROGRESS, "[log] Demux - START\n" );
-    uint16_t total_stream_num = get_output_stream_nums( p->output_stream, video_stream_num, audio_stream_num );
+    uint16_t total_stream_num = get_output_stream_nums( p->output_stream, video_stream_num, audio_stream_num, 0, 0 );
     if( p->demux_mode == OUTPUT_DEMUX_MULTITHREAD_READ && total_stream_num > 1 )
     {
         mapi_log( LOG_LV_PROGRESS, "[log] Demux - Multi thread\n" );
@@ -1338,7 +1361,7 @@ static void demux_stream_data
     open_file_for_stream_api( p, info, stream_info, video_stream_num, audio_stream_num, video, audio );
     /* output. */
     mapi_log( LOG_LV_PROGRESS, "[log] Demux - START\n" );
-    uint16_t total_stream_num = get_output_stream_nums( p->output_stream, video_stream_num, audio_stream_num );
+    uint16_t total_stream_num = get_output_stream_nums( p->output_stream, video_stream_num, audio_stream_num, 0, 0 );
     if( p->demux_mode == OUTPUT_DEMUX_MULTITHREAD_READ && total_stream_num > 1 )
     {
         mapi_log( LOG_LV_PROGRESS, "[log] Demux - Multi thread\n" );
@@ -1555,7 +1578,7 @@ static void demux_stream_all
     open_file_for_stream_api( p, info, stream_info, video_stream_num, audio_stream_num, video, audio );
     /* output. */
     mapi_log( LOG_LV_PROGRESS, "[log] Demux - START\n" );
-    uint16_t total_stream_num = get_output_stream_nums( p->output_stream, video_stream_num, audio_stream_num );
+    uint16_t total_stream_num = get_output_stream_nums( p->output_stream, video_stream_num, audio_stream_num, 0, 0 );
     if( p->demux_mode == OUTPUT_DEMUX_MULTITHREAD_READ && total_stream_num > 1 )
     {
         mapi_log( LOG_LV_PROGRESS, "[log] Demux - Multi thread\n" );
@@ -1759,7 +1782,7 @@ static void demux_stream_all_in_st
     open_file_for_stream_api( p, info, stream_info, video_stream_num, audio_stream_num, video, audio );
     /* output. */
     mapi_log( LOG_LV_PROGRESS, "[log] Demux - START\n" );
-    uint16_t total_stream_num = get_output_stream_nums( p->output_stream, video_stream_num, audio_stream_num );
+    uint16_t total_stream_num = get_output_stream_nums( p->output_stream, video_stream_num, audio_stream_num, 0, 0 );
     if( total_stream_num )
     {
         mapi_log( LOG_LV_PROGRESS, "[log] Demux - Sequential read [Fast-ST]\n" );
@@ -1827,6 +1850,187 @@ static void demux_stream_all_in_st
     mapi_log( LOG_LV_PROGRESS, "[log] Demux - END\n" );
 }
 
+typedef struct {
+ // void           *fw_ctx;
+    char           *stream_name;
+    uint8_t         stream_number;
+    uint32_t        count;
+    int64_t         total_size;
+    int64_t         file_size;
+    int             percent;
+} split_cb_param_t;
+
+typedef struct {
+    split_cb_param_t   *v_cb_param;
+    split_cb_param_t   *a_cb_param;
+    split_cb_param_t   *c_cb_param;
+    split_cb_param_t   *d_cb_param;
+    split_cb_param_t   *p_cb_param;
+    uint32_t            count;
+    int64_t             total_size;
+    int64_t             file_size;
+    void               *fw_ctx;
+    const char         *stream_name;
+} split_all_cb_param_t;
+
+static void split_all_cb_func( void *cb_params, void *cb_ret )
+{
+    split_all_cb_param_t     *param = (split_all_cb_param_t     *)cb_params;
+    get_stream_data_cb_ret_t *ret   = (get_stream_data_cb_ret_t *)cb_ret;
+    /* get return values. */
+    mpeg_sample_type  sample_type   = ret->sample_type;
+    uint8_t           stream_number = ret->stream_number;
+    uint8_t          *buffer        = ret->buffer;
+    uint32_t          read_size     = ret->read_size;
+    uint32_t          read_offset   = ret->read_offset;
+    int64_t           progress      = ret->progress;
+    /* check the target stream. */
+    split_cb_param_t *cb_p = NULL;
+    if( sample_type == SAMPLE_TYPE_VIDEO )
+        cb_p = &(param->v_cb_param[stream_number]);
+    else if( sample_type == SAMPLE_TYPE_AUDIO )
+        cb_p = &(param->a_cb_param[stream_number]);
+    else if( sample_type == SAMPLE_TYPE_CAPTION )
+        cb_p = &(param->c_cb_param[stream_number]);
+    else /* sample_type == SAMPLE_TYPE_PSI */
+        cb_p = param->p_cb_param;
+    /* output. */
+    int64_t total_size = cb_p->total_size;
+    int32_t valid_size = read_size - read_offset;
+    if( total_size + valid_size > 0 )
+    {
+        if( param->fw_ctx )
+        {
+            if( total_size < 0 )
+                dumper_fwrite( param->fw_ctx, &(buffer[-total_size]), total_size + valid_size, NULL );
+            else
+                dumper_fwrite( param->fw_ctx, &(buffer[read_offset]), valid_size, NULL );
+            total_size += valid_size;
+        }
+        else
+            total_size = 0;
+    }
+    else
+    {
+        if( valid_size < 0 )
+            mapi_log( LOG_LV_PROGRESS, " %s Stream[%3u] [%8u]  skip: %d byte                               \n"
+                                     , param->stream_name, stream_number, cb_p->count, -valid_size );
+        total_size = 0;
+    }
+    int percent = progress * 10000 / param->file_size;
+    if( (percent - cb_p->percent) > 0 )
+    {
+        mapi_log( LOG_LV_PROGRESS, " %s Stream[%3u] [%8u]  total: %14" PRIu64 " byte ...[%5.2f%%]  \r"
+                                 , param->stream_name, stream_number, cb_p->count, (uint64_t)total_size, percent / 100.0 );
+        cb_p->percent = percent;
+    }
+    cb_p->total_size += valid_size;
+    ++ cb_p->count;
+    param->total_size += valid_size;
+    ++ param->count;
+}
+
+static void split_stream_all
+(
+    param_t                    *p,
+    void                       *info,
+    uint8_t                     video_stream_num,
+    uint8_t                     audio_stream_num,
+    uint8_t                     caption_stream_num,
+    uint8_t                     dsmcc_stream_num
+)
+{
+  //int                  get_index = p->output_mode - OUTPUT_GET_SAMPLE_RAW;
+    int                  get_index = OUTPUT_SPLIT_CONTAINER - OUTPUT_GET_SAMPLE_RAW;
+    get_sample_data_mode get_mode  = get_sample_list[get_index].get_mode;
+    /* prepare file. */
+    size_t dump_name_size = strlen( p->output ) + 32;
+    char dump_name[dump_name_size];
+    strcpy( dump_name, p->output );
+    /* id */
+  //if( total_stream_num )
+    {
+        static const char *output_stream_name[16] =
+            {
+                "(none)", "Video", "Audio", "V+A"  , "Caption", "V+C"  , "A+C"  , "V+A+C"  ,
+                "DSM-CC", "V+D"  , "A+D"  , "V+A+D", "C+D"    , "V+C+D", "A+C+D", "V+A+C+D"
+            };
+        int stream_name_index = ((p->output_stream & OUTPUT_STREAM_VIDEO  ) ? 1 : 0)
+                              + ((p->output_stream & OUTPUT_STREAM_AUDIO  ) ? 2 : 0)
+                              + ((p->output_stream & OUTPUT_STREAM_CAPTION) ? 4 : 0)
+                              + ((p->output_stream & OUTPUT_STREAM_DSMCC  ) ? 8 : 0);
+        char stream_name[12];
+        sprintf( stream_name, "_[%s]", output_stream_name[stream_name_index] );
+        strcat( dump_name, stream_name );
+    }
+    /* extension */
+    strcat( dump_name, "_split.ts" );       // FIXME
+    /* open. */
+    void *split_file;
+    dumper_open( &split_file, dump_name, p->write_buffer_size );
+    /* output. */
+    mapi_log( LOG_LV_PROGRESS, "[log] Split - START\n" );
+    uint16_t total_stream_num = get_output_stream_nums( p->output_stream, video_stream_num, audio_stream_num, caption_stream_num, dsmcc_stream_num );
+    if( total_stream_num )
+    {
+        mapi_log( LOG_LV_PROGRESS, "[log] Split - Sequential read [Fast-ST]\n" );
+        /* set position. */
+#if 0
+        for( uint8_t i = 0; i < video_stream_num; ++i )
+        {
+            /* None. */
+        }
+        for( uint8_t i = 0; i < audio_stream_num; ++i )
+        {
+            /* None. */
+        }
+        for( uint8_t i = 0; i < caption_stream_num; ++i )
+        {
+            /* None. */
+        }
+#endif
+        /* split. */
+        static const char *output_stream_name[16] =
+            {
+                "(none)", "Video", "Audio", "V/A"  , "Caption", "V/C"  , "A/C"  , "V/A/C"  ,
+                "DSM-CC", "V+D"  , "A/D"  , "V/A/D", "C+D"    , "V/C/D", "A/C/D", "V/A/C/D"
+            };
+        int stream_name_index = ((p->output_stream & OUTPUT_STREAM_VIDEO  ) ? 1 : 0)
+                              + ((p->output_stream & OUTPUT_STREAM_AUDIO  ) ? 2 : 0)
+                              + ((p->output_stream & OUTPUT_STREAM_CAPTION) ? 4 : 0)
+                              + ((p->output_stream & OUTPUT_STREAM_DSMCC  ) ? 8 : 0);
+        mapi_log( LOG_LV_PROGRESS, " %s Stream [split] start\n"
+                                 , output_stream_name[stream_name_index] );
+        split_cb_param_t v_cb_params[video_stream_num   + 1];
+        split_cb_param_t a_cb_params[audio_stream_num   + 1];
+        split_cb_param_t c_cb_params[caption_stream_num + 1];
+        split_cb_param_t d_cb_params[dsmcc_stream_num   + 1];
+        split_cb_param_t p_cb_param = { 0 };
+        memset( v_cb_params, 0, sizeof(split_cb_param_t) * (video_stream_num   + 1) );
+        memset( a_cb_params, 0, sizeof(split_cb_param_t) * (audio_stream_num   + 1) );
+        memset( c_cb_params, 0, sizeof(split_cb_param_t) * (caption_stream_num + 1) );
+        memset( d_cb_params, 0, sizeof(split_cb_param_t) * (dsmcc_stream_num   + 1) );
+        split_all_cb_param_t cb_params = { v_cb_params, a_cb_params, c_cb_params, d_cb_params, &p_cb_param, 0, 0, p->file_size, split_file, output_stream_name[stream_name_index] };
+        get_stream_data_cb_t cb        = { split_all_cb_func, (void *)&cb_params };
+        mpeg_api_get_all_stream_data( info, get_mode, p->output_stream, &cb );
+        mapi_log( LOG_LV_PROGRESS, "                                                                              \r" );
+        for( uint8_t i = 0; i < video_stream_num; ++i )
+            mapi_log( LOG_LV_PROGRESS, "   Video Stream[%3u] - output: %" PRIu64 " byte\n"
+                                    , i, (uint64_t)v_cb_params[i].total_size );
+        for( uint8_t i = 0; i < audio_stream_num; ++i )
+            mapi_log( LOG_LV_PROGRESS, "   Audio Stream[%3u] - output: %" PRIu64 " byte\n"
+                                    , i, (uint64_t)a_cb_params[i].total_size );
+        for( uint8_t i = 0; i < audio_stream_num; ++i )
+            mapi_log( LOG_LV_PROGRESS, " Caption Stream[%3u] - output: %" PRIu64 " byte\n"
+                                    , i, (uint64_t)c_cb_params[i].total_size );
+        dumper_close( &split_file );
+        mapi_log( LOG_LV_PROGRESS, " %s Stream [split] done - output: %" PRIu64 " byte\n"
+                                , output_stream_name[stream_name_index], (uint64_t)cb_params.total_size );
+        mapi_log( LOG_LV_PROGRESS, " %s Stream [split] end\n", output_stream_name[stream_name_index] );
+    }
+    mapi_log( LOG_LV_PROGRESS, "[log] Split - END\n" );
+}
+
 static void parse_mpeg( param_t *p )
 {
     if( !p || !p->input )
@@ -1869,10 +2073,12 @@ static void parse_mpeg( param_t *p )
         if( p->output_stream == OUTPUT_STREAM_NONE_PCR_ONLY )
             goto end_parse;
         /* check Video and Audio information. */
-        uint8_t video_stream_num = mpeg_api_get_stream_num( info, SAMPLE_TYPE_VIDEO );
-        uint8_t audio_stream_num = mpeg_api_get_stream_num( info, SAMPLE_TYPE_AUDIO );
-        mapi_log( LOG_LV_OUTPUT, "[log] stream_num:  Video:%4u  Audio:%4u\n", video_stream_num, audio_stream_num );
-        if( !video_stream_num && !audio_stream_num )
+        uint8_t video_stream_num   = mpeg_api_get_stream_num( info, SAMPLE_TYPE_VIDEO   );
+        uint8_t audio_stream_num   = mpeg_api_get_stream_num( info, SAMPLE_TYPE_AUDIO   );
+        uint8_t caption_stream_num = mpeg_api_get_stream_num( info, SAMPLE_TYPE_CAPTION );
+        uint8_t dsmcc_stream_num   = mpeg_api_get_stream_num( info, SAMPLE_TYPE_DSMCC   );
+        mapi_log( LOG_LV_OUTPUT, "[log] stream_num:  Video:%4u  Audio:%4u  Caption:%4u\n", video_stream_num, audio_stream_num, caption_stream_num );
+        if( !video_stream_num && !audio_stream_num /* && !caption_stream_num */ )
             goto end_parse;
         /* output. */
         if( p->output_stream == OUTPUT_STREAM_NONE )
@@ -1880,13 +2086,14 @@ static void parse_mpeg( param_t *p )
         static const struct {
             void (*dump )( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num, uint8_t audio_stream_num );
             void (*demux)( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num, uint8_t audio_stream_num );
+            void (*split)( param_t *p, void *info, uint8_t video_stream_num, uint8_t audio_stream_num, uint8_t caption_stream_num, uint8_t dsmcc_stream_num );
             void (*index)( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num );
         } output_func[USE_MAPI_TYPE_MAX] =
             {
-                { dump_stream_info, demux_stream_data     , make_stream_gop_list },
-                { dump_sample_info, demux_sample_data     , make_sample_gop_list },
-                { dump_stream_info, demux_stream_all      , make_stream_gop_list },
-                { dump_stream_info, demux_stream_all_in_st, make_stream_gop_list }
+                { dump_stream_info, demux_stream_data     , split_stream_all, make_stream_gop_list },
+                { dump_sample_info, demux_sample_data     , split_stream_all, make_sample_gop_list },
+                { dump_stream_info, demux_stream_all      , split_stream_all, make_stream_gop_list },
+                { dump_stream_info, demux_stream_all_in_st, split_stream_all, make_stream_gop_list }
             };
         switch( p->output_mode )
         {
@@ -1897,6 +2104,9 @@ static void parse_mpeg( param_t *p )
             case OUTPUT_GET_SAMPLE_PES :
             case OUTPUT_GET_SAMPLE_CONTAINER :
                 output_func[p->api_type].demux( p, info, stream_info, video_stream_num, audio_stream_num );
+                break;
+            case OUTPUT_SPLIT_CONTAINER :
+                output_func[p->api_type].split( p, info, video_stream_num, audio_stream_num, caption_stream_num, dsmcc_stream_num );
                 break;
             case OUTPUT_MAKE_GOP_LIST :
                 output_func[p->api_type].index( p, info, stream_info, video_stream_num );
