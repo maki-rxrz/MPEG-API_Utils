@@ -44,7 +44,7 @@ extern int avs_string_erase_invalid_strings( char *str )
             *c = ' ';
             continue;
         }
-        /* check commnet. */
+        /* check comment. */
         if( *c != '/' )
             continue;
         if( !strncmp( c, "//", 2 ) )
@@ -60,7 +60,10 @@ extern int avs_string_erase_invalid_strings( char *str )
                 *c = ' ';
             if( *c == '\0' )
                 return -1;      /* script is illegal file. */
-            strncpy( c, "  ", 2 );
+            *c = ' ';
+            ++c;
+            *c = ' ';
+            ++c;
         }
     }
     return 0;

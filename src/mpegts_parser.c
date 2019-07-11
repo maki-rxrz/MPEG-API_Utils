@@ -2411,7 +2411,7 @@ static int set_pmt_stream_info( mpegts_info_t *info )
         static const char *stream_name[4] = { " video ", " audio ", "caption", " dsm-cc" };
         tss_ctx_t *stream     = NULL;
         uint8_t   *stream_num = NULL;
-        int                  index      = 0;
+        int        index      = 0;
         if( stream_judge & STREAM_IS_VIDEO )
         {
             stream     = &(video_ctx[video_stream_num]);
