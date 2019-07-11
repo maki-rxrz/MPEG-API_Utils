@@ -2496,7 +2496,9 @@ static int set_pmt_stream_info( mpegts_info_t *info )
         }
         if( stream )
         {
-            if( !mpegts_search_program_id_packet( &(info->tsf_ctx), &h, program_id ) )
+            int detect_check = (stream_judge & (STREAM_IS_VIDEO | STREAM_IS_AUDIO))
+                             ? mpegts_search_program_id_packet( &(info->tsf_ctx), &h, program_id ) : 0;
+            if( !detect_check )
             {
                 if( !mpegts_open( &(stream->tsf_ctx), info->mpegts, info->buffer_size ) )
                 {
