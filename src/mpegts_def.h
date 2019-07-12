@@ -76,7 +76,7 @@ typedef enum {
     TS_PID_AMT   = 0x002E,
     TS_PID_TSMF  = 0x002F,
     /* ERR: 0x1FFF over */
-    TS_PID_ERR = 0xFFFF
+    TS_PID_ERR   = 0xFFFF
 } mpegts_pid_type;
 
 typedef enum {
