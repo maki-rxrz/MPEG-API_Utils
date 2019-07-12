@@ -957,7 +957,7 @@ MAPI_EXPORT int mpeg_api_get_stream_info
     int check_stream_exist = BOTH_VA_EXIST;
     uint8_t stream_number = 0;      // FIXME
     /* get video. */
-    video_sample_info_t video_sample_info;
+    video_sample_info_t video_sample_info = { .pts = MPEG_TIMESTAMP_INVALID_VALUE };
     check_stream_exist |= parser->get_video_info( parser_info, stream_number, &video_sample_info ) ? VIDEO_NONE : 0;
     if( !(check_stream_exist & VIDEO_NONE) )
     {
@@ -973,8 +973,10 @@ MAPI_EXPORT int mpeg_api_get_stream_info
                 *video_key_pts = video_sample_info.pts;
         }
     }
+    else
+        *video_1st_pts = *video_key_pts = MPEG_TIMESTAMP_INVALID_VALUE;
     /* get audio. */
-    audio_sample_info_t audio_sample_info;
+    audio_sample_info_t audio_sample_info = { .pts = MPEG_TIMESTAMP_INVALID_VALUE };
     check_stream_exist |= parser->get_audio_info( parser_info, stream_number, &audio_sample_info ) ? AUDIO_NONE : 0;
     /* get pcr. */
     pcr_info_t pcr_info;
