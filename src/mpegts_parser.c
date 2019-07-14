@@ -745,7 +745,7 @@ static int mpegts_parse_cat( mpegts_info_t *info )
     {
         --retry_count;
         if( mpegts_search_cat_packet( &(info->tsf_ctx), &cat_si ) )
-            return -1;
+            goto fail_parse;
         /* get section length. */
         section_length = cat_si.section_length - 5;     /* 5: section_header[3]-[7] */
         if( (section_length - CRC32_SIZE) < 0 )
@@ -758,7 +758,7 @@ static int mpegts_parse_cat( mpegts_info_t *info )
         break;
     }
     if( !retry_count )
-        return -1;
+        goto fail_parse;
     int32_t read_count = 0;
     if( section_length - CRC32_SIZE > 0 )
     {
@@ -783,6 +783,9 @@ static int mpegts_parse_cat( mpegts_info_t *info )
     /* reset position. */
     mpegts_file_seek( &(info->tsf_ctx), reset_position, MPEGTS_SEEK_RESET );
     return 0;
+fail_parse:
+    mpegts_file_seek( &(info->tsf_ctx), reset_position, MPEGTS_SEEK_RESET );
+    return -1;
 }
 
 static int mpegts_search_pmt_packet( mpegts_info_t *info, tsp_pmt_si_t *pmt_si )
@@ -2776,7 +2779,7 @@ static int parse( void *ih )
     if( !info->pid_list_in_pat && mpegts_parse_pat( info ) )
         goto end_parse;
     if( mpegts_parse_cat( info ) )
-        goto end_parse;
+        mapi_log( LOG_LV2, "[check] CAT packet was not detected.\n" );
     result = parse_pmt_info( info );
     if( result )
         goto end_parse;
