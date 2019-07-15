@@ -41,7 +41,7 @@
 #include "d2v_parser.h"
 #include "mpeg_utils.h"
 
-#define PROGRAM_VERSION                 "1.2.1"
+#define PROGRAM_VERSION                 "1.2.2"
 
 #ifndef REVISION_NUMBER
 #define REVISION_NUMBER                 "0"
