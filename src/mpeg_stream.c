@@ -45,39 +45,40 @@ extern int64_t mpeg_pes_get_timestamp( uint8_t *time_stamp_data )
                   | (time_stamp_data[4] & 0xFE) >> 1;
 }
 
-extern int mpeg_pes_check_start_code( uint8_t *start_code, mpeg_pes_packet_start_code_type start_code_type )
+extern int mpeg_pes_check_steam_id_type( uint8_t *start_code, mpeg_pes_stream_id_type stream_id_type )
 {
-    static const uint8_t pes_start_code_common_head[PES_PACKET_START_CODE_SIZE - 1] = { 0x00, 0x00, 0x01 };
-    static const uint8_t pes_start_codes[PES_PACKET_START_CODE_MAX] =
+    static const uint8_t pes_steam_id_common_head[PES_PACKET_START_CODE_SIZE - 1] = { 0x00, 0x00, 0x01 };
+    static const uint8_t pes_steam_ids[PES_STEAM_ID_TYPE_MAX] =
         {
-            /* MPEG-1/2 stream type. */
-            0xBD,       /* Private Stream 1             */
-            0xBE,       /* Padding Stream               */
-            0xBF,       /* Private Stream 2             */
-            0xE0,       /* Video Stream                 */
-            0xC0,       /* Audio Stream                 */
-            0xF3,       /* MHEG Reserved                */
-            /* MPEG-2 stream type. */
-            0xBC,       /* Program Stream Map           */
-            0xF0,       /* License Management Message 1 */
-            0xF1,       /* License Management Message 2 */
-            0xF2,       /* DSM Control Command          */
-            0xFC,       /* ITU-T Reserved               */
-            0xF8,       /* ITU-T Reserved               */
-            0xF9,       /* PS Trasnport on TS           */
-            0xFF,       /* Program Stream Directory     */
-            /* User Private */
-            0xE2,       /* MPEG-4 AVC Stream            */
-            0x0F,       /* VC-1 Video Stream 1          */
-            0x0D,       /* VC-1 Video Stream 2          */
-            0xFD        /* AC-3/DTS Audio Stream        */
+            0xBC,       /* program_stream_map                                                           */
+            0xBD,       /* private_stream_1                                                             */
+            0xBE,       /* padding_stream                                                               */
+            0xBF,       /* private_stream_2                                                             */
+            0xC0,       /* ISO/IEC xxxxx-x audio stream                                                 */
+            0xE0,       /* Rec. ITU-T H.26x | ISO/IEC xxxxx-x video stream                              */
+            0xF0,       /* ECM_stream                                                                   */
+            0xF1,       /* EMM_stream                                                                   */
+            0xF2,       /* Rec. ITU-T H.222.0 | ISO/IEC 13818-1 Annex A or ISO/IEC 13818-6_DSMCC_stream */
+            0xF3,       /* ISO/IEC_13522_stream                                                         */
+            0xF4,       /* Rec. ITU-T H.222.1 type A                                                    */
+            0xF5,       /* Rec. ITU-T H.222.1 type B                                                    */
+            0xF6,       /* Rec. ITU-T H.222.1 type C                                                    */
+            0xF7,       /* Rec. ITU-T H.222.1 type D                                                    */
+            0xF8,       /* Rec. ITU-T H.222.1 type E                                                    */
+            0xF9,       /* ancillary_stream                                                             */
+            0xFA,       /* ISO/IEC 14496-1_SL-packetized_stream                                         */
+            0xFB,       /* ISO/IEC 14496-1_FlexMux_stream                                               */
+            0xFC,       /* metadata stream                                                              */
+            0xFD,       /* extended_stream_id                                                           */
+            0xFE,       /* reserved data stream                                                         */
+            0xFF,       /* program_stream_directory                                                     */
         };
-    uint8_t mask = (start_code_type == PES_PACKET_START_CODE_VIDEO_STREAM) ? 0xF0
-                 : (start_code_type == PES_PACKET_START_CODE_AUDIO_STREAM) ? 0xE0
-                 :                                                           0xFF;
-    if( memcmp( start_code, pes_start_code_common_head, PES_PACKET_START_CODE_SIZE - 1 ) )
+    uint8_t mask = (stream_id_type == PES_STEAM_ID_VIDEO_STREAM) ? 0xF0
+                 : (stream_id_type == PES_STEAM_ID_AUDIO_STREAM) ? 0xE0
+                 :                                                 0xFF;
+    if( memcmp( start_code, pes_steam_id_common_head, PES_PACKET_START_CODE_SIZE - 1 ) )
         return -1;
-    if( (start_code[PES_PACKET_START_CODE_SIZE - 1] & mask) != pes_start_codes[start_code_type] )
+    if( (start_code[PES_PACKET_START_CODE_SIZE - 1] & mask) != pes_steam_ids[stream_id_type] )
         return -1;
     return 0;
 }
@@ -102,27 +103,27 @@ extern void mpeg_pes_get_header_info( uint8_t *buf, mpeg_pes_header_info_t *pes_
     pes_info->header_length             =    buf[4];
 }
 
-extern mpeg_pes_packet_start_code_type mpeg_pes_get_stream_start_code( mpeg_stream_group_type stream_judge )
+extern mpeg_pes_stream_id_type mpeg_pes_get_steam_id_type( mpeg_stream_group_type stream_judge )
 {
-    mpeg_pes_packet_start_code_type start_code = PES_PACKET_START_CODE_INVALID;
+    mpeg_pes_stream_id_type stream_id_type = PES_STEAM_ID_INVALID;
     if( stream_judge & STREAM_IS_VIDEO )
-        start_code = PES_PACKET_START_CODE_VIDEO_STREAM;
+        stream_id_type = PES_STEAM_ID_VIDEO_STREAM;
     else if( stream_judge & STREAM_IS_AUDIO )
-        start_code = PES_PACKET_START_CODE_AUDIO_STREAM;
+        stream_id_type = PES_STEAM_ID_AUDIO_STREAM;
     /* check User Private. */
     switch( stream_judge )          // FIXME
     {
         case STREAM_IS_PCM_AUDIO :
-            start_code = PES_PACKET_START_CODE_PRIVATE_STREAM_1;
+            stream_id_type = PES_STEAM_ID_PRIVATE_STREAM_1;
             break;
         case STREAM_IS_DOLBY_AUDIO :
         case STREAM_IS_DTS_AUDIO :
-            start_code = PES_PACKET_START_CODE_AC3_DTS_AUDIO_STREAM;
+            stream_id_type = PES_STEAM_ID_EXTENDED_STREAM_ID;
             break;
         default :
             break;
     }
-    return start_code;
+    return stream_id_type;
 }
 
 #define READ_DESCRIPTOR( name )         \

@@ -104,7 +104,7 @@ typedef enum {
 } mpeg_stream_group_type;
 
 typedef enum {
-    /* ISO/IEC 13818-1 */
+    /* ISO/IEC 13818-1  */
     STREAM_VIDEO_MPEG1      = 0x01,    /* ISO/IEC 11172 Video                                                                            */
     STREAM_VIDEO_MPEG2      = 0x02,    /* ITU-T Rec. H.262 | ISO/IEC 13818-2 Video or ISO/IEC 11172-2 constrained parameter video stream */
     STREAM_AUDIO_MP1        = 0x03,    /* ISO/IEC 11172 Audio                                                                            */
@@ -116,22 +116,21 @@ typedef enum {
     STREAM_VIDEO_MPEG2_C    = 0x0C,    /* ISO/IEC 13818-6 type C                                                                         */
     STREAM_VIDEO_MPEG2_D    = 0x0D,    /* ISO/IEC 13818-6 type D                                                                         */
     STREAM_AUDIO_AAC        = 0x0F,    /* ISO/IEC 13818-7 Audio with ADTS transport syntax                                               */
-    /* User Private */
     STREAM_VIDEO_MP4        = 0x10,    /* ISO/IEC 14496-2 Visual                                                                         */
     STREAM_AUDIO_MP4        = 0x11,    /* ISO/IEC 14496-3 Audio with the LATM transport syntax as defined in ISO/IEC 14496-3 / AMD 1     */
-    STREAM_VIDEO_AVC        = 0x1B,    /* ISO/IEC 14496-10                                                                               */
-    STREAM_VIDEO_PRIVATE    = 0x80,    /* Private Video or Linear PCM                                                                    */
+    STREAM_VIDEO_AVC        = 0x1B,    /* ITU-T Rec. H.264 | ISO/IEC 14496-10                                                            */
+    /* User Private     */
+    STREAM_VIDEO_PRIVATE    = 0x80,    /* Private Video or Linear PCM    */
     STREAM_AUDIO_LPCM       = 0x80,
-    STREAM_AUDIO_AC3_DTS    = 0x81,    /* AC-3 or DTS                                                                                    */
+    STREAM_AUDIO_AC3_DTS    = 0x81,    /* AC-3 or DTS                    */
     STREAM_AUDIO_AC3        = 0x81,
-    STREAM_AUDIO_DTS        = 0x82,    /* DTS                                                                                            */
-    STREAM_AUDIO_MLP        = 0x83,    /* MLP                                                                                            */
-    STREAM_AUDIO_DTS_HD     = 0x85,    /* DTS-HD                                                                                         */
-    STREAM_AUDIO_DTS_HD_XLL = 0x86,    /* DTS-HD with XLL                                                                                */
-    STREAM_AUDIO_DDPLUS     = 0x87,    /* DD+                                                                                            */
-    STREAM_AUDIO_DDPLUS_SUB = 0xA1,    /* DD+ for secondary audio                                                                        */
-    STREAM_AUDIO_DTS_HD_SUB = 0xA2,    /* DTS-HD LBR for secondary audio                                                                 */
-    STREAM_VIDEO_VC1        = 0xFD,    /* VC-1 */
+    STREAM_AUDIO_DTS        = 0x82,    /* DTS                            */
+    STREAM_AUDIO_MLP        = 0x83,    /* MLP                            */
+    STREAM_AUDIO_DTS_HD     = 0x85,    /* DTS-HD                         */
+    STREAM_AUDIO_DTS_HD_XLL = 0x86,    /* DTS-HD with XLL                */
+    STREAM_AUDIO_DDPLUS     = 0x87,    /* DD+                            */
+    STREAM_AUDIO_DDPLUS_SUB = 0xA1,    /* DD+ for secondary audio        */
+    STREAM_AUDIO_DTS_HD_SUB = 0xA2,    /* DTS-HD LBR for secondary audio */
     STREAM_INVALID          = 0xFF
 } mpeg_stream_type;
 

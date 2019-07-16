@@ -36,30 +36,31 @@
 #define PES_PACKET_PTS_DTS_DATA_SIZE                (10)
 
 typedef enum {
-    /* MPEG-1/2 stream type. */
-    PES_PACKET_START_CODE_PRIVATE_STREAM_1             ,
-    PES_PACKET_START_CODE_PADDING_STREAM               ,
-    PES_PACKET_START_CODE_PRIVATE_STREAM_2             ,
-    PES_PACKET_START_CODE_VIDEO_STREAM                 ,
-    PES_PACKET_START_CODE_AUDIO_STREAM                 ,
-    PES_PACKET_START_CODE_MHEG_RESRVED                 ,
-    /* MPEG-2 stream type. */
-    PES_PACKET_START_CODE_PROGRAM_STERAM_MAP           ,
-    PES_PACKET_START_CODE_LICENSE_MANAGEMENT_MAMESSAGE1,
-    PES_PACKET_START_CODE_LICENSE_MANAGEMENT_MAMESSAGE2,
-    PES_PACKET_START_CODE_DSM_CONTROL_COMAND           ,
-    PES_PACKET_START_CODE_ITU_T_RESERVED1              ,
-    PES_PACKET_START_CODE_ITU_T_RESERVED2              ,
-    PES_PACKET_START_CODE_PS_TRANSPORT_ON_TS           ,
-    PES_PACKET_START_CODE_PROGRAM_STREAM_DIRECTORY     ,
-    /* User Private */
-    PES_PACKET_START_CODE_MPEG4_AVC_STREAM             ,
-    PES_PACKET_START_CODE_VC1_VIDEO_STREAM_1           ,
-    PES_PACKET_START_CODE_VC1_VIDEO_STREAM_2           ,
-    PES_PACKET_START_CODE_AC3_DTS_AUDIO_STREAM         ,
-    PES_PACKET_START_CODE_MAX                          ,
-    PES_PACKET_START_CODE_INVALID = PES_PACKET_START_CODE_MAX
-} mpeg_pes_packet_start_code_type;
+    PES_STEAM_ID_PROGRAM_STERAM_MAP      ,
+    PES_STEAM_ID_PRIVATE_STREAM_1        ,
+    PES_STEAM_ID_PADDING_STREAM          ,
+    PES_STEAM_ID_PRIVATE_STREAM_2        ,
+    PES_STEAM_ID_AUDIO_STREAM            ,
+    PES_STEAM_ID_VIDEO_STREAM            ,
+    PES_STEAM_ID_ECM_STREAM              ,
+    PES_STEAM_ID_EMM_STREAM              ,
+    PES_STEAM_ID_DSMCC_STREAM            ,
+    PES_STEAM_ID_ISO_IEC_13522_STREAM    ,
+    PES_STEAM_ID_ITU_T_H222_1_A          ,
+    PES_STEAM_ID_ITU_T_H222_1_B          ,
+    PES_STEAM_ID_ITU_T_H222_1_C          ,
+    PES_STEAM_ID_ITU_T_H222_1_D          ,
+    PES_STEAM_ID_ITU_T_H222_1_E          ,
+    PES_STEAM_ID_ANCILLARY_STREAM        ,
+    PES_STEAM_ID_SL_PACKETIZED_STREAM    ,
+    PES_STEAM_ID_FLEXMUX_STREAM          ,
+    PES_STEAM_ID_METADATA_STREAM         ,
+    PES_STEAM_ID_EXTENDED_STREAM_ID      ,
+    PES_STEAM_ID_RESERVED_DATA_STREAM    ,
+    PES_STEAM_ID_PROGRAM_STREAM_DIRECTORY,
+    PES_STEAM_ID_TYPE_MAX                ,
+    PES_STEAM_ID_INVALID = PES_STEAM_ID_TYPE_MAX
+} mpeg_pes_stream_id_type;
 
 typedef struct {
     uint16_t        packet_length;
@@ -318,11 +319,11 @@ extern "C" {
 
 extern int64_t mpeg_pes_get_timestamp( uint8_t *time_stamp_data );
 
-extern int mpeg_pes_check_start_code( uint8_t *start_code, mpeg_pes_packet_start_code_type start_code_type );
+extern int mpeg_pes_check_steam_id_type( uint8_t *start_code, mpeg_pes_stream_id_type stream_id_type );
 
 extern void mpeg_pes_get_header_info( uint8_t *buf, mpeg_pes_header_info_t *pes_info );
 
-extern mpeg_pes_packet_start_code_type mpeg_pes_get_stream_start_code( mpeg_stream_group_type stream_judge );
+extern mpeg_pes_stream_id_type mpeg_pes_get_steam_id_type( mpeg_stream_group_type stream_judge );
 
 extern void mpeg_stream_get_descriptor_info
 (

@@ -1126,10 +1126,10 @@ static uint16_t mpegts_get_program_id( mpegts_info_t *info, mpeg_stream_type str
 
 static int mpegts_get_stream_timestamp
 (
-    tsf_ctx_t                          *tsf_ctx,
-    uint16_t                            program_id,
-    mpeg_pes_packet_start_code_type     start_code,
-    mpeg_timestamp_t                   *timestamp
+    tsf_ctx_t                  *tsf_ctx,
+    uint16_t                    program_id,
+    mpeg_pes_stream_id_type     stream_id_type,
+    mpeg_timestamp_t           *timestamp
 )
 {
     mapi_log( LOG_LV2, "[check] %s()\n", __func__ );
@@ -1154,7 +1154,7 @@ static int mpegts_get_stream_timestamp
         /* check PES Packet Start Code. */
         uint8_t pes_packet_head_data[PES_PACKET_START_CODE_SIZE];
         mpegts_file_read( tsf_ctx, pes_packet_head_data, PES_PACKET_START_CODE_SIZE );
-        if( mpeg_pes_check_start_code( pes_packet_head_data, start_code ) )
+        if( mpeg_pes_check_steam_id_type( pes_packet_head_data, stream_id_type ) )
         {
             /* seek next. */
             mpegts_file_seek( tsf_ctx, 0, MPEGTS_SEEK_NEXT );
@@ -2291,11 +2291,11 @@ static int get_video_info( void *ih, uint8_t stream_number, video_sample_info_t 
     mpeg_stream_group_type  stream_judge            =   info->video_stream[stream_number].stream_judge;
     void                   *stream_parse_info       =   info->video_stream[stream_number].stream_parse_info;
     int64_t                *video_stream_gop_number = &(info->video_stream[stream_number].gop_number);
-    /* check PES start code. */
-    mpeg_pes_packet_start_code_type start_code = mpeg_pes_get_stream_start_code( stream_judge );
+    /* check PES stream id. */
+    mpeg_pes_stream_id_type stream_id_type = mpeg_pes_get_steam_id_type( stream_judge );
     /* get timestamp. */
     mpeg_timestamp_t ts = { MPEG_TIMESTAMP_INVALID_VALUE, MPEG_TIMESTAMP_INVALID_VALUE };
-    if( mpegts_get_stream_timestamp( tsf_ctx, program_id, start_code, &ts ) )
+    if( mpegts_get_stream_timestamp( tsf_ctx, program_id, stream_id_type, &ts ) )
         return -1;
     int64_t start_position = tsf_ctx->read_position;
     /* check raw data. */
@@ -2378,11 +2378,11 @@ static int get_audio_info( void *ih, uint8_t stream_number, audio_sample_info_t 
     uint16_t                program_id   =   info->audio_stream[stream_number].program_id;
     mpeg_stream_type        stream_type  =   info->audio_stream[stream_number].stream_type;
     mpeg_stream_group_type  stream_judge =   info->audio_stream[stream_number].stream_judge;
-    /* check PES start code. */
-    mpeg_pes_packet_start_code_type start_code = mpeg_pes_get_stream_start_code( stream_judge );
+    /* check PES stream id. */
+    mpeg_pes_stream_id_type stream_id_type = mpeg_pes_get_steam_id_type( stream_judge );
     /* get timestamp. */
     mpeg_timestamp_t ts = { MPEG_TIMESTAMP_INVALID_VALUE, MPEG_TIMESTAMP_INVALID_VALUE };
-    if( mpegts_get_stream_timestamp( tsf_ctx, program_id, start_code, &ts ) )
+    if( mpegts_get_stream_timestamp( tsf_ctx, program_id, stream_id_type, &ts ) )
         return -1;
     int64_t start_position = tsf_ctx->read_position;
     /* check raw data. */
