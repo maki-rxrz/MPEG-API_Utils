@@ -89,6 +89,7 @@ typedef enum {
     STREAM_IS_MPEG2_VIDEO       = 0x00000004 | STREAM_IS_MPEG_VIDEO,
     STREAM_IS_MPEG4_VIDEO       = 0x00000008 | STREAM_IS_VIDEO     ,
     STREAM_IS_PRIVATE_VIDEO     = 0x00000010 | STREAM_IS_VIDEO     ,
+    STREAM_IS_EXTENDED_VIDEO    = 0x00000020 | STREAM_IS_VIDEO     ,
     STREAM_IS_AUDIO             = 0x00000100                       ,
     STREAM_IS_MPEG_AUDIO        = 0x00000200 | STREAM_IS_AUDIO     ,
     STREAM_IS_MPEG1_AUDIO       = 0x00000400 | STREAM_IS_MPEG_AUDIO,
@@ -119,6 +120,7 @@ typedef enum {
     STREAM_VIDEO_MP4        = 0x10,    /* ISO/IEC 14496-2 Visual                                                                         */
     STREAM_AUDIO_MP4        = 0x11,    /* ISO/IEC 14496-3 Audio with the LATM transport syntax as defined in ISO/IEC 14496-3 / AMD 1     */
     STREAM_VIDEO_AVC        = 0x1B,    /* ITU-T Rec. H.264 | ISO/IEC 14496-10                                                            */
+    STREAM_VIDEO_HEVC       = 0x24,    /* ITU-T Rec. H.265 | ISO/IEC 23008-2                                                             */
     /* User Private     */
     STREAM_VIDEO_PRIVATE    = 0x80,    /* Private Video or Linear PCM    */
     STREAM_AUDIO_LPCM       = 0x80,
@@ -131,6 +133,7 @@ typedef enum {
     STREAM_AUDIO_DDPLUS     = 0x87,    /* DD+                            */
     STREAM_AUDIO_DDPLUS_SUB = 0xA1,    /* DD+ for secondary audio        */
     STREAM_AUDIO_DTS_HD_SUB = 0xA2,    /* DTS-HD LBR for secondary audio */
+    STREAM_VIDEO_VC1        = 0xEA,    /* VC-1                           */
     STREAM_INVALID          = 0xFF
 } mpeg_stream_type;
 

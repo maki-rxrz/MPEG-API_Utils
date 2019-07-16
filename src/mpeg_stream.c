@@ -106,13 +106,9 @@ extern void mpeg_pes_get_header_info( uint8_t *buf, mpeg_pes_header_info_t *pes_
 extern mpeg_pes_stream_id_type mpeg_pes_get_steam_id_type( mpeg_stream_group_type stream_judge )
 {
     mpeg_pes_stream_id_type stream_id_type = PES_STEAM_ID_INVALID;
-    if( stream_judge & STREAM_IS_VIDEO )
-        stream_id_type = PES_STEAM_ID_VIDEO_STREAM;
-    else if( stream_judge & STREAM_IS_AUDIO )
-        stream_id_type = PES_STEAM_ID_AUDIO_STREAM;
-    /* check User Private. */
-    switch( stream_judge )          // FIXME
+    switch( stream_judge )
     {
+        case STREAM_IS_PRIVATE_VIDEO :
         case STREAM_IS_PCM_AUDIO :
             stream_id_type = PES_STEAM_ID_PRIVATE_STREAM_1;
             break;
@@ -120,7 +116,23 @@ extern mpeg_pes_stream_id_type mpeg_pes_get_steam_id_type( mpeg_stream_group_typ
         case STREAM_IS_DTS_AUDIO :
             stream_id_type = PES_STEAM_ID_EXTENDED_STREAM_ID;
             break;
+        case STREAM_IS_EXTENDED_VIDEO :
+            stream_id_type = PES_STEAM_ID_EXTENDED_STREAM_ID;
+            break;
+        case STREAM_IS_ARIB_CAPTION :
+            stream_id_type = PES_STEAM_ID_PRIVATE_STREAM_1;
+            break;
+        case STREAM_IS_ARIB_STRING_SUPER :
+            stream_id_type = PES_STEAM_ID_PRIVATE_STREAM_2;
+            break;
+        case STREAM_IS_DSMCC :
+            stream_id_type = PES_STEAM_ID_DSMCC_STREAM;
+            break;
         default :
+            if( stream_judge & STREAM_IS_VIDEO )
+                stream_id_type = PES_STEAM_ID_VIDEO_STREAM;
+            else if( stream_judge & STREAM_IS_AUDIO )
+                stream_id_type = PES_STEAM_ID_AUDIO_STREAM;
             break;
     }
     return stream_id_type;
@@ -642,8 +654,16 @@ extern mpeg_stream_group_type mpeg_stream_judge_type
             stream_judge = STREAM_IS_DSMCC;
             break;
         case STREAM_VIDEO_MP4 :
-        case STREAM_VIDEO_AVC :
             stream_judge = STREAM_IS_MPEG4_VIDEO;
+            break;
+        case STREAM_VIDEO_AVC :
+            stream_judge = STREAM_IS_VIDEO;
+            break;
+        case STREAM_VIDEO_HEVC :
+            stream_judge = STREAM_IS_VIDEO;
+            break;
+        case STREAM_VIDEO_VC1 :
+            stream_judge = STREAM_IS_EXTENDED_VIDEO;
             break;
         case STREAM_AUDIO_MP1 :
             stream_judge = STREAM_IS_MPEG1_AUDIO;
@@ -654,7 +674,7 @@ extern mpeg_stream_group_type mpeg_stream_judge_type
         case STREAM_AUDIO_AAC :
             stream_judge = STREAM_IS_AAC_AUDIO;
             break;
-        //case STREAM_VIDEO_PRIVATE :
+      //case STREAM_VIDEO_PRIVATE :
         case STREAM_AUDIO_LPCM :
             for( uint16_t i = 0; i < descriptor_num; ++i )
             {
@@ -670,7 +690,7 @@ extern mpeg_stream_group_type mpeg_stream_judge_type
                 break;
             }
             break;
-        //case STREAM_AUDIO_AC3_DTS :
+      //case STREAM_AUDIO_AC3_DTS :
         case STREAM_AUDIO_AC3 :
         case STREAM_AUDIO_DDPLUS :
         case STREAM_AUDIO_DDPLUS_SUB :
