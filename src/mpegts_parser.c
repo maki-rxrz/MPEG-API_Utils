@@ -805,9 +805,13 @@ static int mpegts_search_pmt_packet( mpegts_info_t *info, tsp_pmt_si_t *pmt_si )
         ++pid_list_index;
         if( pid_list_index >= info->pid_list_num_in_pat )
             return -1;
-        if( 0 > mpegts_get_table_section_header( &(info->tsf_ctx), &h, info->pid_list_in_pat[pid_list_index]
-                                               , section_header, TS_PID_PMT_SECTION_HEADER_SIZE ) )
-            return -1;
+        do
+        {
+            if( 0 > mpegts_get_table_section_header( &(info->tsf_ctx), &h, info->pid_list_in_pat[pid_list_index]
+                                                   , section_header, TS_PID_PMT_SECTION_HEADER_SIZE ) )
+                break;
+        }
+        while( section_header[0] != PSI_TABLE_ID_PMT );
     }
     while( section_header[0] != PSI_TABLE_ID_PMT );
     /* setup PMT PID. */
