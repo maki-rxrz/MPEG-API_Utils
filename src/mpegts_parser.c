@@ -523,7 +523,10 @@ static int mpegts_get_table_section_header
     {
         int search_result = mpegts_search_program_id_packet( tsf_ctx, h, search_program_id );
         if( search_result )
+        {
+            mapi_log( LOG_LV4, "[check] search_result:%d\n", search_result );
             return search_result;
+        }
         show_packet_header_info( h );
     }
     while( !h->payload_unit_start_indicator );
@@ -540,6 +543,7 @@ static int mpegts_get_table_section_header
     /* check pointer field. */
     uint8_t pointer_field;
     mpegts_file_read( tsf_ctx, &pointer_field, 1 );
+    mapi_log( LOG_LV4, "[check] pointer_field:%d\n", pointer_field );
     if( pointer_field )
         mpegts_file_seek( tsf_ctx, pointer_field, MPEGTS_SEEK_CUR );
     /* read section header. */
