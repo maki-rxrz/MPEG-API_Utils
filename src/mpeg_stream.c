@@ -691,6 +691,7 @@ extern mpeg_stream_group_type mpeg_stream_judge_type
             }
             break;
         case STREAM_AUDIO_AC3 :
+        case STREAM_AUDIO_EAC3 :
         case STREAM_AUDIO_DDPLUS :
         case STREAM_AUDIO_DDPLUS_SUB :
             stream_judge = STREAM_IS_DOLBY_AUDIO;

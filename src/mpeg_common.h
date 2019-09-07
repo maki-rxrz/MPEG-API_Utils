@@ -127,6 +127,7 @@ typedef enum {
     STREAM_AUDIO_AC3        = 0x81,    /* AC-3                           */
     STREAM_AUDIO_DTS        = 0x82,    /* DTS                            */
     STREAM_AUDIO_MLP        = 0x83,    /* MLP/Dolby TrueHD               */
+    STREAM_AUDIO_EAC3       = 0x84,    /* E-AC3                          */
     STREAM_AUDIO_DTS_HD     = 0x85,    /* DTS-HD                         */
     STREAM_AUDIO_DTS_HD_XLL = 0x86,    /* DTS-HD with XLL                */
     STREAM_AUDIO_DDPLUS     = 0x87,    /* DD+                            */
