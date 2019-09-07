@@ -1822,6 +1822,8 @@ static mpeg_stream_type get_sample_stream_type( void *ih, mpeg_sample_type sampl
         stream_type = info->video_stream[stream_number].stream_type;
     else if( sample_type == SAMPLE_TYPE_AUDIO && stream_number < info->audio_stream_num )
         stream_type = info->audio_stream[stream_number].stream_type;
+    else if( sample_type == SAMPLE_TYPE_CAPTION && stream_number < info->caption_stream_num )
+        stream_type = info->caption_stream[stream_number].stream_type;
     else if( sample_type == SAMPLE_TYPE_DSMCC && stream_number < info->dsmcc_stream_num )
         stream_type = info->dsmcc_stream[stream_number].stream_type;
     return stream_type;
