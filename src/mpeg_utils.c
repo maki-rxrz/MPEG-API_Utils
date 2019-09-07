@@ -647,64 +647,68 @@ MAPI_EXPORT const char *mpeg_api_get_sample_file_extension
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
         return NULL;
-    static const char *raw_ext[SAMPLE_TYPE_MAX][6] =
+    if( sample_type != SAMPLE_TYPE_VIDEO && sample_type != SAMPLE_TYPE_AUDIO )
+        return NULL;
+    static const char *raw_ext[2][7] =
         {
-            { NULL, ".m1v", ".m2v", ".avc", ".vc1", NULL   },
-            { NULL, ".mpa", ".aac", ".pcm", ".ac3", ".dts" },
-            { NULL, NULL  , NULL  , NULL  , NULL  , NULL   },
-            { NULL, NULL  , NULL  , NULL  , NULL  , NULL   }
+            { NULL, ".m1v", ".m2v", ".mpv", ".avc", ".hevc", ".vc1" },
+            { NULL, ".mpa", ".aac", ".pcm", ".ac3", ".eac3", ".dts" }
         };
-    int index = 0;
+    int idx = 0;
     mpeg_stream_type stream_type = info->parser->get_sample_stream_type( info->parser_info, sample_type, stream_number );
     switch( stream_type )
     {
         /* Video Stream */
         case STREAM_VIDEO_MPEG1 :
-            index = 1;
+            idx = 1;
             break;
         case STREAM_VIDEO_MPEG2 :
         case STREAM_VIDEO_MPEG2_A :
         case STREAM_VIDEO_MPEG2_B :
         case STREAM_VIDEO_MPEG2_C :
         case STREAM_VIDEO_MPEG2_D :
-            index = 2;
+            idx = 2;
             break;
         case STREAM_VIDEO_AVC :
-            index = 3;
+            idx = 4;
+            break;
+        case STREAM_VIDEO_HEVC :
+            idx = 5;
             break;
         case STREAM_VIDEO_VC1 :
-            index = 4;
+            idx = 6;
             break;
-        /* Audio */
+        /* Audio Stream */
         case STREAM_AUDIO_MP1 :
         case STREAM_AUDIO_MP2 :
-            index = 1;
+            idx = 1;
             break;
         case STREAM_AUDIO_AAC :
-            index = 2;
+            idx = 2;
             break;
-        //case STREAM_VIDEO_PRIVATE :
+      //case STREAM_VIDEO_PRIVATE :
         case STREAM_AUDIO_LPCM :
-            if( sample_type == SAMPLE_TYPE_AUDIO )
-                index = 3;
+            idx = 3;
             break;
-        //case STREAM_AUDIO_AC3_DTS :
         case STREAM_AUDIO_AC3 :
-            index = 4;
+            idx = 4;
             break;
-        case STREAM_AUDIO_DTS :
+        case STREAM_AUDIO_EAC3 :
         case STREAM_AUDIO_MLP :
         case STREAM_AUDIO_DDPLUS :
+        case STREAM_AUDIO_DDPLUS_SUB :
+            idx = 5;
+            break;
+        case STREAM_AUDIO_DTS :
         case STREAM_AUDIO_DTS_HD :
         case STREAM_AUDIO_DTS_HD_XLL :
-        case STREAM_AUDIO_DDPLUS_SUB :
         case STREAM_AUDIO_DTS_HD_SUB :
-            index = 5;
+            idx = 6;
             break;
         default :
             break;
     }
-    return raw_ext[sample_type][index];
+    return raw_ext[sample_type][idx];
 }
 
 MAPI_EXPORT mpeg_stream_type mpeg_api_get_sample_stream_type
