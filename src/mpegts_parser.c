@@ -706,6 +706,8 @@ static uint16_t mpegts_parse_descriptor( uint8_t *descriptor_data, int data_leng
     descriptor_info->conditional_access.CA_system_ID = 0;
     descriptor_info->conditional_access.CA_PID       = 0;
     descriptor_info->registration.format_identifier  = 0;
+    descriptor_info->component.component_tag         = 0;
+    descriptor_info->stream_identifier.component_tag = 0;
     /* parse. */
     while( read_count < data_length - 2 )
     {

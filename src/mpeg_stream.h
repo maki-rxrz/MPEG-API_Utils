@@ -134,6 +134,9 @@ typedef enum {
     /* 57-62  : Rec. ITU-T H.222.0 | ISO/IEC 13818-1 Reserved   */
     Extension_descriptor                       = 0x3F,
     /* 64-255 : User Private                                    */
+    component_descriptor                       = 0x50,
+    stream_identifier_descriptor               = 0x52,
+    CA_identifier_descriptor                   = 0x53,
     DESCRIPTOR_TAG_MAX_VALUE                   = 0xFF
 } mpeg_descriptor_tag_type;
 
@@ -597,6 +600,19 @@ typedef struct {
     uint8_t         extension_descriptor_data[254];
 } DESCRIPTOR_INFO( Extension );
 
+/*  */
+typedef struct {
+    uint8_t         component_tag;
+} DESCRIPTOR_INFO( component );
+
+typedef struct {
+    uint8_t         component_tag;
+} DESCRIPTOR_INFO( stream_identifier );
+
+typedef struct {
+    uint16_t        CA_system_id;
+} DESCRIPTOR_INFO( CA_identifier );
+
 #define STRUCT_DESCRIPTOR( name )       DESCRIPTOR_INFO( name )     name;
 typedef struct {
     mpeg_descriptor_tag_type                    tag;
@@ -649,6 +665,10 @@ typedef struct {
     STRUCT_DESCRIPTOR( Transport_profile )
     STRUCT_DESCRIPTOR( HEVC_video )
     STRUCT_DESCRIPTOR( Extension )
+    /*  */
+    STRUCT_DESCRIPTOR( component )
+    STRUCT_DESCRIPTOR( stream_identifier )
+    STRUCT_DESCRIPTOR( CA_identifier )
 } mpeg_descriptor_info_t;
 #undef STRUCT_DESCRIPTOR
 

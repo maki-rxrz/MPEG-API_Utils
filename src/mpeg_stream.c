@@ -988,6 +988,22 @@ READ_DESCRIPTOR( Extension )
         memcpy( Extension->extension_descriptor_data, &(descriptor[3]), Extension->extension_descriptor_length );
 }
 
+/*  */
+READ_DESCRIPTOR( component )
+{
+    component->component_tag = descriptor[2];
+}
+
+READ_DESCRIPTOR( stream_identifier )
+{
+    stream_identifier->component_tag = descriptor[2];
+}
+
+READ_DESCRIPTOR( CA_identifier )
+{
+    CA_identifier->CA_system_id = (descriptor[2] << 8) | descriptor[3];
+}
+
 #undef READ_DESCRIPTOR
 
 #define EXECUTE_READ_DESCRIPTOR( name )                                     \
@@ -1055,6 +1071,10 @@ extern void mpeg_stream_get_descriptor_info
         EXECUTE_READ_DESCRIPTOR( Transport_profile )
         EXECUTE_READ_DESCRIPTOR( HEVC_video )
         EXECUTE_READ_DESCRIPTOR( Extension )
+        /*  */
+        EXECUTE_READ_DESCRIPTOR( component )
+        EXECUTE_READ_DESCRIPTOR( stream_identifier )
+        EXECUTE_READ_DESCRIPTOR( CA_identifier )
         default :
             break;
     }
@@ -1938,6 +1958,22 @@ extern void mpeg_stream_debug_descriptor_info( mpeg_descriptor_info_t *descripto
             }
 #endif
             break;
+		/*  */
+        PRINT_DESCRIPTOR_INFO( component,
+                "        component_tag:0x%02X\n"
+                , descriptor_info->component.component_tag
+            )
+            break;
+        PRINT_DESCRIPTOR_INFO( stream_identifier,
+                "        component_tag:0x%02X\n"
+                , descriptor_info->stream_identifier.component_tag
+            )
+            break;
+        PRINT_DESCRIPTOR_INFO( CA_identifier,
+                "        CA_system_id:0x%04X\n"
+                , descriptor_info->CA_identifier.CA_system_id
+            )
+            break;
         default :
             break;
     }
@@ -2019,7 +2055,7 @@ extern mpeg_stream_group_type mpeg_stream_judge_type
         case STREAM_PES_PRIVATE_DATA :
             for( uint16_t i = 0; i < descriptor_num; ++i )
             {
-                if( descriptor_data[idx + 0] == 0x52 && descriptor_data[idx + 1] == 1 )
+                if( descriptor_data[idx + 0] == stream_identifier_descriptor && descriptor_data[idx + 1] == 1 )
                 {
                     if( descriptor_data[idx + 2] == 0x30 )
                         stream_judge = STREAM_IS_ARIB_CAPTION;
