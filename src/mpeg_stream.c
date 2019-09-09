@@ -1990,18 +1990,15 @@ extern mpeg_stream_group_type mpeg_stream_judge_type
             break;
       //case STREAM_VIDEO_PRIVATE :
         case STREAM_AUDIO_LPCM :
+            stream_judge = STREAM_IS_PRIVATE_VIDEO;
             for( uint16_t i = 0; i < descriptor_num; ++i )
             {
-                if( descriptor_data[idx + 0] == video_stream_descriptor )
-                    stream_judge = STREAM_IS_PRIVATE_VIDEO;
-                else if( descriptor_data[idx + 0] == registration_descriptor )
-                    stream_judge = STREAM_IS_PCM_AUDIO;
-                else
+                if( descriptor_data[idx + 0] == registration_descriptor )
                 {
-                    idx += 2 + descriptor_data[idx + 1];
-                    continue;
+                    stream_judge = STREAM_IS_PCM_AUDIO;     // FIXME
+                    break;
                 }
-                break;
+                idx += 2 + descriptor_data[idx + 1];
             }
             break;
         case STREAM_AUDIO_AC3 :
