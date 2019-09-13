@@ -173,7 +173,7 @@ typedef struct {
     struct {
         uint32_t    ISO_639_language_code;
         uint8_t     audio_type;
-    } data[256];
+    } data[64];
 } DESCRIPTOR_INFO( ISO_639_language );
 
 typedef struct {
@@ -189,7 +189,7 @@ typedef struct {
 } DESCRIPTOR_INFO( multiplex_buffer_utilization );
 
 typedef struct {
-    uint8_t         copyright_identifier;
+    uint32_t        copyright_identifier;
 } DESCRIPTOR_INFO( copyright );
 
 typedef struct {

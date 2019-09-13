@@ -208,12 +208,11 @@ READ_DESCRIPTOR( target_background_grid )
 
 READ_DESCRIPTOR( video_window )
 {
-#if ENABLE_SUPPRESS_WARNINGS
-    (void) descriptor;
-#endif
-    video_window->horizontal_offset = 0;
-    video_window->vertical_offset   = 0;
-    video_window->window_priority   = 0;
+    video_window->horizontal_offset =   descriptor[2] << 6 | (descriptor[3] & 0xFC) >> 2;
+    video_window->vertical_offset   = ((descriptor[3] & 0x03) << 12)
+                                    | ( descriptor[4]         <<  4)
+                                    | ((descriptor[5] & 0xF0) >>  4);
+    video_window->window_priority   =   descriptor[5] & 0x0F;
 }
 
 READ_DESCRIPTOR( conditional_access )
@@ -232,14 +231,15 @@ READ_DESCRIPTOR( conditional_access )
 
 READ_DESCRIPTOR( ISO_639_language )
 {
-    ISO_639_language->data_num                          =  descriptor[1];
+    ISO_639_language->data_num                          =  descriptor[1] >> 2;
+    uint8_t idx = 2;
     for( uint8_t i = 0; i < ISO_639_language->data_num; ++i )
     {
-        uint8_t index = 2+i;
-        ISO_639_language->data[i].ISO_639_language_code = (descriptor[index+0] << 16)
-                                                        | (descriptor[index+1] <<  8)
-                                                        |  descriptor[index+2];
-        ISO_639_language->data[i].audio_type            =  descriptor[index+3];
+        ISO_639_language->data[i].ISO_639_language_code = (descriptor[idx+0] << 16)
+                                                        | (descriptor[idx+1] <<  8)
+                                                        |  descriptor[idx+2];
+        ISO_639_language->data[i].audio_type            =  descriptor[idx+3];
+        idx += 4;
     }
 }
 
@@ -261,9 +261,12 @@ READ_DESCRIPTOR( multiplex_buffer_utilization )
 
 READ_DESCRIPTOR( copyright )
 {
-    copyright->copyright_identifier       = descriptor[2];
+    copyright->copyright_identifier = (descriptor[2] << 24)
+                                    | (descriptor[3] << 16)
+                                    | (descriptor[4] <<  8)
+                                    |  descriptor[5];
 #if 0
-    for( uint8_t i = 3; i < descriptor[1] + 2; ++i )
+    for( uint8_t i = 6; i < descriptor[1] + 2; ++i )
     {
         /* additional_copyright_info        8bit * N    */
         uint8_t additional_copyright_info = descriptor[i];
@@ -331,14 +334,14 @@ READ_DESCRIPTOR( SL )
 
 READ_DESCRIPTOR( FMC )
 {
-    uint8_t i;
-    for( i = 0; i * 3 < descriptor[1]; ++i )
+    FMC->data_num = descriptor[1] / 3;
+    uint8_t idx = 2;
+    for( uint8_t i = 0; i < FMC->data_num; ++i )
     {
-        uint8_t index = 2 + i * 3;
-        FMC->data[i].ES_ID          = (descriptor[index+0] << 8) | descriptor[index+1];
-        FMC->data[i].FlexMuxChannel =  descriptor[index+2];
+        FMC->data[i].ES_ID          = (descriptor[idx+0] << 8) | descriptor[idx+1];
+        FMC->data[i].FlexMuxChannel =  descriptor[idx+2];
+        idx += 3;
     }
-    FMC->data_num = i;
 }
 
 READ_DESCRIPTOR( External_ES_ID )
