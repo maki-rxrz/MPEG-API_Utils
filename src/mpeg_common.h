@@ -107,11 +107,11 @@ typedef enum {
 typedef enum {
     /* ISO/IEC 13818-1  */
     STREAM_VIDEO_MPEG1      = 0x01,    /* ISO/IEC 11172 Video                                                                            */
-    STREAM_VIDEO_MPEG2      = 0x02,    /* ITU-T Rec. H.262 | ISO/IEC 13818-2 Video or ISO/IEC 11172-2 constrained parameter video stream */
+    STREAM_VIDEO_MPEG2      = 0x02,    /* Rec. ITU-T H.262 | ISO/IEC 13818-2 Video or ISO/IEC 11172-2 constrained parameter video stream */
     STREAM_AUDIO_MP1        = 0x03,    /* ISO/IEC 11172 Audio                                                                            */
     STREAM_AUDIO_MP2        = 0x04,    /* ISO/IEC 13818-3 Audio                                                                          */
-    STREAM_PRIVATE_SECTION  = 0x05,    /* ITU-T Rec. H.222.0 | ISO/IEC 13818-1 private_sections                                          */
-    STREAM_PES_PRIVATE_DATA = 0x06,    /* ITU-T Rec. H.222.0 | ISO/IEC 13818-1 PES packets containing private data                       */
+    STREAM_PRIVATE_SECTION  = 0x05,    /* Rec. ITU-T H.222.0 | ISO/IEC 13818-1 private_sections                                          */
+    STREAM_PES_PRIVATE_DATA = 0x06,    /* Rec. ITU-T H.222.0 | ISO/IEC 13818-1 PES packets containing private data                       */
     STREAM_VIDEO_MPEG2_A    = 0x0A,    /* ISO/IEC 13818-6 type A                                                                         */
     STREAM_VIDEO_MPEG2_B    = 0x0B,    /* ISO/IEC 13818-6 type B                                                                         */
     STREAM_VIDEO_MPEG2_C    = 0x0C,    /* ISO/IEC 13818-6 type C                                                                         */
@@ -119,15 +119,14 @@ typedef enum {
     STREAM_AUDIO_AAC        = 0x0F,    /* ISO/IEC 13818-7 Audio with ADTS transport syntax                                               */
     STREAM_VIDEO_MP4        = 0x10,    /* ISO/IEC 14496-2 Visual                                                                         */
     STREAM_AUDIO_MP4        = 0x11,    /* ISO/IEC 14496-3 Audio with the LATM transport syntax as defined in ISO/IEC 14496-3 / AMD 1     */
-    STREAM_VIDEO_AVC        = 0x1B,    /* ITU-T Rec. H.264 | ISO/IEC 14496-10                                                            */
-    STREAM_VIDEO_HEVC       = 0x24,    /* ITU-T Rec. H.265 | ISO/IEC 23008-2                                                             */
+    STREAM_VIDEO_AVC        = 0x1B,    /* Rec. ITU-T H.264 | ISO/IEC 14496-10                                                            */
+    STREAM_VIDEO_HEVC       = 0x24,    /* Rec. ITU-T H.265 | ISO/IEC 23008-2                                                             */
     /* User Private     */
-    STREAM_VIDEO_PRIVATE    = 0x80,    /* Private Video or Linear PCM    */
-    STREAM_AUDIO_LPCM       = 0x80,
-    STREAM_AUDIO_AC3_DTS    = 0x81,    /* AC-3 or DTS                    */
-    STREAM_AUDIO_AC3        = 0x81,
+    STREAM_VIDEO_PRIVATE    = 0x80,    /* Private Video (or Linear PCM)  */
+    STREAM_AUDIO_LPCM       = 0x80,    /* (Private Video or) Linear PCM  */
+    STREAM_AUDIO_AC3        = 0x81,    /* AC-3                           */
     STREAM_AUDIO_DTS        = 0x82,    /* DTS                            */
-    STREAM_AUDIO_MLP        = 0x83,    /* MLP                            */
+    STREAM_AUDIO_MLP        = 0x83,    /* MLP/Dolby TrueHD               */
     STREAM_AUDIO_DTS_HD     = 0x85,    /* DTS-HD                         */
     STREAM_AUDIO_DTS_HD_XLL = 0x86,    /* DTS-HD with XLL                */
     STREAM_AUDIO_DDPLUS     = 0x87,    /* DD+                            */

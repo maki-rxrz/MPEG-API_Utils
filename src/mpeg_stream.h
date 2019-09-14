@@ -110,7 +110,7 @@ typedef enum {
     MuxCode_descriptor                      = 0x21,
     FmxBufferSize_descriptor                = 0x22,
     MultiplexBuffer_descriptor              = 0x23,
-    /* 36-63  : ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Reserved   */
+    /* 36-63  : Rec. ITU-T H.222.0 | ISO/IEC 13818-1 Reserved   */
     /* 64-255 : User Private                                    */
     DESCRIPTOR_TAG_MAX_VALUE                = 0xFF
 } mpeg_descriptor_tag_type;

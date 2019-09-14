@@ -87,7 +87,7 @@ typedef enum {
      * 0x03     :  TS_description_section
      * 0x04     :  ISO_IEC_14496_scene_description_section
      * 0x05     :  ISO_IEC_14496_object_descriptor_section
-     * 0x06-0x37:  ITU-T Rec. H.222.0 | ISO/IEC 13818-1 reserved
+     * 0x06-0x37:  Rec. ITU-T H.222.0 | ISO/IEC 13818-1 reserved
      * 0x38-0x3F:  Defined in ISO/IEC 13818-6
      * 0x40-0xFE:  User private
      * 0xFF     :  forbidden

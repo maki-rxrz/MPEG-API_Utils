@@ -38,11 +38,11 @@
 
 extern int64_t mpeg_pes_get_timestamp( uint8_t *time_stamp_data )
 {
-    return (int64_t)(time_stamp_data[0] & 0x0E) << 29
-                  |  time_stamp_data[1]         << 22
-                  | (time_stamp_data[2] & 0xFE) << 14
-                  |  time_stamp_data[3]         << 7
-                  | (time_stamp_data[4] & 0xFE) >> 1;
+    return ((int64_t)(time_stamp_data[0] & 0x0E) << 29)
+         | (          time_stamp_data[1]         << 22)
+         | (         (time_stamp_data[2] & 0xFE) << 14)
+         | (          time_stamp_data[3]         <<  7)
+         | (         (time_stamp_data[4] & 0xFE) >>  1);
 }
 
 extern int mpeg_pes_check_steam_id_type( uint8_t *start_code, mpeg_pes_stream_id_type stream_id_type )
@@ -690,7 +690,6 @@ extern mpeg_stream_group_type mpeg_stream_judge_type
                 break;
             }
             break;
-      //case STREAM_AUDIO_AC3_DTS :
         case STREAM_AUDIO_AC3 :
         case STREAM_AUDIO_DDPLUS :
         case STREAM_AUDIO_DDPLUS_SUB :
