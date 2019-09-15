@@ -184,12 +184,15 @@ READ_DESCRIPTOR( hierarchy )
 
 READ_DESCRIPTOR( registration )
 {
-    registration->format_identifier              = (descriptor[2] << 24)
-                                                 | (descriptor[3] << 16)
-                                                 | (descriptor[4] <<  8)
-                                                 |  descriptor[5];
+    registration->format_identifier = (descriptor[2] << 24)
+                                    | (descriptor[3] << 16)
+                                    | (descriptor[4] <<  8)
+                                    |  descriptor[5];
     /* additional_identification_info */
-    registration->additional_identification_info =  descriptor;        // FIXME
+    registration->additional_identification_info_length = descriptor[1] - 4;
+    if( registration->additional_identification_info_length )
+        memcpy( registration->additional_identification_info, &(descriptor[6]), registration->additional_identification_info_length );
+
 }
 
 READ_DESCRIPTOR( data_stream_alignment )
@@ -201,8 +204,8 @@ READ_DESCRIPTOR( target_background_grid )
 {
     target_background_grid->horizontal_size          =  (descriptor[2] << 6) | (descriptor[3] >> 2);
     target_background_grid->vertical_size            = ((descriptor[3] & 0x02) << 12)
-                                                     |  (descriptor[4]         <<  4)
-                                                     |  (descriptor[5]         >>  4);
+                                                     | ( descriptor[4]         <<  4)
+                                                     | ( descriptor[5]         >>  4);
     target_background_grid->aspect_ratio_information =   descriptor[5] & 0x04;
 }
 
@@ -220,13 +223,10 @@ READ_DESCRIPTOR( conditional_access )
     conditional_access->CA_system_ID =  (descriptor[2] << 8) | descriptor[3];
     /* reserved     3bit             =  (descriptor[4] & 0x30) >> 5; */
     conditional_access->CA_PID       = ((descriptor[4] & 0x1F) << 8) | descriptor[5];
-#if 0
-    for( uint8_t i = 6; i < descriptor[1] + 2; ++i )
-    {
-        /* private_data_byte        8bit * N    */
-        uint8_t private_data_byte    = descriptor[i];
-    }
-#endif
+    /* private_data_byte */
+    conditional_access->private_data_byte_length = descriptor[1] - 4;
+    if( conditional_access->private_data_byte_length )
+        memcpy( conditional_access->private_data_byte, &(descriptor[6]), conditional_access->private_data_byte_length );
 }
 
 READ_DESCRIPTOR( ISO_639_language )
@@ -265,13 +265,10 @@ READ_DESCRIPTOR( copyright )
                                     | (descriptor[3] << 16)
                                     | (descriptor[4] <<  8)
                                     |  descriptor[5];
-#if 0
-    for( uint8_t i = 6; i < descriptor[1] + 2; ++i )
-    {
-        /* additional_copyright_info        8bit * N    */
-        uint8_t additional_copyright_info = descriptor[i];
-    }
-#endif
+    /* additional_copyright_info */
+    copyright->additional_copyright_info_length = descriptor[1] - 4;
+    if( copyright->additional_copyright_info_length )
+        memcpy( copyright->additional_copyright_info, &(descriptor[6]), copyright->additional_copyright_info_length );
 }
 
 READ_DESCRIPTOR( maximum_bitrate )
@@ -323,8 +320,10 @@ READ_DESCRIPTOR( IOD )
 {
     IOD->Scope_of_IOD_label      = descriptor[2];
     IOD->IOD_label               = descriptor[3];
-    /* InitialObjectDescriptor()        ISO/IEC 14496-1 */
-    IOD->InitialObjectDescriptor = descriptor[4];        // FIXME
+ // InitialObjectDescriptor();  /* defined in 8.6.3.1 of ISO/IEC 14496-1. */    // FIXME
+    IOD->InitialObjectDescriptor_length = descriptor[1] - 2;
+    if( IOD->InitialObjectDescriptor_length )
+        memcpy( IOD->InitialObjectDescriptor_data, &(descriptor[4]), IOD->InitialObjectDescriptor_length );
 }
 
 READ_DESCRIPTOR( SL )
@@ -351,22 +350,642 @@ READ_DESCRIPTOR( External_ES_ID )
 
 READ_DESCRIPTOR( MuxCode )
 {
-    /* MuxCodeTableEntry()      ISO/IEC 14496-1 */
-    MuxCode->MuxCodeTableEntry = descriptor;        // FIXME
+ // MuxCodeTableEntry();        /* defined in 11.2.4.3 of ISO/IEC 14496-1. */
+    MuxCode->length            =  descriptor[2];
+    MuxCode->MuxCode           = (descriptor[3] & 0xF0) >> 4;
+    MuxCode->version           =  descriptor[3] & 0x0F;
+    MuxCode->substructureCount =  descriptor[4];
+    uint8_t idx = 5;
+    for( uint8_t i = 0; i < MuxCode->substructureCount; ++i )
+    {
+        MuxCode->subs[i].slotCount       = (descriptor[idx] & 0xF8) >> 3;
+        MuxCode->subs[i].repetitionCount =  descriptor[idx] & 0x07;
+        ++idx;
+        for( uint8_t k = 0; k < MuxCode->subs[i].slotCount; ++k )
+        {
+            MuxCode->subs[i].slots[k].flexMuxChannel = descriptor[idx+0];
+            MuxCode->subs[i].slots[k].numberOfBytes  = descriptor[idx+1];
+            idx += 2;
+        }
+    }
 }
 
 READ_DESCRIPTOR( FmxBufferSize )
 {
-    /* FlexMuxBufferDescriptor()            ISO/IEC 14496-1 */
-    /* DefaultFlexMuxBufferDescriptor()     ISO/IEC 14496-1 */
-    FmxBufferSize->DefaultFlexMuxBufferDescriptor = descriptor;     // FIXME
-    FmxBufferSize->FlexMuxBufferDescriptor        = descriptor;     // FIXME
+ // DefaultFlexMuxBufferDescriptor()    /* defined in 11.2 of ISO/IEC 14496-1. */   // FIXME
+ // FlexMuxBufferDescriptor()           /* defined in 11.2 of ISO/IEC 14496-1. */   // FIXME
+    FmxBufferSize->descriptor_length = descriptor[1];
+    if( FmxBufferSize->descriptor_length )
+        memcpy( FmxBufferSize->descriptor_data, &(descriptor[2]), FmxBufferSize->descriptor_length );
 }
 
 READ_DESCRIPTOR( MultiplexBuffer )
 {
     MultiplexBuffer->MB_buffer_size = (descriptor[2] << 16) | (descriptor[3] << 8) | descriptor[4];
     MultiplexBuffer->TB_leak_rate   = (descriptor[5] << 16) | (descriptor[6] << 8) | descriptor[7];
+}
+
+READ_DESCRIPTOR( content_labeling )
+{
+    content_labeling->metadata_application_format = (descriptor[2] << 8) | descriptor[3];
+    uint8_t idx;
+    if( content_labeling->metadata_application_format == 0xFFFF )
+    {
+        content_labeling->metadata_application_format_identifier = (descriptor[4] << 24)
+                                                                 | (descriptor[5] << 16)
+                                                                 | (descriptor[6] <<  8)
+                                                                 |  descriptor[7];
+        idx = 8;
+    }
+    else
+        idx = 4;
+    content_labeling->content_reference_id_record_flag = !!(descriptor[idx] & 0x80);
+    content_labeling->content_time_base_indicator      =   (descriptor[idx] & 0x78) >> 3;
+    /* reserved                                        =    descriptor[idx] & 0x07; */
+    ++ idx;
+    if( content_labeling->content_reference_id_record_flag )
+    {
+        content_labeling->content_reference_id_record_length = descriptor[idx];
+        ++idx;
+        if( content_labeling->content_reference_id_record_length )
+        {
+            memcpy( content_labeling->content_reference_id_byte, &(descriptor[idx]), content_labeling->content_reference_id_record_length );
+            idx += content_labeling->content_reference_id_record_length;
+        }
+    }
+    if( content_labeling->content_time_base_indicator == 1 || content_labeling->content_time_base_indicator == 2 )
+    {
+        /* reserved                                =            (descriptor[idx+0] & 0xE0) >> 1; */
+        content_labeling->content_time_base_value  = ((uint64_t)(descriptor[idx+0] & 0x01) << 32)
+                                                   | (           descriptor[idx+1]         << 24)
+                                                   | (           descriptor[idx+2]         << 16)
+                                                   | (           descriptor[idx+3]         <<  8)
+                                                   |             descriptor[idx+4];
+        idx += 5;
+        /* reserved                                =            (descriptor[idx+0] & 0xE0) >> 1; */
+        content_labeling->metadata_time_base_value = ((uint64_t)(descriptor[idx+0] & 0x01) << 32)
+                                                   | (           descriptor[idx+1]         << 24)
+                                                   | (           descriptor[idx+2]         << 16)
+                                                   | (           descriptor[idx+3]         <<  8)
+                                                   |             descriptor[idx+4];
+        idx += 5;
+    }
+    if( content_labeling->content_time_base_indicator == 2 )
+    {
+        /* reserved                 = !!(descriptor[idx] & 0x80); */
+        content_labeling->contentId =    descriptor[idx] & 0x7F;
+        ++idx;
+    }
+    if( 3 <= content_labeling->content_time_base_indicator && content_labeling->content_time_base_indicator <= 7 )
+    {
+        content_labeling->time_base_association_data_length = descriptor[idx];
+        ++idx;
+        if( content_labeling->time_base_association_data_length )
+        {
+            memcpy( content_labeling->time_base_association_data, &(descriptor[idx]), content_labeling->time_base_association_data_length );
+            idx += content_labeling->time_base_association_data_length;
+        }
+    }
+    /* private_data_byte */
+    content_labeling->private_data_byte_length = descriptor[1] - idx + 2;
+    if( content_labeling->private_data_byte_length )
+        memcpy( content_labeling->private_data_byte, &(descriptor[idx]), content_labeling->private_data_byte_length );
+}
+
+READ_DESCRIPTOR( metadata_pointer )
+{
+    metadata_pointer->metadata_application_format = (descriptor[2] << 8) | descriptor[3];
+    uint8_t idx;
+    if( metadata_pointer->metadata_application_format == 0xFFFF )
+    {
+        metadata_pointer->metadata_application_format_identifier = (descriptor[4] << 24)
+                                                                 | (descriptor[5] << 16)
+                                                                 | (descriptor[6] <<  8)
+                                                                 |  descriptor[7];
+        idx = 8;
+    }
+    else
+        idx = 4;
+    metadata_pointer->metadata_format = descriptor[idx];
+    ++idx;
+    if( metadata_pointer->metadata_format == 0xFF )
+    {
+        metadata_pointer->metadata_format_identifier = (descriptor[idx+0] << 24)
+                                                     | (descriptor[idx+1] << 16)
+                                                     | (descriptor[idx+2] <<  8)
+                                                     |  descriptor[idx+3];
+        idx += 4;
+    }
+    metadata_pointer->metadata_service_id          =    descriptor[idx];
+    ++idx;
+    metadata_pointer->metadata_locator_record_flag = !!(descriptor[idx] & 0x80);
+    metadata_pointer->MPEG_carriage_flags          =   (descriptor[idx] & 0x60) >> 5;
+    /* reserved                                    =    descriptor[idx] & 0x1F; */
+    ++idx;
+    if( metadata_pointer->metadata_locator_record_flag )
+    {
+        metadata_pointer->metadata_locator_record_length = descriptor[idx];
+        ++idx;
+        if( metadata_pointer->metadata_locator_record_length )
+        {
+            memcpy( metadata_pointer->metadata_locator_record_byte, &(descriptor[idx]), metadata_pointer->metadata_locator_record_length );
+            idx += metadata_pointer->metadata_locator_record_length;
+        }
+    }
+    if( metadata_pointer->MPEG_carriage_flags <= 2 )
+    {
+        metadata_pointer->program_number = (descriptor[idx+0] << 8) | descriptor[idx+1];
+        idx += 2;
+    }
+    if( metadata_pointer->MPEG_carriage_flags == 1 )
+    {
+        metadata_pointer->transport_stream_location = (descriptor[idx+0] << 8) | descriptor[idx+1];
+        metadata_pointer->ransport_stream_id        = (descriptor[idx+2] << 8) | descriptor[idx+3];
+        idx += 4;
+    }
+    /* private_data_byte */
+    metadata_pointer->private_data_byte_length = descriptor[1] - idx + 2;
+    if( metadata_pointer->private_data_byte_length )
+        memcpy( metadata_pointer->private_data_byte, &(descriptor[idx]), metadata_pointer->private_data_byte_length );
+}
+
+READ_DESCRIPTOR( metadata )
+{
+    metadata->metadata_application_format = (descriptor[2] << 8) | descriptor[3];
+    uint8_t idx;
+    if( metadata->metadata_application_format == 0xFFFF )
+    {
+        metadata->metadata_application_format_identifier = (descriptor[4] << 24)
+                                                         | (descriptor[5] << 16)
+                                                         | (descriptor[6] <<  8)
+                                                         |  descriptor[7];
+        idx = 8;
+    }
+    else
+        idx = 4;
+    metadata->metadata_format = descriptor[idx];
+    ++idx;
+    if( metadata->metadata_format == 0xFF )
+    {
+        metadata->metadata_format_identifier = (descriptor[idx+0] << 24)
+                                             | (descriptor[idx+1] << 16)
+                                             | (descriptor[idx+2] <<  8)
+                                             |  descriptor[idx+3];
+        idx += 4;
+    }
+    metadata->metadata_service_id  =  descriptor[idx];
+    ++idx;
+    metadata->decoder_config_flags = (descriptor[idx] & 0xE0) >> 5;
+    metadata->DSM_CC_flag          = (descriptor[idx] & 0x10) >> 4;
+    /* reserved                    =  descriptor[idx] & 0x0F; */
+    ++idx;
+    if( metadata->DSM_CC_flag )
+    {
+        metadata->service_identification_length = descriptor[idx];
+        ++idx;
+        if( metadata->service_identification_length )
+        {
+            memcpy( metadata->service_identification_record_byte, &(descriptor[idx]), metadata->service_identification_length );
+            idx += metadata->service_identification_length;
+        }
+    }
+    if( metadata->decoder_config_flags == 1 )
+    {
+        metadata->decoder_config_length = descriptor[idx];
+        ++idx;
+        if( metadata->decoder_config_length )
+        {
+            memcpy( metadata->decoder_config_byte, &(descriptor[idx]), metadata->decoder_config_length );
+            idx += metadata->decoder_config_length;
+        }
+    }
+    if( metadata->decoder_config_flags == 3 )
+    {
+        metadata->dec_config_identification_record_length = descriptor[idx];
+        ++idx;
+        if( metadata->dec_config_identification_record_length )
+        {
+            memcpy( metadata->dec_config_identification_record_byte, &(descriptor[idx]), metadata->dec_config_identification_record_length );
+            idx += metadata->dec_config_identification_record_length;
+        }
+    }
+    if( metadata->decoder_config_flags == 4 )
+    {
+        metadata->decoder_config_metadata_service_id = descriptor[idx];
+        ++idx;
+    }
+    if( metadata->decoder_config_flags == 5 || metadata->decoder_config_flags == 6 )
+    {
+        metadata->reserved_data_length = descriptor[idx];
+        ++idx;
+        if( metadata->reserved_data_length )
+        {
+            memcpy( metadata->reserved_data, &(descriptor[idx]), metadata->reserved_data_length );
+            idx += metadata->reserved_data_length;
+        }
+    }
+    /* private_data_byte */
+    metadata->private_data_byte_length = descriptor[1] - idx + 2;
+    if( metadata->private_data_byte_length )
+        memcpy( metadata->private_data_byte, &(descriptor[idx]), metadata->private_data_byte_length );
+}
+
+READ_DESCRIPTOR( metadata_STD )
+{
+    /* reserved                             = (descriptor[2] & 0xC0) >> 6; */
+    metadata_STD->metadata_input_leak_rate  = (descriptor[2] & 0x3F) << 16
+                                            |  descriptor[3]         <<  8
+                                            |  descriptor[4];
+    /* reserved                             = (descriptor[5] & 0xC0) >> 6; */
+    metadata_STD->metadata_buffer_size      = (descriptor[5] & 0x3F) << 16
+                                            |  descriptor[6]         <<  8
+                                            |  descriptor[7];
+    /* reserved                             = (descriptor[8] & 0xC0) >> 6; */
+    metadata_STD->metadata_output_leak_rate = (descriptor[8] & 0x3F) << 16
+                                            |  descriptor[9]         <<  8
+                                            |  descriptor[10];
+}
+
+READ_DESCRIPTOR( AVC_video )
+{
+    AVC_video->profile_idc                        =    descriptor[2];
+    AVC_video->constraint_set0_flag               = !!(descriptor[3] & 0x80);
+    AVC_video->constraint_set1_flag               = !!(descriptor[3] & 0x40);
+    AVC_video->constraint_set2_flag               = !!(descriptor[3] & 0x20);
+    AVC_video->constraint_set3_flag               = !!(descriptor[3] & 0x10);
+    AVC_video->constraint_set4_flag               = !!(descriptor[3] & 0x08);
+    AVC_video->constraint_set5_flag               = !!(descriptor[3] & 0x04);
+    AVC_video->AVC_compatible_flags               =    descriptor[3] & 0x03;
+    AVC_video->level_idc                          =    descriptor[4];
+    AVC_video->AVC_still_present                  = !!(descriptor[5] & 0x80);
+    AVC_video->AVC_24_hour_picture_flag           = !!(descriptor[5] & 0x40);
+    AVC_video->Frame_Packing_SEI_not_present_flag = !!(descriptor[5] & 0x20);
+    /* reserved                                   =    descriptor[8] & 0x1F; */
+}
+
+READ_DESCRIPTOR( IPMP )
+{
+    IPMP->descriptor_length    = descriptor[1];
+    if( IPMP->descriptor_length )
+        memcpy( IPMP->descriptor_data, &(descriptor[2]), IPMP->descriptor_length );
+}
+
+READ_DESCRIPTOR( AVC_timing_and_HRD )
+{
+    AVC_timing_and_HRD->hrd_management_valid_flag       = !!(descriptor[2] & 0x80);
+    /* reserved                                         =   (descriptor[2] & 0x7E) >> 1; */
+    AVC_timing_and_HRD->picture_and_timing_info_present =    descriptor[2] & 0x01;
+    uint8_t idx = 3;
+    if( AVC_timing_and_HRD->picture_and_timing_info_present )
+    {
+        AVC_timing_and_HRD->_90kHz_flag        = !!(descriptor[3] & 0x80);
+        /* reserved                            =   (descriptor[3] & 0x7F); */
+        if( AVC_timing_and_HRD->_90kHz_flag )
+        {
+            AVC_timing_and_HRD->N = (descriptor[ 4] << 24)
+                                  | (descriptor[ 5] << 16)
+                                  | (descriptor[ 6] <<  8)
+                                  |  descriptor[ 7];
+            AVC_timing_and_HRD->K = (descriptor[ 8] << 24)
+                                  | (descriptor[ 9] << 16)
+                                  | (descriptor[10] <<  8)
+                                  |  descriptor[11];
+            idx = 12;
+        }
+        else
+            idx = 4;
+        AVC_timing_and_HRD->num_units_in_tick = descriptor[idx+0] << 24
+                                              | descriptor[idx+1] << 16
+                                              | descriptor[idx+2] <<  8
+                                              | descriptor[idx+3];
+    }
+    AVC_timing_and_HRD->fixed_frame_rate_flag              = !!(descriptor[idx] & 0x80);
+    AVC_timing_and_HRD->temporal_poc_flag                  = !!(descriptor[idx] & 0x40);
+    AVC_timing_and_HRD->picture_to_display_conversion_flag = !!(descriptor[idx] & 0x20);
+    /* reserved                                            =    descriptor[idx] & 0x1F; */
+}
+
+READ_DESCRIPTOR( MPEG2_AAC_audio )
+{
+    MPEG2_AAC_audio->MPEG2_AAC_profile                = descriptor[2];
+    MPEG2_AAC_audio->MPEG2_AAC_channel_configuration  = descriptor[3];
+    MPEG2_AAC_audio->MPEG2_AAC_additional_information = descriptor[4];
+}
+
+READ_DESCRIPTOR( FlexMuxTiming )
+{
+    FlexMuxTiming->FCR_ES_ID     = (descriptor[2] << 8) | descriptor[3];
+    FlexMuxTiming->FCRResolution = (descriptor[4] << 24)
+                                 | (descriptor[5] << 16)
+                                 | (descriptor[6] <<  8)
+                                 |  descriptor[7];
+    FlexMuxTiming->FCRLength     =  descriptor[8];
+    FlexMuxTiming->FmxRateLength =  descriptor[9];
+}
+
+READ_DESCRIPTOR( MPEG4_text )       // FIXME (data size is big.)
+{
+ // TextConfig();               /* defined in ISO/IEC 14496-17. */
+    MPEG4_text->textFormat       =  descriptor[2];
+    MPEG4_text->textConfigLength = (descriptor[3] << 8) | descriptor[4];
+ // formatSpecificTextConfig();
+    MPEG4_text->_3GPPBaseFormat  =  descriptor[5];
+    MPEG4_text->profileLevel     =  descriptor[6];
+    MPEG4_text->durationClock    = (descriptor[7] << 16)
+                                 | (descriptor[8] <<  8)
+                                 |  descriptor[9];
+    MPEG4_text->contains_list_of_compatible_3GPPFormats_flag = !!(descriptor[10] & 0x80);
+    MPEG4_text->sampleDescriptionFlags                       =   (descriptor[10] & 0x60) >> 5;
+    MPEG4_text->SampleDescription_carriage_flag              = !!(descriptor[10] & 0x10);
+    MPEG4_text->positioning_information_flag                 = !!(descriptor[10] & 0x08);
+    /* reserved                                              =    descriptor[10] & 0x07; */
+    MPEG4_text->layer             =  descriptor[11];
+    MPEG4_text->text_track_width  = (descriptor[12] << 8) | descriptor[13];
+    MPEG4_text->text_track_height = (descriptor[14] << 8) | descriptor[15];
+    uint8_t idx = 16;
+    if( MPEG4_text->contains_list_of_compatible_3GPPFormats_flag )
+    {
+        MPEG4_text->number_of_formats = descriptor[16];
+        if( MPEG4_text->number_of_formats )
+        {
+            memcpy( MPEG4_text->Compatible_3GPPFormat, &(descriptor[17]), MPEG4_text->number_of_formats );
+            idx = 17 + MPEG4_text->number_of_formats;
+        }
+        else
+            idx = 17;
+    }
+    if( MPEG4_text->SampleDescription_carriage_flag )
+    {
+        MPEG4_text->number_of_SampleDescriptions = descriptor[idx];
+        ++idx;
+     // Sample_index_and_description()(number-of-SampleDescriptions);
+        for( uint8_t i = 0; i < MPEG4_text->number_of_SampleDescriptions; ++i )
+        {
+            MPEG4_text->Sample_index_and_description[i].sample_index = descriptor[idx];
+            ++idx;
+         // SampleDescription();    /* specified in 3GPP TS 26.245. */
+            MPEG4_text->Sample_index_and_description[i].displayFlags             = (descriptor[idx+0] << 24)
+                                                                                 | (descriptor[idx+1] << 16)
+                                                                                 | (descriptor[idx+2] <<  8)
+                                                                                 |  descriptor[idx+3];
+            MPEG4_text->Sample_index_and_description[i].horizontal_justification = (int8_t)descriptor[idx+4];
+            MPEG4_text->Sample_index_and_description[i].vertical_justification   = (int8_t)descriptor[idx+5];
+            MPEG4_text->Sample_index_and_description[i].background_color_rgba[0] = descriptor[idx+6];
+            MPEG4_text->Sample_index_and_description[i].background_color_rgba[1] = descriptor[idx+7];
+            MPEG4_text->Sample_index_and_description[i].background_color_rgba[2] = descriptor[idx+8];
+            MPEG4_text->Sample_index_and_description[i].background_color_rgba[3] = descriptor[idx+9];
+            idx += 10;
+         // BoxRecord       default-text-box;
+            MPEG4_text->Sample_index_and_description[i].default_text_box.top    = (int16_t)((descriptor[idx+0] << 8) | descriptor[idx+1]);
+            MPEG4_text->Sample_index_and_description[i].default_text_box.left   = (int16_t)((descriptor[idx+2] << 8) | descriptor[idx+3]);
+            MPEG4_text->Sample_index_and_description[i].default_text_box.bottom = (int16_t)((descriptor[idx+4] << 8) | descriptor[idx+5]);
+            MPEG4_text->Sample_index_and_description[i].default_text_box.right  = (int16_t)((descriptor[idx+6] << 8) | descriptor[idx+7]);
+            idx += 8;
+         // StyleRecord     default-style;
+            MPEG4_text->Sample_index_and_description[i].default_style.startChar          = (descriptor[idx+0] << 8) | descriptor[idx+1];
+            MPEG4_text->Sample_index_and_description[i].default_style.endChar            = (descriptor[idx+2] << 8) | descriptor[idx+3];
+            MPEG4_text->Sample_index_and_description[i].default_style.font_ID            = (descriptor[idx+4] << 8) | descriptor[idx+5];
+            MPEG4_text->Sample_index_and_description[i].default_style.face_style_flags   =  descriptor[idx+6];
+            MPEG4_text->Sample_index_and_description[i].default_style.font_size          =  descriptor[idx+7];
+            MPEG4_text->Sample_index_and_description[i].default_style.text_color_rgba[0] =  descriptor[idx+8];
+            MPEG4_text->Sample_index_and_description[i].default_style.text_color_rgba[1] =  descriptor[idx+9];
+            MPEG4_text->Sample_index_and_description[i].default_style.text_color_rgba[2] =  descriptor[idx+10];
+            MPEG4_text->Sample_index_and_description[i].default_style.text_color_rgba[3] =  descriptor[idx+11];
+            idx += 12;
+         // FontTableBox    font-table;
+            MPEG4_text->Sample_index_and_description[i].font_table.entry_count = (descriptor[idx+0] << 8) | descriptor[idx+1];
+            ++idx;
+         // FontRecord    font-entry[entry-count];
+            for( uint8_t j = 0; j < MPEG4_text->Sample_index_and_description[i].font_table.entry_count; ++j )
+            {
+                MPEG4_text->Sample_index_and_description[i].font_table.font_entry[j].font_ID          = (descriptor[idx+2] << 8) | descriptor[idx+3];
+                MPEG4_text->Sample_index_and_description[i].font_table.font_entry[j].font_name_length =  descriptor[idx+4];
+                if( MPEG4_text->Sample_index_and_description[i].font_table.font_entry[j].font_name_length )
+                {
+                    memcpy( MPEG4_text->Sample_index_and_description[i].font_table.font_entry[j].font, &(descriptor[idx+5])
+                          , MPEG4_text->Sample_index_and_description[i].font_table.font_entry[j].font_name_length );
+                    idx += 3 + MPEG4_text->Sample_index_and_description[i].font_table.font_entry[j].font_name_length;
+                }
+                else
+                    idx += 3;
+            }
+        }
+    }
+    if( MPEG4_text->positioning_information_flag )
+    {
+        MPEG4_text->scene_width             = (descriptor[idx+0] << 8) | descriptor[idx+1];
+        MPEG4_text->scene_height            = (descriptor[idx+2] << 8) | descriptor[idx+3];
+        MPEG4_text->horizontal_scene_offset = (descriptor[idx+4] << 8) | descriptor[idx+5];
+        MPEG4_text->vertical_scene_offset   = (descriptor[idx+6] << 8) | descriptor[idx+7];
+    }
+}
+
+READ_DESCRIPTOR( MPEG4_audio_extension )
+{
+    MPEG4_audio_extension->ASC_flag     = !!(descriptor[2] & 0x80);
+    /* reserved                         =   (descriptor[2] & 0x70) >> 4; */
+    MPEG4_audio_extension->num_of_loops =    descriptor[2] & 0x0F;
+    for( uint8_t i = 0; i < MPEG4_audio_extension->num_of_loops; ++i )
+        MPEG4_audio_extension->audioProfileLevelIndication[i] = descriptor[3 + i];
+    uint8_t idx = 3 + MPEG4_audio_extension->num_of_loops;
+    if( MPEG4_audio_extension->ASC_flag )
+    {
+        MPEG4_audio_extension->ASC_size = descriptor[idx];
+        ++idx;
+     // audioSpecificConfig();      /* specified in 1.6.2.1 in ISO/IEC 14496-3. */      // FIXME
+        if( MPEG4_audio_extension->ASC_size )
+            memcpy( MPEG4_audio_extension->audioSpecificConfig, &(descriptor[idx]), MPEG4_audio_extension->ASC_size );
+    }
+}
+
+READ_DESCRIPTOR( Auxiliary_video_stream )
+{
+    Auxiliary_video_stream->aux_video_codedstreamtype = descriptor[2];
+ // si_rbsp(descriptor_length-1);
+    Auxiliary_video_stream->si_rbsp_length = descriptor[1] - 1;
+    if( Auxiliary_video_stream->si_rbsp_length )
+        memcpy( Auxiliary_video_stream->si_rbsp, &(descriptor[3]), Auxiliary_video_stream->si_rbsp_length );
+}
+
+READ_DESCRIPTOR( SVC_extension )
+{
+    SVC_extension->width                   =   (descriptor[ 2] << 8) | descriptor[ 3];
+    SVC_extension->height                  =   (descriptor[ 4] << 8) | descriptor[ 5];
+    SVC_extension->frame_rate              =   (descriptor[ 6] << 8) | descriptor[ 7];
+    SVC_extension->average_bitrate         =   (descriptor[ 8] << 8) | descriptor[ 9];
+    SVC_extension->maximum_bitrate         =   (descriptor[10] << 8) | descriptor[10];
+    SVC_extension->dependency_id           =   (descriptor[11] & 0xE0) >> 5;
+    /* reserved                            =    descriptor[11] & 0x1F; */
+    SVC_extension->quality_id_start        =   (descriptor[12] & 0xF0) >> 4;
+    SVC_extension->quality_id_end          =    descriptor[12] & 0x0F;
+    SVC_extension->temporal_id_start       =   (descriptor[13] & 0xE0) >> 5;
+    SVC_extension->temporal_id_end         =   (descriptor[13] & 0x1C) >> 2;
+    SVC_extension->no_sei_nal_unit_present = !!(descriptor[13] & 0x02);
+    /* reserved                            =    descriptor[13] & 0x01; */
+}
+
+READ_DESCRIPTOR( MVC_extension )
+{
+    MVC_extension->average_bitrate              =   (descriptor[2] << 8) | descriptor[3];
+    MVC_extension->maximum_bitrate              =   (descriptor[4] << 8) | descriptor[5];
+    MVC_extension->view_association_not_present = !!(descriptor[6] & 0x80);
+    MVC_extension->base_view_is_left_eyeview    = !!(descriptor[6] & 0x40);
+    /* reserved                                 =   (descriptor[6] & 0x30) >> 4; */
+    MVC_extension->view_order_index_min         =   (descriptor[6] & 0x0F) << 6 | (descriptor[7] & 0xFC) >> 2;
+    MVC_extension->view_order_index_max         =   (descriptor[7] & 0x03) << 8 |  descriptor[8];
+    MVC_extension->temporal_id_start            =   (descriptor[9] & 0xE0) >> 5;
+    MVC_extension->temporal_id_end              =   (descriptor[9] & 0x1C) >> 2;
+    MVC_extension->no_sei_nal_unit_present      = !!(descriptor[9] & 0x02);
+    MVC_extension->no_prefix_nal_unit_present   =    descriptor[9] & 0x01;
+}
+
+READ_DESCRIPTOR( J2K_video )
+{
+    J2K_video->profile_and_level    =   (descriptor[ 2] << 8) | descriptor[ 3];
+    J2K_video->horizontal_size      =   (descriptor[ 4] << 24)
+                                    |   (descriptor[ 5] << 16)
+                                    |   (descriptor[ 6] <<  8)
+                                    |    descriptor[ 7];
+    J2K_video->vertical_size        =   (descriptor[ 8] << 24)
+                                    |   (descriptor[ 9] << 16)
+                                    |   (descriptor[10] <<  8)
+                                    |    descriptor[11];
+    J2K_video->max_bit_rate         =   (descriptor[12] << 24)
+                                    |   (descriptor[13] << 16)
+                                    |   (descriptor[14] <<  8)
+                                    |    descriptor[15];
+    J2K_video->max_buffer_size      =   (descriptor[16] << 24)
+                                    |   (descriptor[17] << 16)
+                                    |   (descriptor[18] <<  8)
+                                    |    descriptor[19];
+    J2K_video->DEN_frame_rate       =   (descriptor[20] << 8) | descriptor[21];
+    J2K_video->NUM_frame_rate       =   (descriptor[22] << 8) | descriptor[23];
+    J2K_video->color_specification  =    descriptor[24];
+    J2K_video->still_mode           = !!(descriptor[25] & 0x80);
+    J2K_video->interlaced_video     = !!(descriptor[25] & 0x40);
+    /* reserved                     =    descriptor[25] & 0x2F; */
+    /* private_data_byte */
+    J2K_video->private_data_byte_length = descriptor[1] - 26 + 2;
+    if( J2K_video->private_data_byte_length )
+        memcpy( J2K_video->private_data_byte, &(descriptor[26]), J2K_video->private_data_byte_length );
+}
+
+READ_DESCRIPTOR( MVC_operation_point )      // FIXME (data size is big.)
+{
+    MVC_operation_point->profile_idc          =    descriptor[2];
+    MVC_operation_point->constraint_set0_flag = !!(descriptor[3] & 0x80);
+    MVC_operation_point->constraint_set1_flag = !!(descriptor[3] & 0x40);
+    MVC_operation_point->constraint_set2_flag = !!(descriptor[3] & 0x20);
+    MVC_operation_point->constraint_set3_flag = !!(descriptor[3] & 0x10);
+    MVC_operation_point->constraint_set4_flag = !!(descriptor[3] & 0x08);
+    MVC_operation_point->constraint_set5_flag = !!(descriptor[3] & 0x04);
+    MVC_operation_point->AVC_compatible_flags =    descriptor[3] & 0x03;
+    MVC_operation_point->level_count          =    descriptor[4];
+    uint8_t idx = 5;
+    for( uint8_t i = 0; i < MVC_operation_point->level_count; ++i )
+    {
+        MVC_operation_point->levels[i].level_idc               = descriptor[idx+0];
+        MVC_operation_point->levels[i].operation_points_count  = descriptor[idx+1];
+        idx += 2;
+        for( uint8_t j = 0; j < MVC_operation_point->levels[i].operation_points_count; ++j )
+        {
+            /* reserved                                                                = !!(descriptor[idx+0] & 0xF8) >> 3; */
+            MVC_operation_point->levels[i].operation_points[j].applicable_temporal_id  =    descriptor[idx+0] & 0x07;
+            MVC_operation_point->levels[i].operation_points[j].num_target_output_views =    descriptor[idx+1];
+            MVC_operation_point->levels[i].operation_points[j].ES_count                =    descriptor[idx+2];
+            idx += 3;
+            for( uint8_t k = 0; k < MVC_operation_point->levels[i].operation_points[j].ES_count; ++k )
+            {
+                /* reserved                                                        = !!(descriptor[idx] & 0xC0) >> 6; */
+                MVC_operation_point->levels[i].operation_points[j].ES_reference[k] =    descriptor[idx] & 0xC3F;
+                ++idx;
+            }
+        }
+    }
+}
+
+READ_DESCRIPTOR( MPEG2_stereoscopic_video_format )
+{
+    MPEG2_stereoscopic_video_format->stereo_video_arrangement_type_present = !!(descriptor[2] & 0x80);
+    if( MPEG2_stereoscopic_video_format->stereo_video_arrangement_type_present )
+        MPEG2_stereoscopic_video_format->arrangement_type                  =    descriptor[2] & 0x7F;
+}
+
+READ_DESCRIPTOR( Stereoscopic_program_info )
+{
+    /* reserved                                          = (descriptor[2] & 0xF8) >> 3; */
+    Stereoscopic_program_info->stereoscopic_service_type =  descriptor[2] & 0x07;
+}
+
+READ_DESCRIPTOR( Stereoscopic_video_info )
+{
+    /* reserved                                               = (descriptor[2] & 0xFE) >> 1; */
+    Stereoscopic_video_info->base_video_flag                  =  descriptor[2] & 0x01;
+    if( Stereoscopic_video_info->base_video_flag )
+    {
+        /* reserved                                           = (descriptor[3] & 0xFE) >> 1; */
+        Stereoscopic_video_info->leftview_flag                =  descriptor[3] & 0x01;
+    }
+    else
+    {
+        /* reserved                                           = (descriptor[3] & 0xFE) >> 1; */
+        Stereoscopic_video_info->usable_as_2D                 =  descriptor[3] & 0x01;
+        Stereoscopic_video_info->horizontal_upsampling_factor = (descriptor[4] & 0xF0) >> 4;
+        Stereoscopic_video_info->vertical_upsampling_factor   =  descriptor[4] & 0x0F;
+    }
+}
+
+READ_DESCRIPTOR( Transport_profile )
+{
+    Transport_profile->transport_profile = descriptor[2];
+    /* private_data */
+    Transport_profile->private_data_length = descriptor[1] - 3 + 2;
+    if( Transport_profile->private_data_length )
+        memcpy( Transport_profile->private_data, &(descriptor[3]), Transport_profile->private_data_length );
+}
+
+READ_DESCRIPTOR( HEVC_video )
+{
+    HEVC_video->profile_space                       =   (descriptor[2] & 0xC0) >> 6;
+    HEVC_video->tier_flag                           = !!(descriptor[2] & 0x20);
+    HEVC_video->profile_idc                         =    descriptor[2] & 0x1F;
+    HEVC_video->profile_compatibility_indication    =   (descriptor[3] << 24)
+                                                    |   (descriptor[4] << 16)
+                                                    |   (descriptor[5] <<  8)
+                                                    |    descriptor[6];
+    HEVC_video->progressive_source_flag             = !!(descriptor[7] & 0x80);
+    HEVC_video->interlaced_source_flag              = !!(descriptor[7] & 0x40);
+    HEVC_video->non_packed_constraint_flag          = !!(descriptor[7] & 0x20);
+    HEVC_video->frame_only_constraint_flag          = !!(descriptor[7] & 0x10);
+    HEVC_video->copied_44bits                       = ((uint64_t)(descriptor[7] & 0x0F) << 36)
+                                                    | ((uint64_t) descriptor[8]         << 32)
+                                                    | (           descriptor[9]         << 24)
+                                                    | (           descriptor[10]        << 16)
+                                                    | (           descriptor[11]        <<  8)
+                                                    |             descriptor[12];
+    HEVC_video->level_idc                           =    descriptor[13];
+    HEVC_video->temporal_layer_subset_flag          = !!(descriptor[14] & 0x80);
+    HEVC_video->HEVC_still_present_flag             = !!(descriptor[14] & 0x40);
+    HEVC_video->HEVC_24hr_picture_present_flag      = !!(descriptor[14] & 0x20);
+    HEVC_video->sub_pic_hrd_params_not_present_flag = !!(descriptor[14] & 0x10);
+    /* reserved                                     =   (descriptor[14] & 0x0C) >> 2; */
+    HEVC_video->HDR_WCG_idc                         =    descriptor[14] & 0x03;
+    if( HEVC_video->temporal_layer_subset_flag )
+    {
+        HEVC_video->temporal_id_min                 =   (descriptor[15] & 0xE0) >> 5;
+        /* reserved                                 =    descriptor[15] & 0x1F; */
+        HEVC_video->temporal_id_max                 =   (descriptor[16] & 0xE0) >> 5;
+        /* reserved                                 =    descriptor[16] & 0x1F; */
+    }
+}
+
+READ_DESCRIPTOR( Extension )
+{
+    Extension->extension_descriptor_tag = descriptor[2];
+    /* extension_descriptor_data */         // FIXME
+    Extension->extension_descriptor_length = descriptor[1] - 3 + 2;
+    if( Extension->extension_descriptor_length )
+        memcpy( Extension->extension_descriptor_data, &(descriptor[3]), Extension->extension_descriptor_length );
 }
 
 #undef READ_DESCRIPTOR
@@ -414,6 +1033,28 @@ extern void mpeg_stream_get_descriptor_info
         EXECUTE_READ_DESCRIPTOR( MuxCode )
         EXECUTE_READ_DESCRIPTOR( FmxBufferSize )
         EXECUTE_READ_DESCRIPTOR( MultiplexBuffer )
+        EXECUTE_READ_DESCRIPTOR( content_labeling )
+        EXECUTE_READ_DESCRIPTOR( metadata_pointer )
+        EXECUTE_READ_DESCRIPTOR( metadata )
+        EXECUTE_READ_DESCRIPTOR( metadata_STD )
+        EXECUTE_READ_DESCRIPTOR( AVC_video )
+        EXECUTE_READ_DESCRIPTOR( IPMP )
+        EXECUTE_READ_DESCRIPTOR( AVC_timing_and_HRD )
+        EXECUTE_READ_DESCRIPTOR( MPEG2_AAC_audio )
+        EXECUTE_READ_DESCRIPTOR( FlexMuxTiming )
+        EXECUTE_READ_DESCRIPTOR( MPEG4_text )
+        EXECUTE_READ_DESCRIPTOR( MPEG4_audio_extension )
+        EXECUTE_READ_DESCRIPTOR( Auxiliary_video_stream )
+        EXECUTE_READ_DESCRIPTOR( SVC_extension )
+        EXECUTE_READ_DESCRIPTOR( MVC_extension )
+        EXECUTE_READ_DESCRIPTOR( J2K_video )
+        EXECUTE_READ_DESCRIPTOR( MVC_operation_point )
+        EXECUTE_READ_DESCRIPTOR( MPEG2_stereoscopic_video_format )
+        EXECUTE_READ_DESCRIPTOR( Stereoscopic_program_info )
+        EXECUTE_READ_DESCRIPTOR( Stereoscopic_video_info )
+        EXECUTE_READ_DESCRIPTOR( Transport_profile )
+        EXECUTE_READ_DESCRIPTOR( HEVC_video )
+        EXECUTE_READ_DESCRIPTOR( Extension )
         default :
             break;
     }
@@ -475,17 +1116,20 @@ extern void mpeg_stream_debug_descriptor_info( mpeg_descriptor_info_t *descripto
             )
             break;
         PRINT_DESCRIPTOR_INFO( registration,
-                "        format_identifier:0x%08x\n"
+                "        format_identifier:0x%08X\n"
                 , descriptor_info->registration.format_identifier
             )
-            /* additional_identification_info */        // FIXME
-            if( descriptor_info->length - 4 > 0 )
+            /* additional_identification_info */
+#ifdef DEBUG
+            if( descriptor_info->registration.additional_identification_info_length )
             {
-                mapi_log( LOG_LV2, "        additional_info:" );
-                for( uint8_t i = 6; i < descriptor_info->length; ++i )
-                    mapi_log( LOG_LV2, " 0x%02X", descriptor_info->registration.additional_identification_info[i] );
-                mapi_log( LOG_LV2, "\n" );
+                char buf[512];
+                for( uint8_t i = 0; i < descriptor_info->registration.additional_identification_info_length; ++i )
+                    sprintf( &(buf[i * 2]), "%02X", descriptor_info->registration.additional_identification_info[i] );
+                buf[descriptor_info->registration.additional_identification_info_length * 2] = '\0';
+                mapi_log( LOG_LV2, "        additional_identification_info:0x%s\n", buf );
             }
+#endif
             break;
         PRINT_DESCRIPTOR_INFO( data_stream_alignment,
                 "        alignment_type:%u\n"
@@ -516,6 +1160,17 @@ extern void mpeg_stream_debug_descriptor_info( mpeg_descriptor_info_t *descripto
                 , descriptor_info->conditional_access.CA_system_ID
                 , descriptor_info->conditional_access.CA_PID
             )
+            /* private_data_byte */
+#ifdef DEBUG
+            if( descriptor_info->conditional_access.private_data_byte_length )
+            {
+                char buf[512];
+                for( uint8_t i = 0; i < descriptor_info->conditional_access.private_data_byte_length; ++i )
+                    sprintf( &(buf[i * 2]), "%02X", descriptor_info->conditional_access.private_data_byte[i] );
+                buf[descriptor_info->conditional_access.private_data_byte_length * 2] = '\0';
+                mapi_log( LOG_LV2, "        private_data_byte:0x%s\n", buf );
+            }
+#endif
             break;
         PRINT_DESCRIPTOR_INFO( ISO_639_language )
             for( uint8_t i = 0; i < descriptor_info->ISO_639_language.data_num; ++i )
@@ -547,6 +1202,17 @@ extern void mpeg_stream_debug_descriptor_info( mpeg_descriptor_info_t *descripto
                 "        copyright_identifier:%u\n"
                 , descriptor_info->copyright.copyright_identifier
             )
+            /* additional_copyright_info */
+#ifdef DEBUG
+            if( descriptor_info->copyright.additional_copyright_info_length )
+            {
+                char buf[512];
+                for( uint8_t i = 0; i < descriptor_info->copyright.additional_copyright_info_length; ++i )
+                    sprintf( &(buf[i * 2]), "%02X", descriptor_info->copyright.additional_copyright_info[i] );
+                buf[descriptor_info->copyright.additional_copyright_info_length * 2] = '\0';
+                mapi_log( LOG_LV2, "        additional_copyright_info:0x%s\n", buf );
+            }
+#endif
             break;
         PRINT_DESCRIPTOR_INFO( maximum_bitrate,
                 "        maximum_bitrate:%u\n"
@@ -592,11 +1258,20 @@ extern void mpeg_stream_debug_descriptor_info( mpeg_descriptor_info_t *descripto
         PRINT_DESCRIPTOR_INFO( IOD,
                 "        Scope_of_IOD_label:%u\n"
                 "        IOD_label:%u\n"
-                "        InitialObjectDescriptor: 0x%02X\n"
                 , descriptor_info->IOD.Scope_of_IOD_label
                 , descriptor_info->IOD.IOD_label
-                , descriptor_info->IOD.InitialObjectDescriptor      // FIXME
             )
+            /* InitialObjectDescriptor() */         // FIXME
+#ifdef DEBUG
+            if( descriptor_info->IOD.InitialObjectDescriptor_length )
+            {
+                char buf[512];
+                for( uint8_t i = 0; i < descriptor_info->IOD.InitialObjectDescriptor_length; ++i )
+                    sprintf( &(buf[i * 2]), "%02X", descriptor_info->IOD.InitialObjectDescriptor_data[i] );
+                buf[descriptor_info->IOD.InitialObjectDescriptor_length * 2] = '\0';
+                mapi_log( LOG_LV2, "        InitialObjectDescriptor_data:0x%s\n", buf );
+            }
+#endif
             break;
         PRINT_DESCRIPTOR_INFO( SL,
                 "        ES_ID:%u\n"
@@ -616,9 +1291,43 @@ extern void mpeg_stream_debug_descriptor_info( mpeg_descriptor_info_t *descripto
                 , descriptor_info->External_ES_ID.External_ES_ID
             )
             break;
-        PRINT_DESCRIPTOR_INFO( MuxCode )            // FIXME
+        PRINT_DESCRIPTOR_INFO( MuxCode,
+                "        length:%u\n"
+                "        MuxCode:%u\n"
+                "        version:%u\n"
+                "        substructureCount:%u\n"
+                , descriptor_info->MuxCode.length
+                , descriptor_info->MuxCode.MuxCode
+                , descriptor_info->MuxCode.version
+                , descriptor_info->MuxCode.substructureCount
+            )
+            for( uint8_t i = 0; i < descriptor_info->MuxCode.substructureCount; ++i )
+            {
+                mapi_log( LOG_LV2, "          slotCount[%u]:%u"
+                                   "          repetitionCount[%u]:%u"
+                                 , i, descriptor_info->MuxCode.subs[i].slotCount
+                                 , i, descriptor_info->MuxCode.subs[i].repetitionCount );
+                for( uint8_t k = 0; k < descriptor_info->MuxCode.subs[i].slotCount; ++k )
+                {
+                    mapi_log( LOG_LV2, "            flexMuxChannel[%u][%u]:%u"
+                                       "            numberOfBytes[%u][%u]:%u"
+                                     , i, k, descriptor_info->MuxCode.subs[i].slots[k].flexMuxChannel
+                                     , i, k, descriptor_info->MuxCode.subs[i].slots[k].numberOfBytes  );
+                }
+            }
             break;
-        PRINT_DESCRIPTOR_INFO( FmxBufferSize )      // FIXME
+        PRINT_DESCRIPTOR_INFO( FmxBufferSize )
+            /* DefaultFlexMuxBufferDescriptor() & FlexMuxBufferDescriptor() */      // FIXME
+#ifdef DEBUG
+            if( descriptor_info->FmxBufferSize.descriptor_length )
+            {
+                char buf[512];
+                for( uint8_t i = 0; i < descriptor_info->FmxBufferSize.descriptor_length; ++i )
+                    sprintf( &(buf[i * 2]), "%02X", descriptor_info->FmxBufferSize.descriptor_data[i] );
+                buf[descriptor_info->FmxBufferSize.descriptor_length * 2] = '\0';
+                mapi_log( LOG_LV2, "        descriptor_data:0x%s\n", buf );
+            }
+#endif
             break;
         PRINT_DESCRIPTOR_INFO( MultiplexBuffer,
                 "        MB_buffer_size:%u\n"
@@ -626,6 +1335,608 @@ extern void mpeg_stream_debug_descriptor_info( mpeg_descriptor_info_t *descripto
                 , descriptor_info->MultiplexBuffer.MB_buffer_size
                 , descriptor_info->MultiplexBuffer.TB_leak_rate
             )
+            break;
+        PRINT_DESCRIPTOR_INFO( content_labeling,
+                "        metadata_application_format:0x%04X\n"
+                , descriptor_info->content_labeling.metadata_application_format
+            )
+            if( descriptor_info->content_labeling.metadata_application_format == 0xFFFF )
+                mapi_log( LOG_LV2, "          metadata_application_format_identifier:0x%08X\n"
+                                 , descriptor_info->content_labeling.metadata_application_format_identifier );
+            mapi_log( LOG_LV2, "        content_reference_id_record_flag:%u\n"
+                               "        content_time_base_indicator:%u\n"
+                             , descriptor_info->content_labeling.content_reference_id_record_flag
+                             , descriptor_info->content_labeling.content_time_base_indicator );
+            if( descriptor_info->content_labeling.content_reference_id_record_flag
+             && descriptor_info->content_labeling.content_reference_id_record_length )
+            {
+                char buf[512];
+                for( uint8_t i = 0; i < descriptor_info->content_labeling.content_reference_id_record_length; ++i )
+                    sprintf( &(buf[i * 2]), "%02X", descriptor_info->content_labeling.content_reference_id_byte[i] );
+                buf[descriptor_info->content_labeling.content_reference_id_record_length * 2] = '\0';
+                mapi_log( LOG_LV2, "          content_reference_id_byte:0x%s\n", buf );
+            }
+            if( descriptor_info->content_labeling.content_time_base_indicator == 1
+             || descriptor_info->content_labeling.content_time_base_indicator == 2 )
+                mapi_log( LOG_LV2, "          content_time_base_value:%" PRIu64 "\n"
+                                   "          metadata_time_base_value:%" PRIu64 "\n"
+                                 , descriptor_info->content_labeling.content_time_base_value
+                                 , descriptor_info->content_labeling.metadata_time_base_value );
+            if( descriptor_info->content_labeling.content_time_base_indicator == 2 )
+                mapi_log( LOG_LV2, "          contentId:%u\n", descriptor_info->content_labeling.contentId );
+            if( 3 <= descriptor_info->content_labeling.content_time_base_indicator
+             && descriptor_info->content_labeling.content_time_base_indicator <= 7
+             && descriptor_info->content_labeling.time_base_association_data_length )
+            {
+                char buf[512];
+                for( uint8_t i = 0; i < descriptor_info->content_labeling.time_base_association_data_length; ++i )
+                    sprintf( &(buf[i * 2]), "%02X", descriptor_info->content_labeling.time_base_association_data[i] );
+                buf[descriptor_info->content_labeling.time_base_association_data_length * 2] = '\0';
+                mapi_log( LOG_LV2, "          time_base_association_data:0x%s\n", buf );
+            }
+            break;
+        PRINT_DESCRIPTOR_INFO( metadata_pointer,
+                "        metadata_application_format:0x%04X\n"
+                , descriptor_info->metadata_pointer.metadata_application_format
+            )
+            if( descriptor_info->metadata_pointer.metadata_application_format == 0xFFFF )
+                mapi_log( LOG_LV2, "          metadata_application_format_identifier:0x%08X\n"
+                                 , descriptor_info->metadata_pointer.metadata_application_format_identifier );
+            mapi_log( LOG_LV2, "        metadata_format:0x%02X\n"
+                             , descriptor_info->metadata_pointer.metadata_format );
+            if( descriptor_info->metadata_pointer.metadata_format == 0xFF )
+                mapi_log( LOG_LV2, "          metadata_format_identifier:0x%08X\n"
+                                 , descriptor_info->metadata_pointer.metadata_format_identifier );
+            mapi_log( LOG_LV2, "        metadata_service_id:%u\n"
+                               "        metadata_locator_record_flag:%u\n"
+                               "        MPEG_carriage_flags:%u\n"
+                             , descriptor_info->metadata_pointer.metadata_service_id
+                             , descriptor_info->metadata_pointer.metadata_locator_record_flag
+                             , descriptor_info->metadata_pointer.MPEG_carriage_flags );
+            if( descriptor_info->metadata_pointer.metadata_locator_record_flag
+             && descriptor_info->metadata_pointer.metadata_locator_record_length )
+            {
+                char buf[512];
+                for( uint8_t i = 0; i < descriptor_info->metadata_pointer.metadata_locator_record_length; ++i )
+                    sprintf( &(buf[i * 2]), "%02X", descriptor_info->metadata_pointer.metadata_locator_record_byte[i] );
+                buf[descriptor_info->metadata_pointer.metadata_locator_record_length * 2] = '\0';
+                mapi_log( LOG_LV2, "          metadata_locator_record_byte:0x%s\n", buf );
+            }
+            if( descriptor_info->metadata_pointer.MPEG_carriage_flags <= 2 )
+                mapi_log( LOG_LV2, "          program_number:0x%04X\n", descriptor_info->metadata_pointer.program_number );
+            if( descriptor_info->metadata_pointer.MPEG_carriage_flags == 1 )
+                mapi_log( LOG_LV2, "          transport_stream_location:0x%04X\n"
+                                   "          ransport_stream_id:0x%04X\n"
+                                 , descriptor_info->metadata_pointer.transport_stream_location
+                                 , descriptor_info->metadata_pointer.ransport_stream_id );
+            /* private_data_byte */
+#ifdef DEBUG
+            if( descriptor_info->metadata_pointer.private_data_byte_length )
+            {
+                char buf[512];
+                for( uint8_t i = 0; i < descriptor_info->metadata_pointer.private_data_byte_length; ++i )
+                    sprintf( &(buf[i * 2]), "%02X", descriptor_info->metadata_pointer.private_data_byte[i] );
+                buf[descriptor_info->metadata_pointer.private_data_byte_length * 2] = '\0';
+                mapi_log( LOG_LV2, "          private_data_byte:0x%s\n", buf );
+            }
+#endif
+            break;
+        PRINT_DESCRIPTOR_INFO( metadata,
+                "        metadata_application_format:0x%04X\n"
+                , descriptor_info->metadata.metadata_application_format
+            )
+            if( descriptor_info->metadata.metadata_application_format == 0xFFFF )
+                mapi_log( LOG_LV2, "          metadata_application_format_identifier:0x%08X\n"
+                                 , descriptor_info->metadata.metadata_application_format_identifier );
+            mapi_log( LOG_LV2, "        metadata_format:%u\n", descriptor_info->metadata_pointer.metadata_format );
+            if( descriptor_info->metadata.metadata_format == 0xFF )
+                mapi_log( LOG_LV2, "          metadata_format_identifier:0x%08X\n"
+                                 , descriptor_info->metadata.metadata_format_identifier );
+            mapi_log( LOG_LV2, "        metadata_service_id:%u\n"
+                               "        decoder_config_flags:%u\n"
+                               "        DSM_CC_flag:%u\n"
+                             , descriptor_info->metadata.metadata_service_id
+                             , descriptor_info->metadata.decoder_config_flags
+                             , descriptor_info->metadata.DSM_CC_flag );
+            if( descriptor_info->metadata.DSM_CC_flag
+             && descriptor_info->metadata.service_identification_length )
+            {
+                char buf[512];
+                for( uint8_t i = 0; i < descriptor_info->metadata.service_identification_length; ++i )
+                    sprintf( &(buf[i * 2]), "%02X", descriptor_info->metadata.service_identification_record_byte[i] );
+                buf[descriptor_info->metadata.service_identification_length * 2] = '\0';
+                mapi_log( LOG_LV2, "          service_identification_record_byte:0x%s\n", buf );
+            }
+            if( descriptor_info->metadata.decoder_config_flags == 1
+             && descriptor_info->metadata.decoder_config_length )
+            {
+                char buf[512];
+                for( uint8_t i = 0; i < descriptor_info->metadata.decoder_config_length; ++i )
+                    sprintf( &(buf[i * 2]), "%02X", descriptor_info->metadata.decoder_config_byte[i] );
+                buf[descriptor_info->metadata.decoder_config_length * 2] = '\0';
+                mapi_log( LOG_LV2, "          decoder_config_byte:0x%s\n", buf );
+            }
+            if( descriptor_info->metadata.decoder_config_flags == 3
+             && descriptor_info->metadata.dec_config_identification_record_length )
+            {
+                char buf[512];
+                for( uint8_t i = 0; i < descriptor_info->metadata.dec_config_identification_record_length; ++i )
+                    sprintf( &(buf[i * 2]), "%02X", descriptor_info->metadata.dec_config_identification_record_byte[i] );
+                buf[descriptor_info->metadata.dec_config_identification_record_length * 2] = '\0';
+                mapi_log( LOG_LV2, "          dec_config_identification_record_byte:0x%s\n", buf );
+            }
+            if( descriptor_info->metadata.decoder_config_flags == 3 )
+                mapi_log( LOG_LV2, "          decoder_config_metadata_service_id:%u\n", descriptor_info->metadata.decoder_config_metadata_service_id );
+
+            if( (descriptor_info->metadata.decoder_config_flags == 5 || descriptor_info->metadata.decoder_config_flags == 6)
+             &&  descriptor_info->metadata.reserved_data_length )
+            {
+                char buf[512];
+                for( uint8_t i = 0; i < descriptor_info->metadata.reserved_data_length; ++i )
+                    sprintf( &(buf[i * 2]), "%02X", descriptor_info->metadata.reserved_data[i] );
+                buf[descriptor_info->metadata.reserved_data_length * 2] = '\0';
+                mapi_log( LOG_LV2, "          reserved_data:0x%s\n", buf );
+            }
+            /* private_data_byte */
+#ifdef DEBUG
+            if( descriptor_info->metadata.private_data_byte_length )
+            {
+                char buf[512];
+                for( uint8_t i = 0; i < descriptor_info->metadata.private_data_byte_length; ++i )
+                    sprintf( &(buf[i * 2]), "%02X", descriptor_info->metadata.private_data_byte[i] );
+                buf[descriptor_info->metadata.private_data_byte_length * 2] = '\0';
+                mapi_log( LOG_LV2, "          private_data_byte:0x%s\n", buf );
+            }
+#endif
+            break;
+        PRINT_DESCRIPTOR_INFO( metadata_STD,
+                "        metadata_input_leak_rate:%u\n"
+                "        metadata_buffer_size:%u\n"
+                "        metadata_output_leak_rate:%u\n"
+                , descriptor_info->metadata_STD.metadata_input_leak_rate
+                , descriptor_info->metadata_STD.metadata_buffer_size
+                , descriptor_info->metadata_STD.metadata_output_leak_rate
+            )
+            break;
+        PRINT_DESCRIPTOR_INFO( AVC_video,
+                "        profile_idc:%u\n"
+                "        constraint_set0_flag:%u\n"
+                "        constraint_set1_flag:%u\n"
+                "        constraint_set2_flag:%u\n"
+                "        constraint_set3_flag:%u\n"
+                "        constraint_set4_flag:%u\n"
+                "        constraint_set5_flag:%u\n"
+                "        AVC_compatible_flags:%u\n"
+                "        level_idc:%u\n"
+                "        AVC_still_present:%u\n"
+                "        AVC_24_hour_picture_flag:%u\n"
+                "        Frame_Packing_SEI_not_present_flag:%u\n"
+                , descriptor_info->AVC_video.profile_idc
+                , descriptor_info->AVC_video.constraint_set0_flag
+                , descriptor_info->AVC_video.constraint_set1_flag
+                , descriptor_info->AVC_video.constraint_set2_flag
+                , descriptor_info->AVC_video.constraint_set3_flag
+                , descriptor_info->AVC_video.constraint_set4_flag
+                , descriptor_info->AVC_video.constraint_set5_flag
+                , descriptor_info->AVC_video.AVC_compatible_flags
+                , descriptor_info->AVC_video.level_idc
+                , descriptor_info->AVC_video.AVC_still_present
+                , descriptor_info->AVC_video.AVC_24_hour_picture_flag
+                , descriptor_info->AVC_video.Frame_Packing_SEI_not_present_flag
+            )
+            break;
+        PRINT_DESCRIPTOR_INFO( IPMP )
+#ifdef DEBUG
+            if( descriptor_info->IPMP.descriptor_length )
+            {
+                char buf[512];
+                for( uint8_t i = 0; i < descriptor_info->IPMP.descriptor_length; ++i )
+                    sprintf( &(buf[i * 2]), "%02X", descriptor_info->IPMP.descriptor_data[i] );
+                buf[descriptor_info->IPMP.descriptor_length * 2] = '\0';
+                mapi_log( LOG_LV2, "          descriptor_data:0x%s\n", buf );
+            }
+#endif
+            break;
+        PRINT_DESCRIPTOR_INFO( AVC_timing_and_HRD,
+                "        hrd_management_valid_flag:%u\n"
+                "        picture_and_timing_info_present:%u\n"
+                , descriptor_info->AVC_timing_and_HRD.hrd_management_valid_flag
+                , descriptor_info->AVC_timing_and_HRD.picture_and_timing_info_present
+            )
+            if( descriptor_info->AVC_timing_and_HRD.picture_and_timing_info_present )
+            {
+                mapi_log( LOG_LV2, "          90kHz_flag:%u\n", descriptor_info->AVC_timing_and_HRD._90kHz_flag );
+                if( descriptor_info->AVC_timing_and_HRD._90kHz_flag )
+                    mapi_log( LOG_LV2, "            N:%u\n"
+                                       "            K:%u\n"
+                                     , descriptor_info->AVC_timing_and_HRD.N
+                                     , descriptor_info->AVC_timing_and_HRD.K );
+                mapi_log( LOG_LV2, "          num_units_in_tick:%u\n", descriptor_info->AVC_timing_and_HRD.num_units_in_tick );
+            }
+            mapi_log( LOG_LV2, "        fixed_frame_rate_flag:%u\n"
+                               "        temporal_poc_flag:%u\n"
+                               "        picture_to_display_conversion_flag:%u\n"
+                             , descriptor_info->AVC_timing_and_HRD.fixed_frame_rate_flag
+                             , descriptor_info->AVC_timing_and_HRD.temporal_poc_flag
+                             , descriptor_info->AVC_timing_and_HRD.picture_to_display_conversion_flag );
+            break;
+        PRINT_DESCRIPTOR_INFO( MPEG2_AAC_audio,
+                "        MPEG2_AAC_profile:%u\n"
+                "        MPEG2_AAC_channel_configuration:%u\n"
+                "        MPEG2_AAC_additional_information:%u\n"
+                , descriptor_info->MPEG2_AAC_audio.MPEG2_AAC_profile
+                , descriptor_info->MPEG2_AAC_audio.MPEG2_AAC_channel_configuration
+                , descriptor_info->MPEG2_AAC_audio.MPEG2_AAC_additional_information
+            )
+            break;
+        PRINT_DESCRIPTOR_INFO( FlexMuxTiming,
+                "        FCR_ES_ID:%u\n"
+                "        FCRResolution:%u\n"
+                "        FCRLength:%u\n"
+                "        FmxRateLength:%u\n"
+                , descriptor_info->FlexMuxTiming.FCR_ES_ID
+                , descriptor_info->FlexMuxTiming.FCRResolution
+                , descriptor_info->FlexMuxTiming.FCRLength
+                , descriptor_info->FlexMuxTiming.FmxRateLength
+            )
+            break;
+        PRINT_DESCRIPTOR_INFO( MPEG4_text,
+                "        textFormat:%u\n"
+                "        textConfigLength:%u\n"
+                "        3GPPBaseFormat:%u\n"
+                "        profileLevel:%u\n"
+                "        durationClock:%u\n"
+                "        contains_list_of_compatible_3GPPFormats_flag:%u\n"
+                "        sampleDescriptionFlags:%u\n"
+                "        SampleDescription_carriage_flag:%u\n"
+                "        positioning_information_flag:%u\n"
+                "        layer:%u\n"
+                "        text_track_width:%u\n"
+                "        text_track_height:%u\n"
+                , descriptor_info->MPEG4_text.textFormat
+                , descriptor_info->MPEG4_text.textConfigLength
+                , descriptor_info->MPEG4_text._3GPPBaseFormat
+                , descriptor_info->MPEG4_text.profileLevel
+                , descriptor_info->MPEG4_text.durationClock
+                , descriptor_info->MPEG4_text.contains_list_of_compatible_3GPPFormats_flag
+                , descriptor_info->MPEG4_text.sampleDescriptionFlags
+                , descriptor_info->MPEG4_text.SampleDescription_carriage_flag
+                , descriptor_info->MPEG4_text.positioning_information_flag
+                , descriptor_info->MPEG4_text.layer
+                , descriptor_info->MPEG4_text.text_track_width
+                , descriptor_info->MPEG4_text.text_track_height
+            )
+            if( descriptor_info->MPEG4_text.contains_list_of_compatible_3GPPFormats_flag )
+            {
+                mapi_log( LOG_LV2, "          number_of_formats:%u\n", descriptor_info->MPEG4_text.number_of_formats );
+                if( descriptor_info->MPEG4_text.number_of_formats )
+                {
+                    char buf[512];
+                    for( uint8_t i = 0; i < descriptor_info->MPEG4_text.number_of_formats; ++i )
+                        sprintf( &(buf[i * 2]), "%02X", descriptor_info->MPEG4_text.Compatible_3GPPFormat[i] );
+                    buf[descriptor_info->MPEG4_text.number_of_formats * 2] = '\0';
+                    mapi_log( LOG_LV2, "          Compatible_3GPPFormat:0x%s\n", buf );
+                }
+            }
+            if( descriptor_info->MPEG4_text.SampleDescription_carriage_flag )
+            {
+                mapi_log( LOG_LV2, "          number_of_SampleDescriptions:%u\n", descriptor_info->MPEG4_text.number_of_SampleDescriptions );
+                for( uint8_t i = 0; i < descriptor_info->MPEG4_text.number_of_SampleDescriptions; ++i )
+                {
+                    mapi_log( LOG_LV2, "            Sample_index_and_description[%u]\n"
+                                       "                .sample_index:%u\n"
+                                       "                .displayFlags:%u\n"
+                                       "                .horizontal_justification:%d\n"
+                                       "                .vertical_justification:%d\n"
+                                       "                .background_color_rgba:0x%02X%02X%02X%02X\n"
+                                       "                .default_text_box [.top:%u, .left:%u, .bottom:%u, .right:%u]\n"
+                                       "                .default_style [.startChar:%u, .endChar:%u, .font_ID:%u, .face_style_flags:%u, .font_size:%u, text_color_rgba:0x%02X%02X%02X%02X]\n"
+                                       "                .font_table.entry_count:%u\n"
+                                     , i
+                                     , descriptor_info->MPEG4_text.Sample_index_and_description[i].sample_index
+                                     , descriptor_info->MPEG4_text.Sample_index_and_description[i].displayFlags
+                                     , descriptor_info->MPEG4_text.Sample_index_and_description[i].horizontal_justification
+                                     , descriptor_info->MPEG4_text.Sample_index_and_description[i].vertical_justification
+                                     , descriptor_info->MPEG4_text.Sample_index_and_description[i].background_color_rgba[0]
+                                     , descriptor_info->MPEG4_text.Sample_index_and_description[i].background_color_rgba[1]
+                                     , descriptor_info->MPEG4_text.Sample_index_and_description[i].background_color_rgba[2]
+                                     , descriptor_info->MPEG4_text.Sample_index_and_description[i].background_color_rgba[3]
+                                     , descriptor_info->MPEG4_text.Sample_index_and_description[i].default_style.startChar
+                                     , descriptor_info->MPEG4_text.Sample_index_and_description[i].default_style.endChar
+                                     , descriptor_info->MPEG4_text.Sample_index_and_description[i].default_style.font_ID
+                                     , descriptor_info->MPEG4_text.Sample_index_and_description[i].default_style.face_style_flags
+                                     , descriptor_info->MPEG4_text.Sample_index_and_description[i].default_style.font_size
+                                     , descriptor_info->MPEG4_text.Sample_index_and_description[i].default_style.text_color_rgba[0]
+                                     , descriptor_info->MPEG4_text.Sample_index_and_description[i].default_style.text_color_rgba[1]
+                                     , descriptor_info->MPEG4_text.Sample_index_and_description[i].default_style.text_color_rgba[2]
+                                     , descriptor_info->MPEG4_text.Sample_index_and_description[i].default_style.text_color_rgba[3]
+                                     , descriptor_info->MPEG4_text.Sample_index_and_description[i].font_table.entry_count );
+                    for( uint8_t j = 0; j < descriptor_info->MPEG4_text.Sample_index_and_description[i].font_table.entry_count; ++j )
+                        mapi_log( LOG_LV2, "                .font_table.font-entry[%u]\n"
+                                           "                    .font_ID:%u\n"
+                                           "                    .font_name_length:%u\n"
+                                           "                    .font:%s\n"
+                                         , j
+                                         , descriptor_info->MPEG4_text.Sample_index_and_description[i].font_table.font_entry[j].font_ID
+                                         , descriptor_info->MPEG4_text.Sample_index_and_description[i].font_table.font_entry[j].font_name_length
+                                         , descriptor_info->MPEG4_text.Sample_index_and_description[i].font_table.font_entry[j].font );
+                }
+            }
+            if( descriptor_info->MPEG4_text.positioning_information_flag )
+                mapi_log( LOG_LV2, "          scene_width:%u\n"
+                                   "          scene_height:%u\n"
+                                   "          horizontal_scene_offset:%u\n"
+                                   "          vertical_scene_offset:%u\n"
+                                 , descriptor_info->MPEG4_text.scene_width
+                                 , descriptor_info->MPEG4_text.scene_height
+                                 , descriptor_info->MPEG4_text.horizontal_scene_offset
+                                 , descriptor_info->MPEG4_text.vertical_scene_offset );
+            break;
+        PRINT_DESCRIPTOR_INFO( MPEG4_audio_extension,
+                "        ASC_flag:%u\n"
+                "        num_of_loops:%u\n"
+                , descriptor_info->MPEG4_audio_extension.ASC_flag
+                , descriptor_info->MPEG4_audio_extension.num_of_loops
+            )
+            if( descriptor_info->MPEG4_audio_extension.num_of_loops )
+            {
+                char buf[512];
+                for( uint8_t i = 0; i < descriptor_info->MPEG4_audio_extension.num_of_loops; ++i )
+                    sprintf( &(buf[i * 2]), "%02X", descriptor_info->MPEG4_audio_extension.audioProfileLevelIndication[i] );
+                buf[descriptor_info->MPEG4_audio_extension.num_of_loops * 2] = '\0';
+                mapi_log( LOG_LV2, "          audioProfileLevelIndication:0x%s\n", buf );
+            }
+            if( descriptor_info->MPEG4_audio_extension.ASC_flag )
+            {
+                mapi_log( LOG_LV2, "          ASC_size:%u\n", descriptor_info->MPEG4_audio_extension.ASC_size );
+                if( descriptor_info->MPEG4_audio_extension.ASC_size )
+                {
+                    char buf[512];
+                    for( uint8_t i = 0; i < descriptor_info->MPEG4_audio_extension.ASC_size; ++i )
+                        sprintf( &(buf[i * 2]), "%02X", descriptor_info->MPEG4_audio_extension.audioSpecificConfig[i] );
+                    buf[descriptor_info->MPEG4_audio_extension.ASC_size * 2] = '\0';
+                    mapi_log( LOG_LV2, "          audioSpecificConfig:0x%s\n", buf );
+                }
+            }
+            break;
+        PRINT_DESCRIPTOR_INFO( Auxiliary_video_stream,
+                "        aux_video_codedstreamtype:%u\n"
+             // "        si_rbsp_length:%u\n"
+                , descriptor_info->Auxiliary_video_stream.aux_video_codedstreamtype
+             // , descriptor_info->Auxiliary_video_stream.si_rbsp_length
+            )
+#ifdef DEBUG
+            if( descriptor_info->Auxiliary_video_stream.si_rbsp_length )
+            {
+                char buf[512];
+                for( uint8_t i = 0; i < descriptor_info->Auxiliary_video_stream.si_rbsp_length; ++i )
+                    sprintf( &(buf[i * 2]), "%02X", descriptor_info->Auxiliary_video_stream.si_rbsp[i] );
+                buf[descriptor_info->Auxiliary_video_stream.si_rbsp_length * 2] = '\0';
+                mapi_log( LOG_LV2, "          si_rbsp:0x%s\n", buf );
+            }
+#endif
+            break;
+        PRINT_DESCRIPTOR_INFO( SVC_extension,
+                "        width:%u\n"
+                "        height:%u\n"
+                "        frame_rate:%u\n"
+                "        average_bitrate:%u\n"
+                "        maximum_bitrate:%u\n"
+                "        dependency_id:%u\n"
+                "        quality_id_start:%u\n"
+                "        quality_id_end:%u\n"
+                "        temporal_id_start:%u\n"
+                "        temporal_id_end:%u\n"
+                "        no_sei_nal_unit_present:%u\n"
+                , descriptor_info->SVC_extension.width
+                , descriptor_info->SVC_extension.height
+                , descriptor_info->SVC_extension.frame_rate
+                , descriptor_info->SVC_extension.average_bitrate
+                , descriptor_info->SVC_extension.maximum_bitrate
+                , descriptor_info->SVC_extension.dependency_id
+                , descriptor_info->SVC_extension.quality_id_start
+                , descriptor_info->SVC_extension.quality_id_end
+                , descriptor_info->SVC_extension.temporal_id_start
+                , descriptor_info->SVC_extension.temporal_id_end
+                , descriptor_info->SVC_extension.no_sei_nal_unit_present
+            )
+            break;
+        PRINT_DESCRIPTOR_INFO( MVC_extension,
+                "        average_bitrate:%u\n"
+                "        maximum_bitrate:%u\n"
+                "        view_association_not_present:%u\n"
+                "        base_view_is_left_eyeview:%u\n"
+                "        view_order_index_min:%u\n"
+                "        view_order_index_max:%u\n"
+                "        temporal_id_start:%u\n"
+                "        temporal_id_end:%u\n"
+                "        no_sei_nal_unit_present:%u\n"
+                "        no_prefix_nal_unit_present:%u\n"
+                , descriptor_info->MVC_extension.average_bitrate
+                , descriptor_info->MVC_extension.maximum_bitrate
+                , descriptor_info->MVC_extension.view_association_not_present
+                , descriptor_info->MVC_extension.base_view_is_left_eyeview
+                , descriptor_info->MVC_extension.view_order_index_min
+                , descriptor_info->MVC_extension.view_order_index_max
+                , descriptor_info->MVC_extension.temporal_id_start
+                , descriptor_info->MVC_extension.temporal_id_end
+                , descriptor_info->MVC_extension.no_sei_nal_unit_present
+                , descriptor_info->MVC_extension.no_prefix_nal_unit_present
+            )
+            break;
+        PRINT_DESCRIPTOR_INFO( J2K_video,
+                "        profile_and_level:%u\n"
+                "        horizontal_size:%u\n"
+                "        vertical_size:%u\n"
+                "        max_bit_rate:%u\n"
+                "        max_buffer_size:%u\n"
+                "        DEN_frame_rate:%u\n"
+                "        NUM_frame_rate:%u\n"
+                "        color_specification:%u\n"
+                "        still_mode:%u\n"
+                "        interlaced_video:%u\n"
+                , descriptor_info->J2K_video.profile_and_level
+                , descriptor_info->J2K_video.horizontal_size
+                , descriptor_info->J2K_video.vertical_size
+                , descriptor_info->J2K_video.max_bit_rate
+                , descriptor_info->J2K_video.max_buffer_size
+                , descriptor_info->J2K_video.DEN_frame_rate
+                , descriptor_info->J2K_video.NUM_frame_rate
+                , descriptor_info->J2K_video.color_specification
+                , descriptor_info->J2K_video.still_mode
+                , descriptor_info->J2K_video.interlaced_video
+            )
+            /* private_data_byte */
+#ifdef DEBUG
+            if( descriptor_info->J2K_video.private_data_byte_length )
+            {
+                char buf[512];
+                for( uint8_t i = 0; i < descriptor_info->J2K_video.private_data_byte_length; ++i )
+                    sprintf( &(buf[i * 2]), "%02X", descriptor_info->J2K_video.private_data_byte[i] );
+                buf[descriptor_info->J2K_video.private_data_byte_length * 2] = '\0';
+                mapi_log( LOG_LV2, "          private_data_byte:0x%s\n", buf );
+            }
+#endif
+            break;
+        PRINT_DESCRIPTOR_INFO( MVC_operation_point,
+                "        profile_idc:%u\n"
+                "        constraint_set0_flag:%u\n"
+                "        constraint_set1_flag:%u\n"
+                "        constraint_set2_flag:%u\n"
+                "        constraint_set3_flag:%u\n"
+                "        constraint_set4_flag:%u\n"
+                "        constraint_set5_flag:%u\n"
+                "        AVC_compatible_flags:%u\n"
+                "        level_count:%u\n"
+                , descriptor_info->MVC_operation_point.profile_idc
+                , descriptor_info->MVC_operation_point.constraint_set0_flag
+                , descriptor_info->MVC_operation_point.constraint_set1_flag
+                , descriptor_info->MVC_operation_point.constraint_set2_flag
+                , descriptor_info->MVC_operation_point.constraint_set3_flag
+                , descriptor_info->MVC_operation_point.constraint_set4_flag
+                , descriptor_info->MVC_operation_point.constraint_set5_flag
+                , descriptor_info->MVC_operation_point.AVC_compatible_flags
+                , descriptor_info->MVC_operation_point.level_count
+            )
+            for( uint8_t i = 0; i < descriptor_info->MVC_operation_point.level_count; ++i )
+            {
+                mapi_log( LOG_LV2, "          levels[%u]\n"
+                                   "              .level_idc:%u\n"
+                                   "              .operation_points_count:%u\n"
+                                 , i
+                                 , descriptor_info->MVC_operation_point.levels[i].level_idc
+                                 , descriptor_info->MVC_operation_point.levels[i].operation_points_count );
+                for( uint8_t j = 0; j < descriptor_info->MVC_operation_point.levels[i].operation_points_count; ++j )
+                {
+                    mapi_log( LOG_LV2, "              .operation_points[%u]\n"
+                                       "                  .applicable_temporal_id:%u\n"
+                                       "                  .num_target_output_views:%u\n"
+                                       "                  .ES_count:%u\n"
+                                     , j
+                                     , descriptor_info->MVC_operation_point.levels[i].operation_points[j].applicable_temporal_id
+                                     , descriptor_info->MVC_operation_point.levels[i].operation_points[j].num_target_output_views
+                                     , descriptor_info->MVC_operation_point.levels[i].operation_points[j].ES_count );
+                    for( uint8_t k = 0; k < descriptor_info->MVC_operation_point.levels[i].operation_points[j].ES_count; ++k )
+                        mapi_log( LOG_LV2, "                  .ES_reference[%u]:%u\n"
+                                         , k
+                                         , descriptor_info->MVC_operation_point.levels[i].operation_points[j].ES_reference[k] );
+                }
+            }
+            break;
+        PRINT_DESCRIPTOR_INFO( MPEG2_stereoscopic_video_format,
+                "        stereo_video_arrangement_type_present:%u\n"
+                , descriptor_info->MPEG2_stereoscopic_video_format.stereo_video_arrangement_type_present
+            )
+            if( descriptor_info->MPEG2_stereoscopic_video_format.stereo_video_arrangement_type_present )
+                mapi_log( LOG_LV2, "          arrangement_type:%u\n", descriptor_info->MPEG2_stereoscopic_video_format.arrangement_type );
+            break;
+        PRINT_DESCRIPTOR_INFO( Stereoscopic_program_info,
+                "        stereoscopic_service_type:%u\n"
+                , descriptor_info->Stereoscopic_program_info.stereoscopic_service_type
+            )
+            break;
+        PRINT_DESCRIPTOR_INFO( Stereoscopic_video_info,
+                "        base_video_flag:%u\n"
+                , descriptor_info->Stereoscopic_video_info.base_video_flag
+            )
+            if( descriptor_info->Stereoscopic_video_info.base_video_flag )
+                mapi_log( LOG_LV2, "          arrangement_type:%u\n", descriptor_info->Stereoscopic_video_info.leftview_flag );
+            else
+                mapi_log( LOG_LV2, "          usable_as_2D:%u\n"
+                                   "          horizontal_upsampling_factor:%u\n"
+                                   "          vertical_upsampling_factor:%u\n"
+                                 , descriptor_info->Stereoscopic_video_info.usable_as_2D
+                                 , descriptor_info->Stereoscopic_video_info.horizontal_upsampling_factor
+                                 , descriptor_info->Stereoscopic_video_info.vertical_upsampling_factor );
+            break;
+        PRINT_DESCRIPTOR_INFO( Transport_profile,
+                "        transport_profile:%u\n"
+                , descriptor_info->Transport_profile.transport_profile
+            )
+#ifdef DEBUG
+            if( descriptor_info->Transport_profile.private_data_length )
+            {
+                char buf[512];
+                for( uint8_t i = 0; i < descriptor_info->Transport_profile.private_data_length; ++i )
+                    sprintf( &(buf[i * 2]), "%02X", descriptor_info->Transport_profile.private_data[i] );
+                buf[descriptor_info->Transport_profile.private_data_length * 2] = '\0';
+                mapi_log( LOG_LV2, "          private_data:0x%s\n", buf );
+            }
+#endif
+            break;
+        PRINT_DESCRIPTOR_INFO( HEVC_video,
+                "        profile_space:%u\n"
+                "        tier_flag:%u\n"
+                "        profile_idc:%u\n"
+                "        profile_compatibility_indication:%u\n"
+                "        progressive_source_flag:%u\n"
+                "        interlaced_source_flag:%u\n"
+                "        non_packed_constraint_flag:%u\n"
+                "        frame_only_constraint_flag:%u\n"
+                "        copied_44bits:%" PRIu64 "\n"
+                "        level_idc:%u\n"
+                "        temporal_layer_subset_flag:%u\n"
+                "        HEVC_still_present_flag:%u\n"
+                "        HEVC_24hr_picture_present_flag:%u\n"
+                "        sub_pic_hrd_params_not_present_flag:%u\n"
+                "        HDR_WCG_idc:%u\n"
+                , descriptor_info->HEVC_video.profile_space
+                , descriptor_info->HEVC_video.tier_flag
+                , descriptor_info->HEVC_video.profile_idc
+                , descriptor_info->HEVC_video.profile_compatibility_indication
+                , descriptor_info->HEVC_video.progressive_source_flag
+                , descriptor_info->HEVC_video.interlaced_source_flag
+                , descriptor_info->HEVC_video.non_packed_constraint_flag
+                , descriptor_info->HEVC_video.frame_only_constraint_flag
+                , descriptor_info->HEVC_video.copied_44bits
+                , descriptor_info->HEVC_video.level_idc
+                , descriptor_info->HEVC_video.temporal_layer_subset_flag
+                , descriptor_info->HEVC_video.HEVC_still_present_flag
+                , descriptor_info->HEVC_video.HEVC_24hr_picture_present_flag
+                , descriptor_info->HEVC_video.sub_pic_hrd_params_not_present_flag
+                , descriptor_info->HEVC_video.HDR_WCG_idc
+            )
+            if( descriptor_info->HEVC_video.temporal_layer_subset_flag )
+                mapi_log( LOG_LV2, "          temporal_id_min:%u\n"
+                                   "          temporal_id_max:%u\n"
+                                 , descriptor_info->HEVC_video.temporal_id_min
+                                 , descriptor_info->HEVC_video.temporal_id_max );
+            break;
+        PRINT_DESCRIPTOR_INFO( Extension,
+                "        extension_descriptor_tag:%u\n"
+                , descriptor_info->Extension.extension_descriptor_tag
+            )
+            /* extension_descriptor_data */         // FIXME
+#ifdef DEBUG
+            if( descriptor_info->Extension.extension_descriptor_length )
+            {
+                char buf[512];
+                for( uint8_t i = 0; i < descriptor_info->Extension.extension_descriptor_length; ++i )
+                    sprintf( &(buf[i * 2]), "%02X", descriptor_info->Extension.extension_descriptor_data[i] );
+                buf[descriptor_info->Extension.extension_descriptor_length * 2] = '\0';
+                mapi_log( LOG_LV2, "          extension_descriptor_data:0x%s\n", buf );
+            }
+#endif
             break;
         default :
             break;

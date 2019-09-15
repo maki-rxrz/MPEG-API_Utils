@@ -112,6 +112,7 @@ typedef struct {
     int64_t                     start_pcr;
     int64_t                     last_pcr;
     pmt_target_type             pmt_target;
+    mpeg_descriptor_info_t     *descriptor_info;
 } mpegts_info_t;
 
 /*  */
@@ -701,6 +702,10 @@ static uint16_t mpegts_parse_descriptor( uint8_t *descriptor_data, int data_leng
     uint8_t  descriptor_tags[(data_length + 1) / 2];
     uint16_t descriptor_num = 0;
     uint16_t read_count     = 0;
+    /* init. */     // FIXME
+    descriptor_info->conditional_access.CA_system_ID = 0;
+    descriptor_info->conditional_access.CA_PID       = 0;
+    descriptor_info->registration.format_identifier  = 0;
     /* parse. */
     while( read_count < data_length - 2 )
     {
@@ -767,13 +772,13 @@ static int mpegts_parse_cat( mpegts_info_t *info )
     if( section_length - CRC32_SIZE > 0 )
     {
         int descriptor_length = section_length - CRC32_SIZE;
-        mpeg_descriptor_info_t descriptor_info = { 0 };
+        mpeg_descriptor_info_t *descriptor_info = info->descriptor_info;
         /* parse descriptor. */
         uint8_t  *descriptor_data = &(section_buffer[read_count]);
-        uint16_t  descriptor_num  = mpegts_parse_descriptor( descriptor_data, descriptor_length, &descriptor_info );
-        if( descriptor_num && descriptor_info.conditional_access.CA_system_ID )
+        uint16_t  descriptor_num  = mpegts_parse_descriptor( descriptor_data, descriptor_length, descriptor_info );
+        if( descriptor_num && descriptor_info->conditional_access.CA_system_ID )
         {
-            info->emm_program_id = descriptor_info.conditional_access.CA_PID;
+            info->emm_program_id = descriptor_info->conditional_access.CA_PID;
             mapi_log( LOG_LV2, "[check] emm_PID:0x%04X\n", info->emm_program_id );
         }
         read_count += descriptor_length;
@@ -834,12 +839,6 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
     uint8_t *buffer_data = (uint8_t *)malloc( PMT_PARSE_COUNT_NUM * TS_PACKET_TABLE_SECTION_SIZE_MAX );
     if( !buffer_data )
         return -1;
-    mpeg_descriptor_info_t *descriptor_info = (mpeg_descriptor_info_t *)malloc( sizeof(mpeg_descriptor_info_t) );
-    if( !descriptor_info )
-    {
-        free( buffer_data );
-        return -1;
-    }
     /* search. */
     tsp_pmt_si_t pmt_si;
     int      prg_inf_lengths[PMT_PARSE_COUNT_NUM] = { 0 };
@@ -958,7 +957,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
     if( !info->pid_list_in_pmt )
         goto fail_parse;
     int32_t pid_list_num = 0, read_count = 0;
-    memset( descriptor_info, 0, sizeof(mpeg_descriptor_info_t) );
+    mpeg_descriptor_info_t *descriptor_info = info->descriptor_info;
     if( prg_inf_length )
     {
         /* parse descriptor. */
@@ -1004,11 +1003,9 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
     info->tsf_ctx.sync_byte_position = -1;
     info->tsf_ctx.read_position      = read_pos;
     /* release. */
-    free( descriptor_info );
     free( buffer_data );
     return 0;
 fail_parse:
-    free( descriptor_info );
     free( buffer_data );
     return -1;
 }
@@ -2807,9 +2804,10 @@ end_parse:
 static void *initialize( const char *input_file, int64_t buffer_size )
 {
     mapi_log( LOG_LV2, "[mpegts_parser] %s()\n", __func__ );
-    mpegts_info_t *info   = (mpegts_info_t *)calloc( sizeof(mpegts_info_t), 1 );
-    char          *mpegts = strdup( input_file );
-    if( !info || !mpegts )
+    mpegts_info_t          *info            = (mpegts_info_t *)calloc( sizeof(mpegts_info_t), 1 );
+    char                   *mpegts          = strdup( input_file );
+    mpeg_descriptor_info_t *descriptor_info = (mpeg_descriptor_info_t *)calloc( sizeof(mpeg_descriptor_info_t), 1 );
+    if( !info || !mpegts || !descriptor_info )
         goto fail_initialize;
     if( mpegts_open( &(info->tsf_ctx), mpegts, buffer_size ) )
         goto fail_initialize;
@@ -2831,12 +2829,15 @@ static void *initialize( const char *input_file, int64_t buffer_size )
     info->pcr                            = MPEG_TIMESTAMP_INVALID_VALUE;
     info->start_pcr                      = MPEG_TIMESTAMP_INVALID_VALUE;
     info->last_pcr                       = MPEG_TIMESTAMP_INVALID_VALUE;
+    info->descriptor_info                = descriptor_info;
     /* first check. */
     if( mpegts_first_check( &(info->tsf_ctx) ) )
         goto fail_initialize;
     return info;
 fail_initialize:
     mapi_log( LOG_LV2, "[mpegts_parser] failed initialize.\n" );
+    if( descriptor_info )
+        free( descriptor_info );
     if( mpegts )
         free( mpegts );
     if( info )
@@ -2856,6 +2857,7 @@ static void release( void *ih )
     /*  release. */
     release_pid_list( info );
     mpegts_close( &(info->tsf_ctx) );
+    free( info->descriptor_info );
     free( info->mpegts );
     free( info );
 }
