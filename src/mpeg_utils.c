@@ -705,6 +705,10 @@ MAPI_EXPORT const char *mpeg_api_get_sample_file_extension
         case STREAM_AUDIO_DTS_HD_SUB :
             idx = 6;
             break;
+        /* Priavete Stream */
+        case STREAM_PES_PRIVATE_DATA:
+            idx = 0;        // FIXME
+            break;
         default :
             break;
     }

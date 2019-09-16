@@ -1019,9 +1019,9 @@ extern void mpeg_stream_get_descriptor_info
     mpeg_descriptor_info_t     *descriptor_info
 )
 {
-    descriptor_info->tag    = descriptor[0];
-    descriptor_info->length = descriptor[1];
-    switch( descriptor_info->tag )
+    descriptor_info->tags[descriptor_info->tags_num] = descriptor[0];
+    descriptor_info->length                          = descriptor[1];
+    switch( descriptor_info->tags[descriptor_info->tags_num] )
     {
         EXECUTE_READ_DESCRIPTOR( video_stream )
         EXECUTE_READ_DESCRIPTOR( audio_stream )
@@ -1078,6 +1078,8 @@ extern void mpeg_stream_get_descriptor_info
         default :
             break;
     }
+    ++ descriptor_info->tags_num;
+    descriptor_info->tags[descriptor_info->tags_num] = 0;
 }
 #undef EXECUTE_READ_DESCRIPTOR
 
@@ -1088,9 +1090,9 @@ extern void mpeg_stream_get_descriptor_info
                   "[check] "#name"_descriptor\n"    \
                   __VA_ARGS__ );                    \
 }
-extern void mpeg_stream_debug_descriptor_info( mpeg_descriptor_info_t *descriptor_info )
+extern void mpeg_stream_debug_descriptor_info( mpeg_descriptor_info_t *descriptor_info, uint16_t descriptor_num )
 {
-    switch( descriptor_info->tag )
+    switch( descriptor_info->tags[descriptor_num] )
     {
         PRINT_DESCRIPTOR_INFO( video_stream,
                 "        multiple_frame_rate_flag:%u\n"
@@ -1980,15 +1982,82 @@ extern void mpeg_stream_debug_descriptor_info( mpeg_descriptor_info_t *descripto
 }
 #undef PRINT_DESCRIPTOR_INFO
 
+#define FI_U32( a, b, c, d )    ( (uint32_t)a << 24 | (uint32_t)b << 16 | (uint32_t)c << 8 | (uint32_t)d )
+#define FI_CHECK( tag, type )   \
+{                               \
+    case tag :                  \
+        return type;            \
+}
+
+extern mpeg_stream_type mpeg_stream_get_registration_stream_type( mpeg_descriptor_info_t *descriptor_info )
+{
+    registration_descriptor_info_t *registration = &(descriptor_info->registration);
+    switch( registration->format_identifier )
+    {
+        FI_CHECK( FI_U32( 'A', 'C', '-', '3' ), STREAM_AUDIO_AC3 )
+        FI_CHECK( FI_U32( 'D', 'T', 'S', '1' ), STREAM_AUDIO_DTS )
+        FI_CHECK( FI_U32( 'D', 'T', 'S', '2' ), STREAM_AUDIO_DTS )
+        FI_CHECK( FI_U32( 'D', 'T', 'S', '3' ), STREAM_AUDIO_DTS )
+        FI_CHECK( FI_U32( 'E', 'A', 'C', '3' ), STREAM_AUDIO_EAC3 )
+        FI_CHECK( FI_U32( 'm', 'l', 'p', 'a' ), STREAM_AUDIO_MLP )
+        FI_CHECK( FI_U32( 'H', 'E', 'V', 'C' ), STREAM_VIDEO_HEVC )
+        FI_CHECK( FI_U32( 'V', 'C', '-', '1' ), STREAM_VIDEO_VC1 )
+        FI_CHECK( FI_U32( 'D', 'V', 'D', 'F' ), STREAM_AUDIO_LPCM )         // FIXME
+        case FI_U32( 'H', 'D', 'M', 'V' ) :
+            if( registration->additional_identification_info_length >= 4
+             && registration->additional_identification_info[0] == 0xFF )
+                return registration->additional_identification_info[1];     // FIXME
+            break;
+    }
+    return STREAM_INVALID;
+}
+
+static mpeg_stream_group_type judge_group_type_from_registration_descriptor( mpeg_descriptor_info_t *descriptor_info )
+{
+    registration_descriptor_info_t *registration = &(descriptor_info->registration);
+    switch( registration->format_identifier )
+    {
+        FI_CHECK( FI_U32( 'A', 'C', '-', '3' ), STREAM_IS_DOLBY_AUDIO )
+        FI_CHECK( FI_U32( 'D', 'T', 'S', '1' ), STREAM_IS_DTS_AUDIO )
+        FI_CHECK( FI_U32( 'D', 'T', 'S', '2' ), STREAM_IS_DTS_AUDIO )
+        FI_CHECK( FI_U32( 'D', 'T', 'S', '3' ), STREAM_IS_DTS_AUDIO )
+        FI_CHECK( FI_U32( 'E', 'A', 'C', '3' ), STREAM_IS_DOLBY_AUDIO )
+        FI_CHECK( FI_U32( 'm', 'l', 'p', 'a' ), STREAM_IS_AUDIO )
+        FI_CHECK( FI_U32( 'H', 'E', 'V', 'C' ), STREAM_IS_VIDEO )
+        FI_CHECK( FI_U32( 'V', 'C', '-', '1' ), STREAM_IS_EXTENDED_VIDEO )
+        FI_CHECK( FI_U32( 'D', 'V', 'D', 'F' ), STREAM_IS_PCM_AUDIO )       // FIXME
+        case FI_U32( 'H', 'D', 'M', 'V' ) :
+            if( registration->additional_identification_info_length >= 4
+             && registration->additional_identification_info[0] == 0xFF )
+            {
+                /* audio: 0xFF-XX-31-7F, video: 0xFF-XX-44-3F */            // FIXME
+                mpeg_stream_type stream_type = registration->additional_identification_info[1];
+                if( stream_type != STREAM_PES_PRIVATE_DATA
+                 && stream_type != STREAM_VIDEO_PRIVATE /* = STREAM_AUDIO_LPCM */ )
+                    return mpeg_stream_judge_type( stream_type, 0, NULL );
+                if( registration->additional_identification_info[2] == 0x31
+                 && registration->additional_identification_info[3] == 0x7F )
+                    return STREAM_IS_PCM_AUDIO;
+                if( registration->additional_identification_info[2] == 0x44
+                 && registration->additional_identification_info[3] == 0x3F )
+                    return STREAM_IS_PRIVATE_VIDEO;
+            }
+            break;
+    }
+    return STREAM_IS_UNKNOWN;
+}
+
+#undef FI_U32
+#undef FI_CHECK
+
 extern mpeg_stream_group_type mpeg_stream_judge_type
 (
     mpeg_stream_type            stream_type,
     uint16_t                    descriptor_num,
-    uint8_t                    *descriptor_data
+    mpeg_descriptor_info_t     *descriptor_info
 )
 {
     mpeg_stream_group_type stream_judge = STREAM_IS_UNKNOWN;
-    uint16_t idx = 0;
     switch( stream_type )
     {
         case STREAM_VIDEO_MPEG1 :
@@ -2029,12 +2098,10 @@ extern mpeg_stream_group_type mpeg_stream_judge_type
             stream_judge = STREAM_IS_PRIVATE_VIDEO;
             for( uint16_t i = 0; i < descriptor_num; ++i )
             {
-                if( descriptor_data[idx + 0] == registration_descriptor )
-                {
-                    stream_judge = STREAM_IS_PCM_AUDIO;     // FIXME
+                if( descriptor_info->tags[i] == registration_descriptor )
+                    stream_judge = judge_group_type_from_registration_descriptor( descriptor_info );
+                if( stream_judge != STREAM_IS_UNKNOWN )
                     break;
-                }
-                idx += 2 + descriptor_data[idx + 1];
             }
             break;
         case STREAM_AUDIO_AC3 :
@@ -2055,16 +2122,18 @@ extern mpeg_stream_group_type mpeg_stream_judge_type
         case STREAM_PES_PRIVATE_DATA :
             for( uint16_t i = 0; i < descriptor_num; ++i )
             {
-                if( descriptor_data[idx + 0] == stream_identifier_descriptor && descriptor_data[idx + 1] == 1 )
+                if( descriptor_info->tags[i] == registration_descriptor )
+                    stream_judge = judge_group_type_from_registration_descriptor( descriptor_info );
+                else if( descriptor_info->tags[i] == stream_identifier_descriptor )
                 {
-                    if( descriptor_data[idx + 2] == 0x30 )
+                    uint8_t component_tag = descriptor_info->stream_identifier.component_tag;
+                    if( component_tag == 0x30 )
                         stream_judge = STREAM_IS_ARIB_CAPTION;
-                    else if( descriptor_data[idx + 2] == 0x38 )
+                    else if( component_tag == 0x38 )
                         stream_judge = STREAM_IS_ARIB_STRING_SUPER;
                 }
                 if( stream_judge != STREAM_IS_UNKNOWN )
                     break;
-                idx += 2 + descriptor_data[idx + 1];
             }
             break;
         default :

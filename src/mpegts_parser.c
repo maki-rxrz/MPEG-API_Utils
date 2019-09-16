@@ -72,14 +72,18 @@ typedef struct {
     int64_t                     gop_number;
     int32_t                     header_offset;
     struct {
-        char                    info[16];
-    } private_info[GET_INFO_KEY_MAX];
+        mpeg_stream_type        reg_stream_type;
+        struct {
+            char                info[16];
+        } keys[GET_INFO_KEY_MAX];
+    } private_info;
 } mpegts_stream_ctx_t;
 
 typedef struct {
     mpeg_stream_group_type      stream_judge;
     mpeg_stream_type            stream_type;
     uint16_t                    program_id;
+    mpeg_stream_type            reg_stream_type;
 } mpegts_pid_in_pmt_t;
 
 typedef struct {
@@ -699,28 +703,28 @@ static int mpegts_parse_pat( mpegts_info_t *info )
 
 static uint16_t mpegts_parse_descriptor( uint8_t *descriptor_data, int data_length, mpeg_descriptor_info_t *descriptor_info )
 {
-    uint8_t  descriptor_tags[(data_length + 1) / 2];
     uint16_t descriptor_num = 0;
     uint16_t read_count     = 0;
     /* init. */     // FIXME
-    descriptor_info->conditional_access.CA_system_ID = 0;
-    descriptor_info->conditional_access.CA_PID       = 0;
-    descriptor_info->registration.format_identifier  = 0;
-    descriptor_info->component.component_tag         = 0;
-    descriptor_info->stream_identifier.component_tag = 0;
+    descriptor_info->tags_num                                           = 0;
+    descriptor_info->conditional_access.CA_system_ID                    = 0;
+    descriptor_info->conditional_access.CA_PID                          = 0;
+    descriptor_info->registration.format_identifier                     = 0;
+    descriptor_info->registration.additional_identification_info_length = 0;
+    descriptor_info->component.component_tag                            = 0;
+    descriptor_info->stream_identifier.component_tag                    = 0;
     /* parse. */
     while( read_count < data_length - 2 )
     {
         mpeg_stream_get_descriptor_info( /* stream_type, */ &(descriptor_data[read_count]), descriptor_info );
-        descriptor_tags[descriptor_num] = descriptor_info->tag;
-        uint8_t descriptor_length       = descriptor_info->length;
+        uint8_t descriptor_length = descriptor_info->length;
         char descriptor_data_str[descriptor_length * 2 + 1]; //= { 0 };
         descriptor_data_str[descriptor_length * 2] = 0;
         for( int i = 0; i < descriptor_length; ++i )
             sprintf( &(descriptor_data_str[i * 2]), "%02X", descriptor_data[read_count + i + 2] );
         mapi_log( LOG_LV2, "[check] descriptor_tag:0x%02X, descriptor_length:%u, [%s]\n"
-                         , descriptor_tags[descriptor_num], descriptor_length, descriptor_data_str );
-        mpeg_stream_debug_descriptor_info( descriptor_info );       // FIXME
+                         , descriptor_info->tags[descriptor_num], descriptor_length, descriptor_data_str );
+        mpeg_stream_debug_descriptor_info( descriptor_info, descriptor_num );
         /* next descriptor. */
         read_count += descriptor_length + 2;
         ++descriptor_num;
@@ -987,9 +991,10 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
         uint8_t  *descriptor_data = &(section_buffer[read_count]);
         uint16_t  descriptor_num  = mpegts_parse_descriptor( descriptor_data, ES_info_length, descriptor_info );
         /* setup stream type and PID. */
-        info->pid_list_in_pmt[pid_list_num].stream_judge = mpeg_stream_judge_type( stream_type, descriptor_num, descriptor_data );
-        info->pid_list_in_pmt[pid_list_num].stream_type  = stream_type;
-        info->pid_list_in_pmt[pid_list_num].program_id   = elementary_PID;
+        info->pid_list_in_pmt[pid_list_num].stream_judge      = mpeg_stream_judge_type( stream_type, descriptor_num, descriptor_info );
+        info->pid_list_in_pmt[pid_list_num].stream_type       = stream_type;
+        info->pid_list_in_pmt[pid_list_num].program_id        = elementary_PID;
+        info->pid_list_in_pmt[pid_list_num].reg_stream_type   = mpeg_stream_get_registration_stream_type( descriptor_info );
         /* seek next section. */
         read_count += ES_info_length;
         ++pid_list_num;
@@ -1807,7 +1812,7 @@ static const char *get_stream_information
         stream = &(info->dsmcc_stream[stream_number]);
     else
         return NULL;
-    return stream->private_info[key].info;
+    return stream->private_info.keys[key].info;
 }
 
 static mpeg_stream_type get_sample_stream_type( void *ih, mpeg_sample_type sample_type, uint8_t stream_number )
@@ -1816,16 +1821,20 @@ static mpeg_stream_type get_sample_stream_type( void *ih, mpeg_sample_type sampl
     if( !info )
         return STREAM_INVALID;
     /* check stream type. */
-    mpeg_stream_type stream_type = STREAM_INVALID;
+    tss_ctx_t *stream = NULL;
     if( sample_type == SAMPLE_TYPE_VIDEO && stream_number < info->video_stream_num )
-        stream_type = info->video_stream[stream_number].stream_type;
+        stream = &(info->video_stream[stream_number]);
     else if( sample_type == SAMPLE_TYPE_AUDIO && stream_number < info->audio_stream_num )
-        stream_type = info->audio_stream[stream_number].stream_type;
+        stream = &(info->audio_stream[stream_number]);
     else if( sample_type == SAMPLE_TYPE_CAPTION && stream_number < info->caption_stream_num )
-        stream_type = info->caption_stream[stream_number].stream_type;
+        stream = &(info->caption_stream[stream_number]);
     else if( sample_type == SAMPLE_TYPE_DSMCC && stream_number < info->dsmcc_stream_num )
-        stream_type = info->dsmcc_stream[stream_number].stream_type;
-    return stream_type;
+        stream = &(info->dsmcc_stream[stream_number]);
+    else
+        return STREAM_INVALID;
+    if( stream->stream_type == STREAM_PES_PRIVATE_DATA || stream->stream_type == STREAM_VIDEO_PRIVATE /* = STREAM_AUDIO_LPCM */ )
+        return stream->private_info.reg_stream_type;
+    return stream->stream_type;
 }
 
 static void free_sample_buffer( uint8_t **buffer )
@@ -2505,9 +2514,10 @@ static int set_pmt_stream_info( mpegts_info_t *info )
     video_stream_num = audio_stream_num = caption_stream_num = dsmcc_stream_num = 0;
     for( int32_t pid_list_index = 0; pid_list_index < info->pid_list_num_in_pmt; ++pid_list_index )
     {
-        uint16_t               program_id   = info->pid_list_in_pmt[pid_list_index].program_id;
-        mpeg_stream_type       stream_type  = info->pid_list_in_pmt[pid_list_index].stream_type;
-        mpeg_stream_group_type stream_judge = info->pid_list_in_pmt[pid_list_index].stream_judge;
+        uint16_t               program_id        = info->pid_list_in_pmt[pid_list_index].program_id;
+        mpeg_stream_type       stream_type       = info->pid_list_in_pmt[pid_list_index].stream_type;
+        mpeg_stream_group_type stream_judge      = info->pid_list_in_pmt[pid_list_index].stream_judge;
+        mpeg_stream_type       reg_stream_type   = info->pid_list_in_pmt[pid_list_index].reg_stream_type;
         /*  */
         static const char *stream_name[4] = { " video ", " audio ", "caption", " dsm-cc" };
         tss_ctx_t *stream     = NULL;
@@ -2564,7 +2574,8 @@ static int set_pmt_stream_info( mpegts_info_t *info )
                     stream->stream_parse_info              = stream_parse_info;
                     stream->gop_number                     = -1;
                     stream->header_offset                  = 0;
-                    sprintf( stream->private_info[GET_INFO_KEY_ID].info, "PID %x", program_id );
+                    stream->private_info.reg_stream_type   = reg_stream_type;
+                    sprintf( stream->private_info.keys[GET_INFO_KEY_ID].info, "PID %x", program_id );
                     mapi_log( LOG_LV2, "[check] %s PID:0x%04X, stream_type:0x%02X\n"
                                      , stream_name[index], program_id, stream_type );
                     mpegts_file_seek( &(stream->tsf_ctx), info->tsf_ctx.read_position, MPEGTS_SEEK_SET );
