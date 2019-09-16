@@ -2127,10 +2127,10 @@ extern mpeg_stream_group_type mpeg_stream_judge_type
                 else if( descriptor_info->tags[i] == stream_identifier_descriptor )
                 {
                     uint8_t component_tag = descriptor_info->stream_identifier.component_tag;
-                    if( component_tag == 0x30 )
-                        stream_judge = STREAM_IS_ARIB_CAPTION;
-                    else if( component_tag == 0x38 )
-                        stream_judge = STREAM_IS_ARIB_STRING_SUPER;
+                    if( 0x30 <= component_tag && component_tag <= 0x37 )
+                        stream_judge = STREAM_IS_ARIB_CAPTION;          /* 0x30: default, 0x31-0x37: non-default */
+                    else if( 0x38 <= component_tag && component_tag <= 0x3F )
+                        stream_judge = STREAM_IS_ARIB_STRING_SUPER;     /* 0x38: default, 0x39-0x3F: non-default */
                 }
                 if( stream_judge != STREAM_IS_UNKNOWN )
                     break;
