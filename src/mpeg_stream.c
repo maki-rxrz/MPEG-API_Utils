@@ -2007,6 +2007,9 @@ extern mpeg_stream_group_type mpeg_stream_judge_type
         case STREAM_AUDIO_DDPLUS_SUB :
             stream_judge = STREAM_IS_DOLBY_AUDIO;
             break;
+        case STREAM_AUDIO_MLP :
+            stream_judge = STREAM_IS_AUDIO;     // FIXME
+            break;
         case STREAM_AUDIO_DTS :
         case STREAM_AUDIO_DTS_HD :
         case STREAM_AUDIO_DTS_HD_XLL :
