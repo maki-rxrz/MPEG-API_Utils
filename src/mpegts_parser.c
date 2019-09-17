@@ -701,35 +701,50 @@ static int mpegts_parse_pat( mpegts_info_t *info )
     return 0;
 }
 
-static uint16_t mpegts_parse_descriptor( uint8_t *descriptor_data, int data_length, mpeg_descriptor_info_t *descriptor_info )
+static int mpegts_get_ca_pid_from_descriptor
+(
+    mpeg_descriptor_info_t *descriptor_info,
+    uint16_t                descriptor_num,
+    uint16_t               *ca_pid
+)
 {
-    uint16_t descriptor_num = 0;
-    uint16_t read_count     = 0;
-    /* init. */     // FIXME
-    descriptor_info->tags_num                                           = 0;
-    descriptor_info->conditional_access.CA_system_ID                    = 0;
-    descriptor_info->conditional_access.CA_PID                          = 0;
-    descriptor_info->registration.format_identifier                     = 0;
-    descriptor_info->registration.additional_identification_info_length = 0;
-    descriptor_info->component.component_tag                            = 0;
-    descriptor_info->stream_identifier.component_tag                    = 0;
+    if( !descriptor_num || !descriptor_info->conditional_access || !descriptor_info->conditional_access->CA_system_ID )
+        return -1;
+    *ca_pid = descriptor_info->conditional_access->CA_PID;
+    return 0;
+}
+
+static int mpegts_parse_descriptor
+(
+    uint8_t                *descriptor_data,
+    int                     data_length,
+    mpeg_descriptor_info_t *descriptor_info,
+    uint16_t               *descriptor_num
+)
+{
+    uint16_t tags_num   = 0;
+    uint16_t read_count = 0;
+    /* init. */
+    mpeg_stream_init_descriptor_info( descriptor_info );
     /* parse. */
     while( read_count < data_length - 2 )
     {
-        mpeg_stream_get_descriptor_info( /* stream_type, */ &(descriptor_data[read_count]), descriptor_info );
+        if( mpeg_stream_get_descriptor_info( /* stream_type, */ &(descriptor_data[read_count]), descriptor_info ) )
+            return -1;
         uint8_t descriptor_length = descriptor_info->length;
         char descriptor_data_str[descriptor_length * 2 + 1]; //= { 0 };
         descriptor_data_str[descriptor_length * 2] = 0;
         for( int i = 0; i < descriptor_length; ++i )
             sprintf( &(descriptor_data_str[i * 2]), "%02X", descriptor_data[read_count + i + 2] );
         mapi_log( LOG_LV2, "[check] descriptor_tag:0x%02X, descriptor_length:%u, [%s]\n"
-                         , descriptor_info->tags[descriptor_num], descriptor_length, descriptor_data_str );
-        mpeg_stream_debug_descriptor_info( descriptor_info, descriptor_num );
+                         , descriptor_info->tags[tags_num], descriptor_length, descriptor_data_str );
+        mpeg_stream_debug_descriptor_info( descriptor_info, tags_num );
         /* next descriptor. */
         read_count += descriptor_length + 2;
-        ++descriptor_num;
+        ++tags_num;
     }
-    return descriptor_num;
+    *descriptor_num = tags_num;
+    return 0;
 }
 
 static int mpegts_search_cat_packet( tsf_ctx_t *tsf_ctx, tsp_cat_si_t *cat_si )
@@ -781,12 +796,11 @@ static int mpegts_parse_cat( mpegts_info_t *info )
         mpeg_descriptor_info_t *descriptor_info = info->descriptor_info;
         /* parse descriptor. */
         uint8_t  *descriptor_data = &(section_buffer[read_count]);
-        uint16_t  descriptor_num  = mpegts_parse_descriptor( descriptor_data, descriptor_length, descriptor_info );
-        if( descriptor_num && descriptor_info->conditional_access.CA_system_ID )
-        {
-            info->emm_program_id = descriptor_info->conditional_access.CA_PID;
+        uint16_t  descriptor_num  = 0;
+        if( mpegts_parse_descriptor( descriptor_data, descriptor_length, descriptor_info, &descriptor_num ) )
+            goto fail_parse;
+        if( !mpegts_get_ca_pid_from_descriptor( descriptor_info, descriptor_num, &(info->emm_program_id) ) )
             mapi_log( LOG_LV2, "[check] emm_PID:0x%04X\n", info->emm_program_id );
-        }
         read_count += descriptor_length;
     }
     uint8_t *crc32 = &(section_buffer[read_count]);
@@ -968,12 +982,11 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
     {
         /* parse descriptor. */
         uint8_t  *descriptor_data = &(section_buffer[read_count]);
-        uint16_t  descriptor_num  = mpegts_parse_descriptor( descriptor_data, prg_inf_length, descriptor_info );
-        if( descriptor_num && descriptor_info->conditional_access.CA_system_ID )
-        {
-            info->ecm_program_id = descriptor_info->conditional_access.CA_PID;
+        uint16_t  descriptor_num  = 0;
+        if( mpegts_parse_descriptor( descriptor_data, prg_inf_length, descriptor_info, &descriptor_num ) )
+            goto fail_parse;
+        if( !mpegts_get_ca_pid_from_descriptor( descriptor_info, descriptor_num, &(info->ecm_program_id) ) )
             mapi_log( LOG_LV2, "[check] ecm_PID:0x%04X\n", info->ecm_program_id );
-        }
         read_count += prg_inf_length;
     }
     while( read_count < section_length - CRC32_SIZE )
@@ -989,12 +1002,14 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
         read_count += TS_PACKET_PMT_SECTION_DATA_SIZE;
         /* parse descriptor. */
         uint8_t  *descriptor_data = &(section_buffer[read_count]);
-        uint16_t  descriptor_num  = mpegts_parse_descriptor( descriptor_data, ES_info_length, descriptor_info );
+        uint16_t  descriptor_num  = 0;
+        if( mpegts_parse_descriptor( descriptor_data, ES_info_length, descriptor_info, &descriptor_num ) )
+            goto fail_parse;
         /* setup stream type and PID. */
-        info->pid_list_in_pmt[pid_list_num].stream_judge      = mpeg_stream_judge_type( stream_type, descriptor_num, descriptor_info );
-        info->pid_list_in_pmt[pid_list_num].stream_type       = stream_type;
-        info->pid_list_in_pmt[pid_list_num].program_id        = elementary_PID;
-        info->pid_list_in_pmt[pid_list_num].reg_stream_type   = mpeg_stream_get_registration_stream_type( descriptor_info );
+        info->pid_list_in_pmt[pid_list_num].stream_judge    = mpeg_stream_judge_type( stream_type, descriptor_num, descriptor_info );
+        info->pid_list_in_pmt[pid_list_num].stream_type     = stream_type;
+        info->pid_list_in_pmt[pid_list_num].program_id      = elementary_PID;
+        info->pid_list_in_pmt[pid_list_num].reg_stream_type = mpeg_stream_get_registration_stream_type( descriptor_info );
         /* seek next section. */
         read_count += ES_info_length;
         ++pid_list_num;
@@ -2850,7 +2865,10 @@ static void *initialize( const char *input_file, int64_t buffer_size )
 fail_initialize:
     mapi_log( LOG_LV2, "[mpegts_parser] failed initialize.\n" );
     if( descriptor_info )
+    {
+        mpeg_stream_release_descriptor_info( descriptor_info );
         free( descriptor_info );
+    }
     if( mpegts )
         free( mpegts );
     if( info )
@@ -2868,9 +2886,10 @@ static void release( void *ih )
     if( !info )
         return;
     /*  release. */
+    mpeg_stream_release_descriptor_info( info->descriptor_info );
+    free( info->descriptor_info );
     release_pid_list( info );
     mpegts_close( &(info->tsf_ctx) );
-    free( info->descriptor_info );
     free( info->mpegts );
     free( info );
 }

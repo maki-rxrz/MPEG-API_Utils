@@ -613,65 +613,65 @@ typedef struct {
     uint16_t        CA_system_id;
 } DESCRIPTOR_INFO( CA_identifier );
 
-#define STRUCT_DESCRIPTOR( name )       DESCRIPTOR_INFO( name )     name;
+#define DESCRIPTOR_INFO_PTR( name )     DESCRIPTOR_INFO( name )   * name;
 typedef struct {
     mpeg_descriptor_tag_type                    tags[256];
     uint8_t                                     tags_num;
     uint8_t                                     length;
-    STRUCT_DESCRIPTOR( video_stream )
-    STRUCT_DESCRIPTOR( audio_stream )
-    STRUCT_DESCRIPTOR( hierarchy )
-    STRUCT_DESCRIPTOR( registration )
-    STRUCT_DESCRIPTOR( data_stream_alignment )
-    STRUCT_DESCRIPTOR( target_background_grid )
-    STRUCT_DESCRIPTOR( video_window )
-    STRUCT_DESCRIPTOR( conditional_access )
-    STRUCT_DESCRIPTOR( ISO_639_language )
-    STRUCT_DESCRIPTOR( system_clock )
-    STRUCT_DESCRIPTOR( multiplex_buffer_utilization )
-    STRUCT_DESCRIPTOR( copyright )
-    STRUCT_DESCRIPTOR( maximum_bitrate )
-    STRUCT_DESCRIPTOR( private_data_indicator )
-    STRUCT_DESCRIPTOR( smoothing_buffer )
-    STRUCT_DESCRIPTOR( STD )
-    STRUCT_DESCRIPTOR( ibp )
-    STRUCT_DESCRIPTOR( MPEG4_video )
-    STRUCT_DESCRIPTOR( MPEG4_audio )
-    STRUCT_DESCRIPTOR( IOD )
-    STRUCT_DESCRIPTOR( SL )
-    STRUCT_DESCRIPTOR( FMC )
-    STRUCT_DESCRIPTOR( External_ES_ID )
-    STRUCT_DESCRIPTOR( MuxCode )
-    STRUCT_DESCRIPTOR( FmxBufferSize )
-    STRUCT_DESCRIPTOR( MultiplexBuffer )
-    STRUCT_DESCRIPTOR( content_labeling )
-    STRUCT_DESCRIPTOR( metadata_pointer )
-    STRUCT_DESCRIPTOR( metadata )
-    STRUCT_DESCRIPTOR( metadata_STD )
-    STRUCT_DESCRIPTOR( AVC_video )
-    STRUCT_DESCRIPTOR( IPMP )
-    STRUCT_DESCRIPTOR( AVC_timing_and_HRD )
-    STRUCT_DESCRIPTOR( MPEG2_AAC_audio )
-    STRUCT_DESCRIPTOR( FlexMuxTiming )
-    STRUCT_DESCRIPTOR( MPEG4_text )
-    STRUCT_DESCRIPTOR( MPEG4_audio_extension )
-    STRUCT_DESCRIPTOR( Auxiliary_video_stream )
-    STRUCT_DESCRIPTOR( SVC_extension )
-    STRUCT_DESCRIPTOR( MVC_extension )
-    STRUCT_DESCRIPTOR( J2K_video )
-    STRUCT_DESCRIPTOR( MVC_operation_point )
-    STRUCT_DESCRIPTOR( MPEG2_stereoscopic_video_format )
-    STRUCT_DESCRIPTOR( Stereoscopic_program_info )
-    STRUCT_DESCRIPTOR( Stereoscopic_video_info )
-    STRUCT_DESCRIPTOR( Transport_profile )
-    STRUCT_DESCRIPTOR( HEVC_video )
-    STRUCT_DESCRIPTOR( Extension )
+    DESCRIPTOR_INFO_PTR( video_stream )
+    DESCRIPTOR_INFO_PTR( audio_stream )
+    DESCRIPTOR_INFO_PTR( hierarchy )
+    DESCRIPTOR_INFO_PTR( registration )
+    DESCRIPTOR_INFO_PTR( data_stream_alignment )
+    DESCRIPTOR_INFO_PTR( target_background_grid )
+    DESCRIPTOR_INFO_PTR( video_window )
+    DESCRIPTOR_INFO_PTR( conditional_access )
+    DESCRIPTOR_INFO_PTR( ISO_639_language )
+    DESCRIPTOR_INFO_PTR( system_clock )
+    DESCRIPTOR_INFO_PTR( multiplex_buffer_utilization )
+    DESCRIPTOR_INFO_PTR( copyright )
+    DESCRIPTOR_INFO_PTR( maximum_bitrate )
+    DESCRIPTOR_INFO_PTR( private_data_indicator )
+    DESCRIPTOR_INFO_PTR( smoothing_buffer )
+    DESCRIPTOR_INFO_PTR( STD )
+    DESCRIPTOR_INFO_PTR( ibp )
+    DESCRIPTOR_INFO_PTR( MPEG4_video )
+    DESCRIPTOR_INFO_PTR( MPEG4_audio )
+    DESCRIPTOR_INFO_PTR( IOD )
+    DESCRIPTOR_INFO_PTR( SL )
+    DESCRIPTOR_INFO_PTR( FMC )
+    DESCRIPTOR_INFO_PTR( External_ES_ID )
+    DESCRIPTOR_INFO_PTR( MuxCode )
+    DESCRIPTOR_INFO_PTR( FmxBufferSize )
+    DESCRIPTOR_INFO_PTR( MultiplexBuffer )
+    DESCRIPTOR_INFO_PTR( content_labeling )
+    DESCRIPTOR_INFO_PTR( metadata_pointer )
+    DESCRIPTOR_INFO_PTR( metadata )
+    DESCRIPTOR_INFO_PTR( metadata_STD )
+    DESCRIPTOR_INFO_PTR( AVC_video )
+    DESCRIPTOR_INFO_PTR( IPMP )
+    DESCRIPTOR_INFO_PTR( AVC_timing_and_HRD )
+    DESCRIPTOR_INFO_PTR( MPEG2_AAC_audio )
+    DESCRIPTOR_INFO_PTR( FlexMuxTiming )
+    DESCRIPTOR_INFO_PTR( MPEG4_text )
+    DESCRIPTOR_INFO_PTR( MPEG4_audio_extension )
+    DESCRIPTOR_INFO_PTR( Auxiliary_video_stream )
+    DESCRIPTOR_INFO_PTR( SVC_extension )
+    DESCRIPTOR_INFO_PTR( MVC_extension )
+    DESCRIPTOR_INFO_PTR( J2K_video )
+    DESCRIPTOR_INFO_PTR( MVC_operation_point )
+    DESCRIPTOR_INFO_PTR( MPEG2_stereoscopic_video_format )
+    DESCRIPTOR_INFO_PTR( Stereoscopic_program_info )
+    DESCRIPTOR_INFO_PTR( Stereoscopic_video_info )
+    DESCRIPTOR_INFO_PTR( Transport_profile )
+    DESCRIPTOR_INFO_PTR( HEVC_video )
+    DESCRIPTOR_INFO_PTR( Extension )
     /*  */
-    STRUCT_DESCRIPTOR( component )
-    STRUCT_DESCRIPTOR( stream_identifier )
-    STRUCT_DESCRIPTOR( CA_identifier )
+    DESCRIPTOR_INFO_PTR( component )
+    DESCRIPTOR_INFO_PTR( stream_identifier )
+    DESCRIPTOR_INFO_PTR( CA_identifier )
 } mpeg_descriptor_info_t;
-#undef STRUCT_DESCRIPTOR
+#undef DESCRIPTOR_INFO_PTR
 
 #undef DESCRIPTOR_INFO
 
@@ -706,7 +706,7 @@ extern void mpeg_pes_get_header_info( uint8_t *buf, mpeg_pes_header_info_t *pes_
 
 extern mpeg_pes_stream_id_type mpeg_pes_get_steam_id_type( mpeg_stream_group_type stream_judge );
 
-extern void mpeg_stream_get_descriptor_info
+extern int mpeg_stream_get_descriptor_info
 (
  /* mpeg_stream_type            stream_type, */
     uint8_t                    *descriptor,
@@ -714,6 +714,10 @@ extern void mpeg_stream_get_descriptor_info
 );
 
 extern void mpeg_stream_debug_descriptor_info( mpeg_descriptor_info_t *descriptor_info, uint16_t descriptor_num );
+
+extern void mpeg_stream_release_descriptor_info( mpeg_descriptor_info_t *descriptor_info );
+
+extern void mpeg_stream_init_descriptor_info( mpeg_descriptor_info_t *descriptor_info );
 
 extern mpeg_stream_type mpeg_stream_get_registration_stream_type( mpeg_descriptor_info_t *descriptor_info );
 
