@@ -100,6 +100,7 @@ typedef struct {
     int32_t             shift_pos_y;
     FILE               *logfile;
     execute_mode_type   execute_mode;
+    int                 ext_correction;
 } param_t;
 
 typedef void (*cut_caption_func)( param_t *p, FILE *input, FILE *output );
@@ -514,8 +515,9 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
                             if( !ext )
                                 ext = p->input + strlen( p->input );
                         }
-                        p->output_mode = input_array[i].mode;
-                        *ext           = '\0';
+                        p->output_mode    = input_array[i].mode;
+                        p->ext_correction = 1;
+                        *ext              = '\0';
                         break;
                     }
             }
@@ -1041,7 +1043,8 @@ static void parse_reader_offset( param_t *p, delay_info_type *delay_info )
     /* parse. */
     char mpegts[strlen( p->input ) + 4];
     strcpy( mpegts, p->input );
-    strcat( mpegts, ".ts" );
+    if( p->execute_mode == EXECUTE_CUT_CAPTION || p->ext_correction )
+        strcat( mpegts, ".ts" );
     void *info = mpeg_api_initialize_info( mpegts, 0 );
     if( !info )
         return;
