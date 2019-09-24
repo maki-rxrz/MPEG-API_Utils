@@ -233,6 +233,10 @@ extern void mapi_log( log_level level, const char *format, ... )
     for( int i = 0; msg_out[i]; ++i )
         mapi_vfprintf( msg_out[i], format, argptr );
     va_end( argptr );
+#ifdef DEBUG
+    for( int i = 0; msg_out[i]; ++i )
+        fflush( msg_out[i] );
+#endif
 }
 
 static void debug_setup_log_lv( log_level level, FILE *output )

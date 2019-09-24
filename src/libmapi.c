@@ -51,6 +51,9 @@ extern void mapi_log( log_level level, const char *format, ... )
     va_start( argptr, format );
     mapi_vfprintf( msg_out, format, argptr );
     va_end( argptr );
+#ifdef DEBUG
+    fflush( msg_out );
+#endif
 }
 
 MAPI_EXPORT void mpeg_api_setup_log_lv( log_level level, FILE *output )
