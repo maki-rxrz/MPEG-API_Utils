@@ -600,7 +600,7 @@ static void *initialize( const char *mpeges, int64_t buffer_size )
         goto fail_initialize;
     return info;
 fail_initialize:
-    mapi_log( LOG_LV2, "[mpeges_parser] failed initialize.\n" );
+    mapi_log( LOG_LV2, "[mpeges_parser] failed to initialize.\n" );
     if( video_info )
         free( video_info );
     if( info )

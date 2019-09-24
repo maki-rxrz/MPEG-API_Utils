@@ -2824,7 +2824,7 @@ end_parse:
     if( !result )
         info->status = PARSER_STATUS_PARSED;
     else
-        mapi_log( LOG_LV2, "[mpegts_parser] failed parse.\n" );
+        mapi_log( LOG_LV2, "[mpegts_parser] failed to parse.\n" );
     mpegts_file_seek( &(info->tsf_ctx), start_position, MPEGTS_SEEK_RESET );
     return result;
 }
@@ -2863,7 +2863,7 @@ static void *initialize( const char *input_file, int64_t buffer_size )
         goto fail_initialize;
     return info;
 fail_initialize:
-    mapi_log( LOG_LV2, "[mpegts_parser] failed initialize.\n" );
+    mapi_log( LOG_LV2, "[mpegts_parser] failed to initialize.\n" );
     if( descriptor_info )
     {
         mpeg_stream_release_descriptor_info( descriptor_info );
