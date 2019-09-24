@@ -1428,6 +1428,38 @@ static uint32_t mpegts_get_sample_packets_num( tsf_ctx_t *tsf_ctx, uint16_t prog
     return ts_packet_count;
 }
 
+static int mpegts_skip_pes_header
+(
+    tsf_ctx_t                  *tsf_ctx,
+    tsp_header_t               *h,
+    uint16_t                    program_id,
+    mpeg_pes_header_info_t     *pes_info
+)
+{
+    uint8_t skip_header_size = pes_info->header_length;
+    /* skip PES packet header. */
+    while( skip_header_size )
+    {
+        if( skip_header_size < tsf_ctx->ts_packet_length )
+        {
+            mpegts_file_seek( tsf_ctx, skip_header_size, MPEGTS_SEEK_CUR );
+            break;
+        }
+        skip_header_size -= tsf_ctx->ts_packet_length;
+        /* seek next. */
+        mpegts_file_seek( tsf_ctx, 0, MPEGTS_SEEK_NEXT );
+        /* seek next packet. */
+        if( mpegts_seek_packet_payload_data( tsf_ctx, h, program_id, INDICATOR_UNCHECKED ) )
+            return -1;
+        if( h->payload_unit_start_indicator )
+        {
+            GET_PES_PACKET_HEADER( tsf_ctx, (*pes_info) );
+            skip_header_size = pes_info->header_length;
+        }
+    }
+    return 0;
+}
+
 static int mpegts_check_sample_raw_frame_length
 (
     tsf_ctx_t                  *tsf_ctx,
@@ -1488,6 +1520,7 @@ static int mpegts_check_sample_raw_frame_length
         /* seek next packet. */
         if( mpegts_seek_packet_payload_data( tsf_ctx, &h, program_id, INDICATOR_UNCHECKED ) )
         {
+        not_detected:
             if( raw_data_size >= (int32_t)frame_length )
                 result = 0;
             goto end_check_frame_length;
@@ -1497,7 +1530,8 @@ static int mpegts_check_sample_raw_frame_length
             mpeg_pes_header_info_t pes_info;
             GET_PES_PACKET_HEADER( tsf_ctx, pes_info );
             /* skip PES packet header. */
-            mpegts_file_seek( tsf_ctx, pes_info.header_length, MPEGTS_SEEK_CUR );
+            if( mpegts_skip_pes_header( tsf_ctx, &h, program_id, &pes_info ) )
+                goto not_detected;
         }
     }
 end_check_frame_length:
@@ -1548,6 +1582,7 @@ static int mpegts_get_sample_raw_data_info
     {
         if( mpegts_seek_packet_payload_data( tsf_ctx, &h, program_id, INDICATOR_UNCHECKED ) )
         {
+        not_detected:
             if( start_point >= 0 )
             {
                 /* This sample is the data at the end was shaved. */
@@ -1564,11 +1599,12 @@ static int mpegts_get_sample_raw_data_info
         {
             mpeg_pes_header_info_t pes_info;
             GET_PES_PACKET_HEADER( tsf_ctx, pes_info );
+            /* skip PES packet header. */
+            if( mpegts_skip_pes_header( tsf_ctx, &h, program_id, &pes_info ) )
+                goto not_detected;
             /* check PES packet header. */
             if( pes_info.pts_flag )
                 check_start_point = 1;
-            /* skip PES packet header. */
-            mpegts_file_seek( tsf_ctx, pes_info.header_length, MPEGTS_SEEK_CUR );
         }
     retry_check_start_point:
         if( check_start_point )
@@ -1682,7 +1718,8 @@ static void mpegts_get_sample_raw_data
             mpeg_pes_header_info_t pes_info;
             GET_PES_PACKET_HEADER( tsf_ctx, pes_info );
             /* skip PES packet header. */
-            mpegts_file_seek( tsf_ctx, pes_info.header_length, MPEGTS_SEEK_CUR );
+            if( mpegts_skip_pes_header( tsf_ctx, &h, program_id, &pes_info ) )
+                break;
         }
         /* check read start point. */
         if( read_offset )
@@ -2144,7 +2181,8 @@ static int get_specific_stream_data
                 if( pes_info.pts_flag && stream->header_offset )
                     read_offset = stream->header_offset;
                 /* skip PES packet header. */
-                mpegts_file_seek( tsf_ctx, pes_info.header_length, MPEGTS_SEEK_CUR );
+                if( mpegts_skip_pes_header( tsf_ctx, &h, stream->program_id, &pes_info ) )
+                    return -1;
             }
             read_size = tsf_ctx->ts_packet_length;
             break;
@@ -2241,7 +2279,8 @@ static int get_stream_data
                     mpeg_pes_header_info_t pes_info;
                     GET_PES_PACKET_HEADER( tsf_ctx, pes_info );
                     /* skip PES packet header. */
-                    mpegts_file_seek( tsf_ctx, pes_info.header_length, MPEGTS_SEEK_CUR );
+                    if( mpegts_skip_pes_header( tsf_ctx, &h, program_id, &pes_info ) )
+                        return -1;
                 }
                 /* check read start point. */
                 if( read_offset <= tsf_ctx->ts_packet_length )
