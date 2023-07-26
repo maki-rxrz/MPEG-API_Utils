@@ -143,7 +143,7 @@ static void print_help( void )
         "       --mode <string>         Specify together multiple settings.\n"
         "                                   - p : Parse (--api-type 0 --output-mode 0)\n"
         "                                   - d : Demux (--api-type 3 --output-mode 1)\n"
-        "                                   - s : Split\n"
+        "                                   - s : Split (--output-mode 4)\n"
         "                                   - v : video (--output-stream v)\n"
         "                                   - a : audio (--output-stream a)\n"
         "                                   - c : caption (when specified split mode.)\n"
