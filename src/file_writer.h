@@ -36,6 +36,7 @@
  *==========================================================================*/
 
 typedef struct  {
+    int         (* pipe    )( void *fr_ctx );
     int64_t     (* ftell   )( void *fr_ctx );
     int         (* fwrite  )( void *fw_ctx, uint8_t *src_buffer, int64_t src_size, int64_t *dest_size );
     int         (* fseek   )( void *fw_ctx, int64_t offset, int origin );

@@ -73,6 +73,12 @@ typedef enum {
     OUTPUT_DEMUX_MULTITHREAD_READ = 0x01
 } output_demux_mode_type;
 
+typedef enum {
+    OUTPUT_TO_NULL = 0x00,
+    OUTPUT_TO_FILE = 0x01,
+    OUTPUT_TO_PIPE = 0x02
+} output_dst_type;
+
 typedef struct {
     char                   *input;
     char                   *output;
@@ -80,6 +86,7 @@ typedef struct {
     output_mode_type        output_mode;
     output_stream_type      output_stream;
     output_demux_mode_type  demux_mode;
+    output_dst_type         output_dst;
     uint16_t                pmt_program_id;
     pmt_target_type         pmt_target;
     int64_t                 wrap_around_check_v;
@@ -184,15 +191,17 @@ static void print_help( void )
         "                               Specify internal buffer size for data reading.\n"
         "       --wb-size, --write-buffer-size <integer>\n"
         "                               Specify internal buffer size for data writing.\n"
+        "    -p --pipe                  For pipe output.\n"
         "    -v --version               Display the version information.\n"
         "\n"
     );
 }
 
 static struct {
-    log_level   log_lv;
-    FILE       *msg_out;
-    log_mode    mode;
+    log_level       log_lv;
+    FILE           *msg_out;
+    log_mode        mode;
+    output_dst_type output_dst;
 } debug_ctrl = { 0 };
 
 extern void mapi_log( log_level level, const char *format, ... )
@@ -227,6 +236,12 @@ extern void mapi_log( log_level level, const char *format, ... )
             default:
                 return;
         }
+    if( debug_ctrl.output_dst & OUTPUT_TO_PIPE )
+    {
+        if( msg_out[0] == stdout || msg_out[0] == stderr )
+            return;
+        msg_out[1] = NULL;
+    }
     /* output. */
     va_list argptr;
     va_start( argptr, format );
@@ -253,10 +268,18 @@ static void debug_setup_mode( log_mode mode )
     debug_ctrl.mode = mode;
 }
 
+static void debug_setup_output( output_dst_type output_dst )
+{
+    if( output_dst & OUTPUT_TO_PIPE )
+        mapi_setmode( stdout, SETMODE_BIN );
+    debug_ctrl.output_dst |= output_dst;
+}
+
 static void debug_initialize( void )
 {
     debug_setup_log_lv( LOG_LV0, stderr );
     debug_setup_mode( LOG_MODE_NORMAL );
+    mapi_setmode( stdout, SETMODE_TXT );
 }
 
 static int file_exists( const char *file )
@@ -331,6 +354,13 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
             if( p->output )
                 free( p->output );
             p->output = strdup( argv[++i] );
+            p->output_dst |= OUTPUT_TO_FILE;
+            debug_setup_output( OUTPUT_TO_FILE );
+        }
+        else if( !strcasecmp( argv[i], "--pipe" ) || !strcasecmp( argv[i], "-p" ) )
+        {
+            p->output_dst |= OUTPUT_TO_PIPE;
+            debug_setup_output( OUTPUT_TO_PIPE );
         }
         else if( !strcasecmp( argv[i], "--pmt-pid" ) )
         {
@@ -510,7 +540,7 @@ static int correct_parameter( param_t *p )
     if( !p || !p->input )
         return -1;
     /* output. */
-    if( !p->output )
+    if( !(p->output_dst & OUTPUT_TO_PIPE) && !p->output )
     {
         p->output = strdup( p->input );
         if( !p->output )
@@ -519,6 +549,7 @@ static int correct_parameter( param_t *p )
         char *ext = strrchr( p->output, '.' );
         if( ext && (!sep || sep < ext) )
             *ext = '\0';
+        p->output_dst |= OUTPUT_TO_FILE;
     }
     return 0;
 }
@@ -551,7 +582,7 @@ static inline int dumper_fseek( void *fw_ctx, int64_t seek_offset, int origin )
 }
 #endif
 
-static int dumper_open( void **fw_ctx, char *file_name, int64_t buffer_size )
+static int dumper_open( void **fw_ctx, char *file_name, int64_t buffer_size, output_dst_type output_dst )
 {
     void *ctx = NULL;
     if( file_writer.init( &ctx ) )
@@ -562,6 +593,11 @@ static int dumper_open( void **fw_ctx, char *file_name, int64_t buffer_size )
     if( file_writer.open( ctx, file_name, buffer_size ) )
     {
         mapi_log( LOG_LV_PROGRESS, "[log] error, failed to open: %s\n", file_name );
+        goto fail;
+    }
+    if( (output_dst & OUTPUT_TO_PIPE) && file_writer.pipe( ctx ) )
+    {
+        mapi_log( LOG_LV0, "[log] error, failed to pipe mode.\n" );
         goto fail;
     }
     *fw_ctx = ctx;
@@ -839,6 +875,12 @@ static void open_file
     char                       *add_str
 )
 {
+    if( !p->output )
+    {
+        /* open for pipe output. */
+        dumper_open( file, NULL, p->write_buffer_size, p->output_dst );
+        return;
+    }
     int                  get_index = p->output_mode - OUTPUT_GET_SAMPLE_RAW;
     get_sample_data_mode get_mode  = get_sample_list[get_index].get_mode;
     static const struct {
@@ -910,7 +952,7 @@ static void open_file
         strcat( dump_name, add_ext );
     }
     /* open. */
-    dumper_open( file, dump_name, p->write_buffer_size );
+    dumper_open( file, dump_name, p->write_buffer_size, p->output_dst );
 }
 
 static void open_file_for_list_api
@@ -1954,30 +1996,36 @@ static void split_stream_all
     int                  get_index = OUTPUT_SPLIT_CONTAINER - OUTPUT_GET_SAMPLE_RAW;
     get_sample_data_mode get_mode  = get_sample_list[get_index].get_mode;
     /* prepare file. */
-    size_t dump_name_size = strlen( p->output ) + 32;
-    char dump_name[dump_name_size];
-    strcpy( dump_name, p->output );
-    /* id */
-  //if( total_stream_num )
-    {
-        static const char *output_stream_name[16] =
-            {
-                "(none)", "Video", "Audio", "V+A"  , "Caption", "V+C"  , "A+C"  , "V+A+C"  ,
-                "DSM-CC", "V+D"  , "A+D"  , "V+A+D", "C+D"    , "V+C+D", "A+C+D", "V+A+C+D"
-            };
-        int stream_name_index = ((p->output_stream & OUTPUT_STREAM_VIDEO  ) ? 1 : 0)
-                              + ((p->output_stream & OUTPUT_STREAM_AUDIO  ) ? 2 : 0)
-                              + ((p->output_stream & OUTPUT_STREAM_CAPTION) ? 4 : 0)
-                              + ((p->output_stream & OUTPUT_STREAM_DSMCC  ) ? 8 : 0);
-        char stream_name[12];
-        sprintf( stream_name, "_[%s]", output_stream_name[stream_name_index] );
-        strcat( dump_name, stream_name );
-    }
-    /* extension */
-    strcat( dump_name, "_split.ts" );       // FIXME
-    /* open. */
     void *split_file;
-    dumper_open( &split_file, dump_name, p->write_buffer_size );
+    if( !p->output )
+        /* open for pipe output. */
+        dumper_open( &split_file, NULL, p->write_buffer_size, p->output_dst );
+    else
+    {
+        size_t dump_name_size = strlen( p->output ) + 32;
+        char dump_name[dump_name_size];
+        strcpy( dump_name, p->output );
+        /* id */
+      //if( total_stream_num )
+        {
+            static const char *output_stream_name[16] =
+                {
+                    "(none)", "Video", "Audio", "V+A"  , "Caption", "V+C"  , "A+C"  , "V+A+C"  ,
+                    "DSM-CC", "V+D"  , "A+D"  , "V+A+D", "C+D"    , "V+C+D", "A+C+D", "V+A+C+D"
+                };
+            int stream_name_index = ((p->output_stream & OUTPUT_STREAM_VIDEO  ) ? 1 : 0)
+                                  + ((p->output_stream & OUTPUT_STREAM_AUDIO  ) ? 2 : 0)
+                                  + ((p->output_stream & OUTPUT_STREAM_CAPTION) ? 4 : 0)
+                                  + ((p->output_stream & OUTPUT_STREAM_DSMCC  ) ? 8 : 0);
+            char stream_name[12];
+            sprintf( stream_name, "_[%s]", output_stream_name[stream_name_index] );
+            strcat( dump_name, stream_name );
+        }
+        /* extension */
+        strcat( dump_name, "_split.ts" );       // FIXME
+        /* open. */
+        dumper_open( &split_file, dump_name, p->write_buffer_size, p->output_dst );
+    }
     /* output. */
     mapi_log( LOG_LV_PROGRESS, "[log] Split - START\n" );
     uint16_t total_stream_num = get_output_stream_nums( p->output_stream, video_stream_num, audio_stream_num, caption_stream_num, dsmcc_stream_num );
@@ -2090,6 +2138,34 @@ static void parse_mpeg( param_t *p )
         mapi_log( LOG_LV_OUTPUT, "[log] stream_num:  Video:%4u  Audio:%4u  Caption:%4u\n", video_stream_num, audio_stream_num, caption_stream_num );
         if( !video_stream_num && !audio_stream_num /* && !caption_stream_num */ )
             goto end_parse;
+        /* check for pipe output. */
+        if( p->output_dst & OUTPUT_TO_PIPE )
+        {
+            int pipe = 1;
+            switch( p->output_mode )
+            {
+                case OUTPUT_GET_INFO :
+                    pipe = 0;
+                    break;
+                case OUTPUT_GET_SAMPLE_RAW :
+                case OUTPUT_GET_SAMPLE_PES :
+                    pipe = get_output_stream_nums( p->output_stream, video_stream_num, audio_stream_num, 0, 0 ) == 1;   // FIXME: Dual stereo -> Select target stream.
+                    break;
+                case OUTPUT_GET_SAMPLE_CONTAINER :
+                case OUTPUT_SPLIT_CONTAINER :
+                    break;
+                case OUTPUT_MAKE_GOP_LIST :
+                    pipe = 0;
+                    break;
+                default :
+                    break;
+            }
+            if( !pipe )
+            {
+                mapi_log( LOG_LV0, "[log] Pipe output is not supported...\n" );     // FIXME
+                goto end_parse;
+            }
+        }
         /* output. */
         if( p->output_stream == OUTPUT_STREAM_NONE )
             goto end_parse;

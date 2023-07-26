@@ -30,11 +30,19 @@
 //#include "common.h"
 
 //#include <stdlib.h>
+#include <io.h>
+#include <fcntl.h>
 #include <windows.h>
 
 /*============================================================================
  *  OS depncdent functions
  *==========================================================================*/
+
+int mapi_setmode( FILE *fp, setmode_type type )
+{
+    static const int mode[2] = { _O_TEXT, _O_BINARY };
+    return _setmode( _fileno(fp), mode[type] );
+}
 
 static int convert_utf8_to_utf16( const char *utf8_str, wchar_t **utf16_str )
 {
