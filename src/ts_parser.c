@@ -97,6 +97,7 @@ typedef struct {
     int64_t                 file_size;
     int64_t                 gop_limit;
     int64_t                 frm_limit;
+    char                   *split_suffix;
 } param_t;
 
 static const struct {
@@ -191,6 +192,7 @@ static void print_help( void )
         "                               Specify internal buffer size for data reading.\n"
         "       --wb-size, --write-buffer-size <integer>\n"
         "                               Specify internal buffer size for data writing.\n"
+        "       --split-suffix <string> Specify suffix for split mode.\n"
         "    -p --pipe                  For pipe output.\n"
         "    -v --version               Display the version information.\n"
         "\n"
@@ -333,6 +335,8 @@ static int init_parameter( param_t *p )
 
 static void cleanup_parameter( param_t *p )
 {
+    if( p->split_suffix )
+        free( p->split_suffix );
     if( p->logfile && p->logfile != stderr )
         fclose( p->logfile );
     if( p->output )
@@ -506,6 +510,12 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
             p->output_stream = OUTPUT_STREAM_NONE_PCR_ONLY;
         else if( !strcasecmp( argv[i], "--gop-list" ) )
             p->output_mode = OUTPUT_MAKE_GOP_LIST;
+        else if( !strcasecmp( argv[i], "--split-suffix" ) )
+        {
+            if( p->split_suffix )
+                free( p->split_suffix );
+            p->split_suffix = strdup( argv[++i] );
+        }
         else
         {
             /* check invalid parameters. */
@@ -2002,7 +2012,8 @@ static void split_stream_all
         dumper_open( &split_file, NULL, p->write_buffer_size, p->output_dst );
     else
     {
-        size_t dump_name_size = strlen( p->output ) + 32;
+        size_t dump_name_size = strlen( p->output ) + 32
+                              + (p->split_suffix ? strlen( p->split_suffix ) : 0);
         char dump_name[dump_name_size];
         strcpy( dump_name, p->output );
         /* id */
@@ -2021,8 +2032,11 @@ static void split_stream_all
             sprintf( stream_name, "_[%s]", output_stream_name[stream_name_index] );
             strcat( dump_name, stream_name );
         }
+        /* suffix */
+        if( p->split_suffix && strlen( p->split_suffix ) > 0 )
+            strcat( dump_name, p->split_suffix );
         /* extension */
-        strcat( dump_name, "_split.ts" );       // FIXME
+        strcat( dump_name, ".ts" );
         /* open. */
         dumper_open( &split_file, dump_name, p->write_buffer_size, p->output_dst );
     }
