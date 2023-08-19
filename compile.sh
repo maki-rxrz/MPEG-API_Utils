@@ -45,6 +45,9 @@ for opt do
         LD=*)
             LD_EXE="${optarg}"
         ;;
+        TARGETOS=*)
+            TARGET_OS="${optarg}"
+        ;;
         SHARED=*)
             ENABLE_SHARED="${optarg}"
         ;;
@@ -62,6 +65,7 @@ if [[ "$#" != '0' ]] ; then
     [ -n "${THREAD_LIBS}"    ] && echo "THREADS  : ${THREAD_LIBS}"
     [ -n "${CC_EXE}"         ] && echo "CC       : ${CC_EXE}"         && COMPILERS+=" CC=${CC_EXE}"
     [ -n "${LD_EXE}"         ] && echo "LD       : ${LD_EXE}"         && COMPILERS+=" LD=${LD_EXE}"
+    [ -n "${TARGET_OS}"      ] && echo "TARGETOS : ${TARGET_OS}"
     [ -n "${ENABLE_SHARED}"  ] && echo "SHARED   : ${ENABLE_SHARED}"
     echo ""
 fi
@@ -86,8 +90,9 @@ fi
 make lib \
     ${COMPILERS} \
     CROSS="${CROSS_PREFIX}" XCFLAGS="${EXTRA_CFLAGS} ${EXTRA_CPPFLAGS}" XLDFLAGS="${EXTRA_LDFLAGS}" \
-    BIN_DIR="${BIN_DIR}" THREAD_LIBS="${THREAD_LIBS}" ${MAKE_OPT}
+    BIN_DIR="${BIN_DIR}" THREAD_LIBS="${THREAD_LIBS}" TARGET_OS="${TARGET_OS}" ${MAKE_OPT}
 make \
     ${COMPILERS} \
     CROSS="${CROSS_PREFIX}" XCFLAGS="${EXTRA_CFLAGS} ${EXTRA_CPPFLAGS}" XLDFLAGS="${EXTRA_LDFLAGS}" \
-    BIN_DIR="${BIN_DIR}" THREAD_LIBS="${THREAD_LIBS}" ENABLE_SHARED="${ENABLE_SHARED}" ${MAKE_OPT}
+    BIN_DIR="${BIN_DIR}" THREAD_LIBS="${THREAD_LIBS}" TARGET_OS="${TARGET_OS}" \
+    ENABLE_SHARED="${ENABLE_SHARED}" ${MAKE_OPT}

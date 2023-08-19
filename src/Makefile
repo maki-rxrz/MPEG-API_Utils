@@ -1,17 +1,31 @@
 BIN_DIR  = ../bin
 API_SRCS = common.c mpeg_utils.c mpeges_parser.c mpegts_parser.c mpeg_stream.c mpeg_video.c thread_utils.c file_reader.c
 
-TARGET1 = $(BIN_DIR)/cutcaption.exe
+ifeq ($(TARGET_OS),)
+TARGET_OS := $(shell uname)
+endif
+
+ifeq ($(TARGET_OS), Linux)
+TARGET_EXT =
+SLIB_EXT   = .a
+DLIB_EXT   = .so
+else
+TARGET_EXT = .exe
+SLIB_EXT   = .a
+DLIB_EXT   = .dll
+endif
+
+TARGET1 = $(BIN_DIR)/cutcaption$(TARGET_EXT)
 SRCS1   = cutcaption.c common.c d2v_parser.c text_utils.c avs_utils.c
 OBJS1   = $(SRCS1:%.c=%.o)
 
-TARGET2 = $(BIN_DIR)/ts_parser.exe
+TARGET2 = $(BIN_DIR)/ts_parser$(TARGET_EXT)
 SRCS2   = ts_parser.c common.c thread_utils.c file_writer.c
 OBJS2   = $(SRCS2:%.c=%.o)
 
 LIB_NAME    = libmapi
-STATIC_LIB  = $(LIB_NAME).a
-DYNAMIC_LIB = $(LIB_NAME).dll
+STATIC_LIB  = $(LIB_NAME)$(SLIB_EXT)
+DYNAMIC_LIB = $(LIB_NAME)$(DLIB_EXT)
 LIB_SRCS    = $(LIB_NAME).c $(API_SRCS)
 SLIB_DIR    = .slib
 DLIB_DIR    = .dlib
@@ -36,7 +50,7 @@ LDFLAGS = $(XLDFLAGS)
 LIBS    =
 
 ifeq ($(ENABLE_SHARED), yes)
-MAPILIB = $(DYNAMIC_LIB).a
+MAPILIB = $(DYNAMIC_LIB)$(SLIB_EXT)
 LIBFALG = -DMAPI_DLL_IMPORT
 else
 MAPILIB = $(STATIC_LIB)
@@ -79,11 +93,11 @@ $(STATIC_LIB): $(SLIB_OBJS)
 
 $(DYNAMIC_LIB): $(DLIB_OBJS)
 	@echo "  LD        $(DYNAMIC_LIB)"
-	$(LD) $(LDFLAGS) $(DLIB_OBJS) $(LIBS) -shared -Wl,--out-implib,$(DYNAMIC_LIB).a -o $(DYNAMIC_LIB)
+	$(LD) $(LDFLAGS) $(DLIB_OBJS) $(LIBS) -shared -Wl,--out-implib,$(DYNAMIC_LIB)$(SLIB_EXT) -o $(DYNAMIC_LIB)
 	$(CP) $(DYNAMIC_LIB)* $(BIN_DIR)
 	$(STRIP) $(BIN_DIR)/$(DYNAMIC_LIB)
 
-$(DYNAMIC_LIB).a: $(DYNAMIC_LIB)
+$(DYNAMIC_LIB)$(SLIB_EXT): $(DYNAMIC_LIB)
 
 $(SLIB_DIR)/%.o: %.c .depend
 	@echo "  CC        $<"
@@ -108,7 +122,7 @@ $(TARGET2): $(OBJS2) $(MAPILIB)
 	$(CC) -c $(CFLAGS) -DMAPI_UTILS_CODE_ENABLED $(LIBFALG) $< -o $@
 
 clean:
-	$(RM) "$(SLIB_DIR)" "$(DLIB_DIR)" *.o config.* .depend *.a *.lib *.dll* *.exp
+	$(RM) "$(SLIB_DIR)" "$(DLIB_DIR)" *.o config.* .depend *$(DLIB_EXT) *.lib *$(SLIB_EXT)* *.exp
 
 ifneq ($(wildcard .depend),)
 include .depend
