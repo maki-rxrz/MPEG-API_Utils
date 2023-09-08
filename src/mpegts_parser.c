@@ -607,10 +607,13 @@ static int mpegts_get_table_section_data
     while( read_count < section_length )
     {
         if( need_ts_packet_payload_data )
+        {
             /* seek next packet payload data. */
             if( mpegts_seek_packet_payload_data( tsf_ctx, &h, search_program_id, INDICATOR_IS_ON ) )
                 return -1;
-        need_ts_packet_payload_data = 1;
+        }
+        else
+            need_ts_packet_payload_data = 1;
         int32_t read_size = (section_length - read_count > tsf_ctx->ts_packet_length)
                           ? tsf_ctx->ts_packet_length : section_length - read_count;
         mpegts_file_read( tsf_ctx, &(section_buffer[read_count]), read_size );
@@ -673,12 +676,12 @@ static int mpegts_parse_pat( mpegts_info_t *info )
     int32_t pid_list_num = 0, read_count = 0;
     while( read_count < section_length - CRC32_SIZE )
     {
-        uint8_t *section_data = &(section_buffer[read_count]);
-        read_count += TS_PACKET_PAT_SECTION_DATA_SIZE;
+        uint8_t *section_data   = &(section_buffer[read_count]);
         uint16_t program_number =  (section_data[0] << 8) | section_data[1];
         /* '111'        3 bit   =  (section_data[2] & 0xE0) >> 4;       */
         uint16_t pmt_program_id = ((section_data[2] & 0x1F) << 8) | section_data[3];
         mapi_log( LOG_LV2, "[check] program_number:%d, pmt_PID:0x%04X\n", program_number, pmt_program_id );
+        read_count += TS_PACKET_PAT_SECTION_DATA_SIZE;
         if( program_number )
             info->pid_list_in_pat[pid_list_num++] = pmt_program_id;
     }
@@ -822,7 +825,7 @@ static int mpegts_search_pmt_packet( mpegts_info_t *info, tsp_pmt_si_t *pmt_si )
     /* search. */
     tsp_header_t h;
     uint8_t section_header[TS_PID_PMT_SECTION_HEADER_SIZE];
-    int     pid_list_index = -1;
+    int32_t pid_list_index = -1;
     int64_t start_position = mpegts_ftell( &(info->tsf_ctx) );
     do
     {
@@ -865,7 +868,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
     int      section_lengths[PMT_PARSE_COUNT_NUM] = { 0 };
     uint8_t *section_buffers[PMT_PARSE_COUNT_NUM];
     int32_t  section_pid_num[PMT_PARSE_COUNT_NUM] = { 0 };
-    for( int i = 0; i < PMT_PARSE_COUNT_NUM; i++ )
+    for( int i = 0; i < PMT_PARSE_COUNT_NUM; ++i )
         section_buffers[i] = (uint8_t *)(buffer_data + i * TS_PACKET_TABLE_SECTION_SIZE_MAX);
     int64_t reset_position = -1;
     int64_t check_offset   = info->file_size / (PMT_PARSE_COUNT_NUM + 1);
@@ -886,7 +889,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
                 break;
             }
             /* get section length. */
-            section_length = pmt_si.section_length - 9;         /* 9: section_header[3]-[11] */
+            section_length = pmt_si.section_length - 9;     /* 9: section_header[3]-[11] */
             prg_inf_length = pmt_si.program_info_length;
             mapi_log( LOG_LV4, "[check] section_length:%d\n", section_length );
             /* check file position. */
@@ -1137,7 +1140,7 @@ static uint16_t mpegts_get_program_id( mpegts_info_t *info, mpeg_stream_type str
 {
     mapi_log( LOG_LV3, "[check] %s()\n", __func__ );
     /* search program id. */
-    int pid_list_index = -1;
+    int32_t pid_list_index = -1;
     do
     {
         ++pid_list_index;

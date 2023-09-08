@@ -1230,15 +1230,15 @@ static void demux_sample_data
     open_file_for_list_api( p, info, stream_info, video_stream_num, audio_stream_num, video, audio );
     /* output. */
     mapi_log( LOG_LV_PROGRESS, "[log] Demux - START\n" );
-    uint16_t total_stream_num = get_output_stream_nums( p->output_stream, video_stream_num, audio_stream_num, 0, 0 );
-    if( p->demux_mode == OUTPUT_DEMUX_MULTITHREAD_READ && total_stream_num > 1 )
+    uint16_t output_stream_num = get_output_stream_nums( p->output_stream, video_stream_num, audio_stream_num, 0, 0 );
+    if( p->demux_mode == OUTPUT_DEMUX_MULTITHREAD_READ && output_stream_num > 1 )
     {
         mapi_log( LOG_LV_PROGRESS, "[log] Demux - Multi thread\n" );
-        demux_param_t *param = (demux_param_t *)malloc( sizeof(demux_param_t) * total_stream_num );
+        demux_param_t *param = (demux_param_t *)malloc( sizeof(demux_param_t) * output_stream_num );
         if( param )
         {
-            void *demux_thread[total_stream_num];
-            memset( demux_thread, 0, sizeof(void *) * total_stream_num );
+            void *demux_thread[output_stream_num];
+            memset( demux_thread, 0, sizeof(void *) * output_stream_num );
             uint16_t thread_index = 0;
             /* video. */
             for( uint8_t i = 0; i < video_stream_num; ++i )
@@ -1423,15 +1423,15 @@ static void demux_stream_data
     open_file_for_stream_api( p, info, stream_info, video_stream_num, audio_stream_num, video, audio );
     /* output. */
     mapi_log( LOG_LV_PROGRESS, "[log] Demux - START\n" );
-    uint16_t total_stream_num = get_output_stream_nums( p->output_stream, video_stream_num, audio_stream_num, 0, 0 );
-    if( p->demux_mode == OUTPUT_DEMUX_MULTITHREAD_READ && total_stream_num > 1 )
+    uint16_t output_stream_num = get_output_stream_nums( p->output_stream, video_stream_num, audio_stream_num, 0, 0 );
+    if( p->demux_mode == OUTPUT_DEMUX_MULTITHREAD_READ && output_stream_num > 1 )
     {
         mapi_log( LOG_LV_PROGRESS, "[log] Demux - Multi thread\n" );
-        demux_param_t *param = (demux_param_t *)malloc( sizeof(demux_param_t) * total_stream_num );
+        demux_param_t *param = (demux_param_t *)malloc( sizeof(demux_param_t) * output_stream_num );
         if( param )
         {
-            void *demux_thread[total_stream_num];
-            memset( demux_thread, 0, sizeof(void *) * total_stream_num );
+            void *demux_thread[output_stream_num];
+            memset( demux_thread, 0, sizeof(void *) * output_stream_num );
             uint16_t thread_index = 0;
             /* video. */
             for( uint8_t i = 0; i < video_stream_num; ++i )
@@ -1640,15 +1640,15 @@ static void demux_stream_all
     open_file_for_stream_api( p, info, stream_info, video_stream_num, audio_stream_num, video, audio );
     /* output. */
     mapi_log( LOG_LV_PROGRESS, "[log] Demux - START\n" );
-    uint16_t total_stream_num = get_output_stream_nums( p->output_stream, video_stream_num, audio_stream_num, 0, 0 );
-    if( p->demux_mode == OUTPUT_DEMUX_MULTITHREAD_READ && total_stream_num > 1 )
+    uint16_t output_stream_num = get_output_stream_nums( p->output_stream, video_stream_num, audio_stream_num, 0, 0 );
+    if( p->demux_mode == OUTPUT_DEMUX_MULTITHREAD_READ && output_stream_num > 1 )
     {
         mapi_log( LOG_LV_PROGRESS, "[log] Demux - Multi thread\n" );
-        demux_param_t *param = (demux_param_t *)malloc( sizeof(demux_param_t) * total_stream_num );
+        demux_param_t *param = (demux_param_t *)malloc( sizeof(demux_param_t) * output_stream_num );
         if( param )
         {
-            void *demux_thread[total_stream_num];
-            memset( demux_thread, 0, sizeof(void *) * total_stream_num );
+            void *demux_thread[output_stream_num];
+            memset( demux_thread, 0, sizeof(void *) * output_stream_num );
             uint16_t thread_index = 0;
             /* video. */
             for( uint8_t i = 0; i < video_stream_num; ++i )
@@ -1844,8 +1844,8 @@ static void demux_stream_all_in_st
     open_file_for_stream_api( p, info, stream_info, video_stream_num, audio_stream_num, video, audio );
     /* output. */
     mapi_log( LOG_LV_PROGRESS, "[log] Demux - START\n" );
-    uint16_t total_stream_num = get_output_stream_nums( p->output_stream, video_stream_num, audio_stream_num, 0, 0 );
-    if( total_stream_num )
+    uint16_t output_stream_num = get_output_stream_nums( p->output_stream, video_stream_num, audio_stream_num, 0, 0 );
+    if( output_stream_num )
     {
         mapi_log( LOG_LV_PROGRESS, "[log] Demux - Sequential read [Fast-ST]\n" );
         /* set position. */
@@ -2017,7 +2017,7 @@ static void split_stream_all
         char dump_name[dump_name_size];
         strcpy( dump_name, p->output );
         /* id */
-      //if( total_stream_num )
+      //if( output_stream_num )
         {
             static const char *output_stream_name[16] =
                 {
@@ -2042,8 +2042,8 @@ static void split_stream_all
     }
     /* output. */
     mapi_log( LOG_LV_PROGRESS, "[log] Split - START\n" );
-    uint16_t total_stream_num = get_output_stream_nums( p->output_stream, video_stream_num, audio_stream_num, caption_stream_num, dsmcc_stream_num );
-    if( total_stream_num )
+    uint16_t output_stream_num = get_output_stream_nums( p->output_stream, video_stream_num, audio_stream_num, caption_stream_num, dsmcc_stream_num );
+    if( output_stream_num )
     {
         mapi_log( LOG_LV_PROGRESS, "[log] Split - Sequential read [Fast-ST]\n" );
         /* set position. */
