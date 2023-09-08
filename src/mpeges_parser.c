@@ -568,6 +568,15 @@ static uint16_t get_program_id( void *ih, mpeg_stream_type stream_type )
     return -1;
 }
 
+static int set_service_id( void *ih, uint16_t service_id )
+{
+#if ENABLE_SUPPRESS_WARNINGS
+    (void) ih;
+    (void) service_id;
+#endif
+    return -1;
+}
+
 static int parse( void *ih )
 {
     mapi_log( LOG_LV2, "[mpeges_parser] %s()\n", __func__ );
@@ -629,6 +638,7 @@ mpeg_parser_t mpeges_parser = {
     initialize,
     release,
     parse,
+    set_service_id,
     set_program_target,
     set_program_id,
     get_program_id,

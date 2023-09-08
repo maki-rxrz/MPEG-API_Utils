@@ -87,6 +87,7 @@ typedef struct {
     output_stream_type      output_stream;
     output_demux_mode_type  demux_mode;
     output_dst_type         output_dst;
+    uint16_t                service_id;
     uint16_t                pmt_program_id;
     pmt_target_type         pmt_target;
     int64_t                 wrap_around_check_v;
@@ -138,6 +139,7 @@ static void print_help( void )
         "\n"
         "options:\n"
         "    -o --output <string>       Specify output file name.\n"
+        "       --sid <integer>         Specify Service ID.\n"
         "       --pmt-pid <integer>     Specify Program Map Table ID.\n"
         "       --pmt-target <integer>  Specify detection target of PMT.\n"
         "               (default: 0)        - 0 : Select maximum of PMT detected\n"
@@ -371,6 +373,12 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
         }
         else if( !strcasecmp( argv[i], "--update-psi" ) || !strcasecmp( argv[i], "-u" ) )
             p->update_psi = 1;
+        else if( !strcasecmp( argv[i], "--sid" ) )
+        {
+            ++i;
+            int base = (strncmp( argv[i], "0x", 2 )) ? 10 : 16;
+            p->service_id = strtol( argv[i], NULL, base );
+        }
         else if( !strcasecmp( argv[i], "--pmt-pid" ) )
         {
             ++i;
@@ -2123,9 +2131,10 @@ static void parse_mpeg( param_t *p )
     stream_info_t *stream_info = malloc( sizeof(*stream_info) );
     if( !pcr_info || !stream_info )
         goto end_parse;
-    if( p->pmt_program_id )
-        if( 0 > mpeg_api_set_pmt_program_id( info, p->pmt_program_id ) )
-            goto end_parse;
+    if( p->service_id && 0 > mpeg_api_set_service_id( info, p->service_id ) )
+        goto end_parse;
+    if( p->pmt_program_id && 0 > mpeg_api_set_pmt_program_id( info, p->pmt_program_id ) )
+        goto end_parse;
     if( p->pmt_target )
         mpeg_api_set_pmt_target( info, p->pmt_target );
     int parse_result = mpeg_api_parse( info );

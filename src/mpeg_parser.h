@@ -83,6 +83,7 @@ typedef struct {
     void *              (* initialize               )( const char *input, int64_t buffer_size );
     void                (* release                  )( void *ih );
     int                 (* parse                    )( void *ih );
+    int                 (* set_service_id           )( void *ih, uint16_t service_id );
     int                 (* set_program_target       )( void *ih, pmt_target_type pmt_target );
     int                 (* set_program_id           )( void *ih, mpegts_select_pid_type pid_type, uint16_t program_id );
     uint16_t            (* get_program_id           )( void *ih, mpeg_stream_type stream_type );

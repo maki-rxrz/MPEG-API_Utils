@@ -113,6 +113,7 @@ typedef struct {
     mpegts_psi_ctx_t            cat_ctx;
     mpegts_psi_ctx_t            pmt_ctx;
     uint32_t                    packet_check_retry_num;
+    uint16_t                    specified_service_id;
     uint16_t                    specified_pmt_program_id;
     uint16_t                    pmt_program_id;
     uint16_t                    pcr_program_id;
@@ -670,6 +671,16 @@ static int mpegts_set_user_specified_pmt( mpegts_info_t *info, uint16_t program_
     return 0;
 }
 
+static uint16_t mpegts_get_pmt_pid_from_sid( mpegts_info_t *info, uint16_t service_id )
+{
+    /* search in PAT. */
+    int i;
+    for( i = 0; i < info->pat_ctx.pid_list_num; ++i )
+        if( info->pat_ctx.pid_list[i].program_number == service_id )
+            return info->pat_ctx.pid_list[i].program_id;
+    return TS_PID_ERR;
+}
+
 static int mpegts_search_pat_packet( tsf_ctx_t *tsf_ctx, tsp_pat_si_t *pat_si )
 {
     tsp_header_t h;
@@ -768,10 +779,19 @@ static int mpegts_parse_pat( mpegts_info_t *info )
         return -1;
     }
     /* check user specified IDs. */
-    if( info->specified_pmt_program_id != TS_PID_ERR )
+    uint16_t target_pmt_pid = TS_PID_ERR;
+    if( info->specified_service_id )
+    {
+        /* search target PID. */
+        target_pmt_pid = mpegts_get_pmt_pid_from_sid( info, info->specified_service_id );
+        info->specified_service_id = 0;
+    }
+    if( target_pmt_pid == TS_PID_ERR && info->specified_pmt_program_id != TS_PID_ERR )
+        target_pmt_pid = info->specified_pmt_program_id;
+    if( target_pmt_pid != TS_PID_ERR )
     {
         /* setup specified PMT PID. */
-        int result = mpegts_set_user_specified_pmt( info, info->specified_pmt_program_id );
+        int result = mpegts_set_user_specified_pmt( info, target_pmt_pid );
         if( result == -1 )
             mapi_log( LOG_LV2, "[check] illegal pmt_PID:0x%04X is specified. using PID in PAT.\n", target_pmt_pid );
         else if( result == 1 )
@@ -3303,6 +3323,33 @@ static uint16_t get_program_id( void *ih, mpeg_stream_type stream_type )
     return mpegts_get_program_id( info, stream_type );
 }
 
+static int set_service_id( void *ih, uint16_t service_id )
+{
+    mpegts_info_t *info = (mpegts_info_t *)ih;
+    if( !info )
+        return -1;
+    mapi_log( LOG_LV2, "[mpegts_parser] set_service_id()\n"
+                       "[check] service_id: 0x%04X\n", service_id );
+    if( !service_id )
+    {
+        mapi_log( LOG_LV2, "[check] illegal SID is specified.\n" );
+        return 1;
+    }
+    if( info->status == PARSER_STATUS_NON_PARSING )
+    {
+        /* save the specified SID. */
+        info->specified_service_id = service_id;
+        return 0;
+    }
+    /* search target PMT PID. */
+    uint16_t pmt_program_id = mpegts_get_pmt_pid_from_sid( info, service_id );
+    if( pmt_program_id == TS_PID_ERR )
+        return -1;
+    /* setup target PMT PID. */
+    int result = set_pmt_program_id( info, pmt_program_id );
+    return result;
+}
+
 static int parse( void *ih )
 {
     mapi_log( LOG_LV2, "[mpegts_parser] %s()\n", __func__ );
@@ -3353,6 +3400,7 @@ static void *initialize( const char *input_file, int64_t buffer_size )
     info->tsf_ctx.ts_packet_length       = TS_PACKET_SIZE;
     info->tsf_ctx.packet_check_count_num = TS_PACKET_SEARCH_CHECK_COUNT_NUM;
     info->packet_check_retry_num         = TS_PACKET_SEARCH_RETRY_COUNT_NUM;
+    info->specified_service_id           = 0;
     info->specified_pmt_program_id       = TS_PID_ERR;
     info->pcr_program_id                 = TS_PID_ERR;
     info->ecm_program_id                 = TS_PID_ERR;
@@ -3401,6 +3449,7 @@ mpeg_parser_t mpegts_parser = {
     initialize,
     release,
     parse,
+    set_service_id,
     set_program_target,
     set_program_id,
     get_program_id,

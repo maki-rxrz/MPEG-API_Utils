@@ -1020,6 +1020,15 @@ MAPI_EXPORT int mpeg_api_set_pmt_program_id( void *ih, uint16_t pmt_program_id )
     return 0;
 }
 
+MAPI_EXPORT int mpeg_api_set_service_id( void *ih, uint16_t service_id )
+{
+    mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
+    if( !info || !info->parser_info )
+        return -1;
+    info->parser->set_service_id( info->parser_info, service_id );
+    return 0;
+}
+
 MAPI_EXPORT void *mpeg_api_initialize_info( const char *mpeg, int64_t buffer_size )
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)malloc( sizeof(mpeg_api_info_t) );
