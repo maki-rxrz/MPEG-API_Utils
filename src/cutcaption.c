@@ -284,7 +284,7 @@ static FILE *file_ext_open( const char *file, const char *ext, const char *mode 
         return NULL;
     size_t len     = strlen( file );
     size_t ext_len = ext ? strlen( ext ) : 0;
-    char full_name[len + ext_len];
+    char full_name[len + ext_len + 32];
     strcpy( full_name, file );
     if( ext_len )
         strcat( full_name, ext );
