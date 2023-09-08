@@ -98,6 +98,7 @@ typedef struct {
     int64_t                 gop_limit;
     int64_t                 frm_limit;
     char                   *split_suffix;
+    int                     update_psi;
 } param_t;
 
 static const struct {
@@ -150,6 +151,7 @@ static void print_help( void )
         "                                   - c : caption (when specified split mode.)\n"
         "                                   - d : dsm-cc (when specified split mode.)\n"
         "                                   - m : Multi-thread (--demux-mode 1)\n"
+        "                                   - u : Update PSI (--update-psi)\n"
         "                               [ex] --mode pva = Parse v/a streams.\n"
         "                                    --mode da  = Demux audio only.\n"
         "       --api-type              Specify api type. [0-3]\n"
@@ -194,6 +196,7 @@ static void print_help( void )
         "                               Specify internal buffer size for data writing.\n"
         "       --split-suffix <string> Specify suffix for split mode.\n"
         "    -p --pipe                  For pipe output.\n"
+        "    -u --update-psi            Update PSI. Specify Demux/Split container data.\n"
         "    -v --version               Display the version information.\n"
         "\n"
     );
@@ -366,6 +369,8 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
             p->output_dst |= OUTPUT_TO_PIPE;
             debug_setup_output( OUTPUT_TO_PIPE );
         }
+        else if( !strcasecmp( argv[i], "--update-psi" ) || !strcasecmp( argv[i], "-u" ) )
+            p->update_psi = 1;
         else if( !strcasecmp( argv[i], "--pmt-pid" ) )
         {
             ++i;
@@ -500,6 +505,9 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
                     case 'm' :
                         p->api_type   = USE_MAPI_DEMUX_ALL;
                         p->demux_mode = OUTPUT_DEMUX_MULTITHREAD_READ;
+                        break;
+                    case 'u' :
+                        p->update_psi = 1;
                         break;
                     default :
                         break;
@@ -1889,7 +1897,7 @@ static void demux_stream_all_in_st
             a_cb_params[i].fw_ctx = audio[i];
         demux_all_cb_param_t cb_params = { v_cb_params, a_cb_params, 0, p->file_size };
         get_stream_data_cb_t cb        = { demux_all_cb_func, (void *)&cb_params };
-        mpeg_api_get_all_stream_data( info, get_mode, p->output_stream, &cb );
+        mpeg_api_get_all_stream_data( info, get_mode, p->output_stream, p->update_psi, &cb );
         mapi_log( LOG_LV_PROGRESS, "                                                                              \r" );
         for( uint8_t i = 0; i < video_stream_num; ++i )
         {
@@ -2084,7 +2092,7 @@ static void split_stream_all
         memset( d_cb_params, 0, sizeof(split_cb_param_t) * (dsmcc_stream_num   + 1) );
         split_all_cb_param_t cb_params = { v_cb_params, a_cb_params, c_cb_params, d_cb_params, &p_cb_param, 0, 0, p->file_size, split_file, output_stream_name[stream_name_index] };
         get_stream_data_cb_t cb        = { split_all_cb_func, (void *)&cb_params };
-        mpeg_api_get_all_stream_data( info, get_mode, p->output_stream, &cb );
+        mpeg_api_get_all_stream_data( info, get_mode, p->output_stream, p->update_psi, &cb );
         mapi_log( LOG_LV_PROGRESS, "                                                                              \r" );
         for( uint8_t i = 0; i < video_stream_num; ++i )
             mapi_log( LOG_LV_PROGRESS, "   Video Stream[%3u] - output: %" PRIu64 " byte\n"

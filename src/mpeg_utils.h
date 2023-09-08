@@ -94,6 +94,7 @@ MAPI_EXPORT int mpeg_api_get_all_stream_data
     void                       *ih,
     get_sample_data_mode        get_mode,
     output_stream_type          output_stream,
+    int                         update_psi,
     get_stream_data_cb_t       *cb
 );
 

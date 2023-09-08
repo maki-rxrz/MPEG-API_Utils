@@ -39,6 +39,7 @@
 #include "mpeg_parser.h"
 #include "mpegts_def.h"
 #include "file_reader.h"
+#include "crc.h"
 
 #define SYNC_BYTE                           '\x47'
 
@@ -50,6 +51,8 @@
 #define TS_PACKET_FIRST_CHECK_COUNT_NUM     (4)
 #define TS_PACKET_SEARCH_CHECK_COUNT_NUM    (1000000)
 #define TS_PACKET_SEARCH_RETRY_COUNT_NUM    (5)
+
+#define TS_PSI_PACKET_NUM_CHECK_MARGIN      (2)
 
 //#define NEED_OPCR_VALUE
 #undef NEED_OPCR_VALUE
@@ -84,7 +87,21 @@ typedef struct {
     mpeg_stream_type            stream_type;
     uint16_t                    program_id;
     mpeg_stream_type            reg_stream_type;
-} mpegts_pid_in_pmt_t;
+    uint16_t                    program_number;
+} mpegts_pid_info_t;
+
+typedef struct {
+    uint8_t                     packet_num;
+    uint8_t                     packet_cache_count;
+    uint16_t                    packet_cache_size;
+    uint8_t                    *packet_buffer;
+    uint8_t                    *cache_buffer;
+    uint8_t                    *section_buffer;
+    uint16_t                    section_length;
+    uint8_t                     origin_crc32[CRC32_SIZE];
+    int32_t                     pid_list_num;
+    mpegts_pid_info_t          *pid_list;
+} mpegts_psi_ctx_t;
 
 typedef struct {
     parser_status_type          status;
@@ -92,11 +109,11 @@ typedef struct {
     int64_t                     file_size;
     int64_t                     buffer_size;
     mpegts_file_ctx_t           tsf_ctx;
-    int32_t                     pid_list_num_in_pat;
-    uint16_t                   *pid_list_in_pat;
-    int32_t                     pid_list_num_in_pmt;
-    mpegts_pid_in_pmt_t        *pid_list_in_pmt;
+    mpegts_psi_ctx_t            pat_ctx;
+    mpegts_psi_ctx_t            cat_ctx;
+    mpegts_psi_ctx_t            pmt_ctx;
     uint32_t                    packet_check_retry_num;
+    uint16_t                    specified_pmt_program_id;
     uint16_t                    pmt_program_id;
     uint16_t                    pcr_program_id;
     uint16_t                    ecm_program_id;
@@ -122,6 +139,7 @@ typedef struct {
 /*  */
 #define tsf_ctx_t           mpegts_file_ctx_t
 #define tss_ctx_t           mpegts_stream_ctx_t
+#define tsp_psi_ctx_t       mpegts_psi_ctx_t
 
 #define tsp_header_t        mpegts_packet_header_t
 #define tsp_adpf_header_t   mpegts_adaptation_field_header_t
@@ -595,7 +613,8 @@ static int mpegts_get_table_section_data
     tsf_ctx_t                  *tsf_ctx,
     uint16_t                    search_program_id,
     uint8_t                    *section_buffer,
-    uint16_t                    section_length
+    uint16_t                    section_length,
+    uint8_t                    *psi_packet_num
 )
 {
     tsp_header_t h;
@@ -604,8 +623,10 @@ static int mpegts_get_table_section_data
     /* buffering payload data. */
     int read_count                  = 0;
     int need_ts_packet_payload_data = 0;
+    *psi_packet_num = 0;
     while( read_count < section_length )
     {
+        ++(*psi_packet_num);
         if( need_ts_packet_payload_data )
         {
             /* seek next packet payload data. */
@@ -625,6 +646,27 @@ static int mpegts_get_table_section_data
     /* reset buffering start packet position. */
     mpegts_file_seek( tsf_ctx, start_position, MPEGTS_SEEK_SET );
     tsf_ctx->ts_packet_length = rest_ts_packet_length;
+    return 0;
+}
+
+static int mpegts_set_user_specified_pmt( mpegts_info_t *info, uint16_t program_id )
+{
+    /* search in PAT. */
+    int i;
+    for( i = 0; i < info->pat_ctx.pid_list_num; ++i )
+        if( info->pat_ctx.pid_list[i].program_id == program_id )
+            break;
+    if( i == info->pat_ctx.pid_list_num )
+        return -1;
+    /* sort. */
+    if( i > 0 )
+    {
+        mpegts_pid_info_t target_info = info->pat_ctx.pid_list[i];
+        for( int j = i; j > 0; --j )
+            info->pat_ctx.pid_list[j] = info->pat_ctx.pid_list[j - 1];
+        info->pat_ctx.pid_list[0] = target_info;
+        return 1;
+    }
     return 0;
 }
 
@@ -648,6 +690,7 @@ static int mpegts_parse_pat( mpegts_info_t *info )
     int64_t read_pos = -1;
     /* search. */
     tsp_pat_si_t pat_si;
+    uint8_t psi_packet_num;
     int     section_length;
     uint8_t section_buffer[TS_PACKET_TABLE_SECTION_SIZE_MAX];
     int     retry_count = info->packet_check_retry_num;
@@ -663,15 +706,15 @@ static int mpegts_parse_pat( mpegts_info_t *info )
         /* check file position. */
         read_pos = info->tsf_ctx.read_position;
         /* buffering section data. */
-        if( mpegts_get_table_section_data( &(info->tsf_ctx), TS_PID_PAT, section_buffer, section_length ) )
+        if( mpegts_get_table_section_data( &(info->tsf_ctx), TS_PID_PAT, section_buffer, section_length, &psi_packet_num ) )
             continue;
         break;
     }
     if( !retry_count )
         return -1;
     /* listup. */
-    info->pid_list_in_pat = (uint16_t *)malloc( sizeof(uint16_t) * ((section_length - CRC32_SIZE) / TS_PACKET_PAT_SECTION_DATA_SIZE) );
-    if( !info->pid_list_in_pat )
+    info->pat_ctx.pid_list = (mpegts_pid_info_t *)malloc( sizeof(mpegts_pid_info_t) * ((section_length - CRC32_SIZE) / TS_PACKET_PAT_SECTION_DATA_SIZE) );
+    if( !info->pat_ctx.pid_list )
         return -1;
     int32_t pid_list_num = 0, read_count = 0;
     while( read_count < section_length - CRC32_SIZE )
@@ -683,20 +726,58 @@ static int mpegts_parse_pat( mpegts_info_t *info )
         mapi_log( LOG_LV2, "[check] program_number:%d, pmt_PID:0x%04X\n", program_number, pmt_program_id );
         read_count += TS_PACKET_PAT_SECTION_DATA_SIZE;
         if( program_number )
-            info->pid_list_in_pat[pid_list_num++] = pmt_program_id;
+        {
+            info->pat_ctx.pid_list[pid_list_num].program_id     = pmt_program_id;
+            info->pat_ctx.pid_list[pid_list_num].program_number = program_number;
+            ++pid_list_num;
+        }
     }
     if( (section_length - read_count) != CRC32_SIZE )
     {
-        free( info->pid_list_in_pat );
+        free( info->pat_ctx.pid_list );
         return -1;
     }
-    info->pid_list_num_in_pat = pid_list_num;
+    info->pat_ctx.pid_list_num = pid_list_num;
     uint8_t *crc32 = &(section_buffer[read_count]);
     char crc32_str[CRC32_SIZE * 3 + 1] = { 0 };
     for( int i = 0; i < CRC32_SIZE; ++i )
         sprintf( &(crc32_str[i * 3]), " %02X", crc32[i] );
     mapi_log( LOG_LV2, "[check] CRC32:%s\n", crc32_str );
     mapi_log( LOG_LV2, "[check] file position:%" PRId64 "\n", read_pos );
+    info->pat_ctx.packet_num     = psi_packet_num;
+    info->pat_ctx.packet_buffer  = (uint8_t *)malloc( info->tsf_ctx.packet_size * psi_packet_num + TS_PSI_PACKET_NUM_CHECK_MARGIN );        // info->tsf_ctx.packet_size or TS_PACKET_SIZE
+    info->pat_ctx.section_buffer = (uint8_t *)malloc( TS_PACKET_TABLE_SECTION_SIZE_MAX );
+    info->pat_ctx.cache_buffer   = (uint8_t *)malloc( TS_PACKET_TABLE_SECTION_SIZE_MAX );
+    if( !info->pat_ctx.packet_buffer || !info->pat_ctx.section_buffer || !info->pat_ctx.cache_buffer )
+    {
+        if( info->pat_ctx.packet_buffer )
+        {
+            free( info->pat_ctx.packet_buffer );
+            info->pat_ctx.packet_buffer = NULL;
+        }
+        if( info->pat_ctx.section_buffer )
+        {
+            free( info->pat_ctx.section_buffer );
+            info->pat_ctx.section_buffer = NULL;
+        }
+        if( info->pat_ctx.cache_buffer )
+        {
+            free( info->pat_ctx.cache_buffer );
+            info->pat_ctx.cache_buffer = NULL;
+        }
+        return -1;
+    }
+    /* check user specified IDs. */
+    if( info->specified_pmt_program_id != TS_PID_ERR )
+    {
+        /* setup specified PMT PID. */
+        int result = mpegts_set_user_specified_pmt( info, info->specified_pmt_program_id );
+        if( result == -1 )
+            mapi_log( LOG_LV2, "[check] illegal pmt_PID:0x%04X is specified. using PID in PAT.\n", target_pmt_pid );
+        else if( result == 1 )
+            mapi_log( LOG_LV2, "[check] using pmt_PID:0x%04X\n", target_pmt_pid );
+        info->specified_pmt_program_id = TS_PID_ERR;
+    }
     /* seek next. */
     mpegts_file_seek( &(info->tsf_ctx), 0, MPEGTS_SEEK_NEXT );
     info->tsf_ctx.sync_byte_position = -1;
@@ -771,6 +852,7 @@ static int mpegts_parse_cat( mpegts_info_t *info )
     int64_t read_pos       = -1;
     /* search. */
     tsp_cat_si_t cat_si;
+    uint8_t psi_packet_num;
     int     section_length;
     uint8_t section_buffer[TS_PACKET_TABLE_SECTION_SIZE_MAX];
     int     retry_count = info->packet_check_retry_num;
@@ -786,7 +868,7 @@ static int mpegts_parse_cat( mpegts_info_t *info )
         /* check file position. */
         read_pos = info->tsf_ctx.read_position;
         /* buffering section data. */
-        if( mpegts_get_table_section_data( &(info->tsf_ctx), TS_PID_CAT, section_buffer, section_length ) )
+        if( mpegts_get_table_section_data( &(info->tsf_ctx), TS_PID_CAT, section_buffer, section_length, &psi_packet_num ) )
             continue;
         break;
     }
@@ -812,6 +894,31 @@ static int mpegts_parse_cat( mpegts_info_t *info )
         sprintf( &(crc32_str[i * 3]), " %02X", crc32[i] );
     mapi_log( LOG_LV2, "[check] CRC32:%s\n", crc32_str );
     mapi_log( LOG_LV2, "[check] file position:%" PRId64 "\n", read_pos );
+    info->cat_ctx.packet_num     = psi_packet_num;
+#if 0
+    info->cat_ctx.packet_buffer  = (uint8_t *)malloc( info->tsf_ctx.packet_size * psi_packet_num + TS_PSI_PACKET_NUM_CHECK_MARGIN );        // info->tsf_ctx.packet_size or TS_PACKET_SIZE
+    info->cat_ctx.section_buffer = (uint8_t *)malloc( TS_PACKET_TABLE_SECTION_SIZE_MAX );
+    info->cat_ctx.cache_buffer   = (uint8_t *)malloc( TS_PACKET_TABLE_SECTION_SIZE_MAX );
+    if( !info->cat_ctx.packet_buffer || !info->cat_ctx.section_buffer || !info->cat_ctx.cache_buffer )
+    {
+        if( info->cat_ctx.packet_buffer )
+        {
+            free( info->cat_ctx.packet_buffer );
+            info->cat_ctx.packet_buffer = NULL;
+        }
+        if( info->cat_ctx.section_buffer )
+        {
+            free( info->cat_ctx.section_buffer );
+            info->cat_ctx.section_buffer = NULL;
+        }
+        if( info->cat_ctx.cache_buffer )
+        {
+            free( info->cat_ctx.cache_buffer );
+            info->cat_ctx.cache_buffer = NULL;
+        }
+        goto fail_parse;
+    }
+#endif
     /* reset position. */
     mpegts_file_seek( &(info->tsf_ctx), reset_position, MPEGTS_SEEK_RESET );
     return 0;
@@ -831,11 +938,11 @@ static int mpegts_search_pmt_packet( mpegts_info_t *info, tsp_pmt_si_t *pmt_si )
     {
         mpegts_file_seek( &(info->tsf_ctx), start_position, MPEGTS_SEEK_RESET );
         ++pid_list_index;
-        if( pid_list_index >= info->pid_list_num_in_pat )
+        if( pid_list_index >= info->pat_ctx.pid_list_num )
             return -1;
         do
         {
-            if( 0 > mpegts_get_table_section_header( &(info->tsf_ctx), &h, info->pid_list_in_pat[pid_list_index]
+            if( 0 > mpegts_get_table_section_header( &(info->tsf_ctx), &h, info->pat_ctx.pid_list[pid_list_index].program_id
                                                    , section_header, TS_PID_PMT_SECTION_HEADER_SIZE ) )
                 break;
         }
@@ -864,6 +971,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
         return -1;
     /* search. */
     tsp_pmt_si_t pmt_si;
+    uint8_t  pmt_packet_num[PMT_PARSE_COUNT_NUM]  = { 0 };
     int      prg_inf_lengths[PMT_PARSE_COUNT_NUM] = { 0 };
     int      section_lengths[PMT_PARSE_COUNT_NUM] = { 0 };
     uint8_t *section_buffers[PMT_PARSE_COUNT_NUM];
@@ -876,6 +984,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
     for( int i = 0; i < PMT_PARSE_COUNT_NUM; ++i )
     {
         /* search. */
+        uint8_t psi_packet_num;
         int section_length = 0, prg_inf_length = 0;
         int retry_count = info->packet_check_retry_num;
         while( retry_count )
@@ -895,7 +1004,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
             /* check file position. */
             read_pos = info->tsf_ctx.read_position;
             /* buffering section data. */
-            if( mpegts_get_table_section_data( &(info->tsf_ctx), info->pmt_program_id, section_buffers[i], section_length ) )
+            if( mpegts_get_table_section_data( &(info->tsf_ctx), info->pmt_program_id, section_buffers[i], section_length, &psi_packet_num ) )
                 continue;
             /* check pid list num. */
             int32_t pid_list_num = 0, read_count = prg_inf_length;
@@ -922,6 +1031,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
             reset_position = read_pos;
         section_lengths[i] = section_length;
         prg_inf_lengths[i] = prg_inf_length;
+        pmt_packet_num[i]  = psi_packet_num;
         /* seek next. */
         mpegts_file_seek( &(info->tsf_ctx), read_pos + check_offset, MPEGTS_SEEK_RESET );
     }
@@ -974,10 +1084,11 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
     int      section_length = section_lengths[target_pmt];
     uint8_t *section_buffer = section_buffers[target_pmt];
     int      pid_num_in_pmt = section_pid_num[target_pmt];
+    uint8_t  psi_packet_num = pmt_packet_num[target_pmt];
     /* listup. */
-    info->pid_list_num_in_pmt = pid_num_in_pmt;
-    info->pid_list_in_pmt     = (mpegts_pid_in_pmt_t *)malloc( sizeof(mpegts_pid_in_pmt_t) * pid_num_in_pmt );
-    if( !info->pid_list_in_pmt )
+    info->pmt_ctx.pid_list_num = pid_num_in_pmt;
+    info->pmt_ctx.pid_list     = (mpegts_pid_info_t *)malloc( sizeof(mpegts_pid_info_t) * pid_num_in_pmt );
+    if( !info->pmt_ctx.pid_list )
         goto fail_parse;
     int32_t pid_list_num = 0, read_count = 0;
     mpeg_descriptor_info_t *descriptor_info = info->descriptor_info;
@@ -1009,10 +1120,10 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
         if( mpegts_parse_descriptor( descriptor_data, ES_info_length, descriptor_info, &descriptor_num ) )
             goto fail_parse;
         /* setup stream type and PID. */
-        info->pid_list_in_pmt[pid_list_num].stream_judge    = mpeg_stream_judge_type( stream_type, descriptor_num, descriptor_info );
-        info->pid_list_in_pmt[pid_list_num].stream_type     = stream_type;
-        info->pid_list_in_pmt[pid_list_num].program_id      = elementary_PID;
-        info->pid_list_in_pmt[pid_list_num].reg_stream_type = mpeg_stream_get_registration_stream_type( descriptor_info );
+        info->pmt_ctx.pid_list[pid_list_num].stream_judge    = mpeg_stream_judge_type( stream_type, descriptor_num, descriptor_info );
+        info->pmt_ctx.pid_list[pid_list_num].stream_type     = stream_type;
+        info->pmt_ctx.pid_list[pid_list_num].program_id      = elementary_PID;
+        info->pmt_ctx.pid_list[pid_list_num].reg_stream_type = mpeg_stream_get_registration_stream_type( descriptor_info );
         /* seek next section. */
         read_count += ES_info_length;
         ++pid_list_num;
@@ -1023,6 +1134,29 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
         sprintf( &(crc32_str[i * 3]), " %02X", crc32[i] );
     mapi_log( LOG_LV2, "[check] CRC32:%s\n", crc32_str );
     mapi_log( LOG_LV2, "[check] file position:%" PRId64 "\n", read_pos );
+    info->pmt_ctx.packet_num     = psi_packet_num;
+    info->pmt_ctx.packet_buffer  = (uint8_t *)malloc( info->tsf_ctx.packet_size * psi_packet_num + TS_PSI_PACKET_NUM_CHECK_MARGIN );        // info->tsf_ctx.packet_size or TS_PACKET_SIZE
+    info->pmt_ctx.section_buffer = (uint8_t *)malloc( TS_PACKET_TABLE_SECTION_SIZE_MAX );
+    info->pmt_ctx.cache_buffer   = (uint8_t *)malloc( TS_PACKET_TABLE_SECTION_SIZE_MAX );
+    if( !info->pmt_ctx.packet_buffer || !info->pmt_ctx.section_buffer || !info->pmt_ctx.cache_buffer )
+    {
+        if( info->pmt_ctx.packet_buffer )
+        {
+            free( info->pmt_ctx.packet_buffer );
+            info->pmt_ctx.packet_buffer = NULL;
+        }
+        if( info->pmt_ctx.section_buffer )
+        {
+            free( info->pmt_ctx.section_buffer );
+            info->pmt_ctx.section_buffer = NULL;
+        }
+        if( info->pmt_ctx.cache_buffer )
+        {
+            free( info->pmt_ctx.cache_buffer );
+            info->pmt_ctx.cache_buffer = NULL;
+        }
+        goto fail_parse;
+    }
     /* seek next. */
     mpegts_file_seek( &(info->tsf_ctx), 0, MPEGTS_SEEK_NEXT );
     info->tsf_ctx.sync_byte_position = -1;
@@ -1144,14 +1278,14 @@ static uint16_t mpegts_get_program_id( mpegts_info_t *info, mpeg_stream_type str
     do
     {
         ++pid_list_index;
-        if( pid_list_index >= info->pid_list_num_in_pmt )
+        if( pid_list_index >= info->pmt_ctx.pid_list_num )
             return TS_PID_ERR;
     }
-    while( info->pid_list_in_pmt[pid_list_index].stream_type != stream_type );
+    while( info->pmt_ctx.pid_list[pid_list_index].stream_type != stream_type );
     mapi_log( LOG_LV3, "[check] %d - stream_type:%d, PID:0x%04X\n", pid_list_index
-                     , info->pid_list_in_pmt[pid_list_index].stream_type
-                     , info->pid_list_in_pmt[pid_list_index].program_id );
-    return info->pid_list_in_pmt[pid_list_index].program_id;
+                     , info->pmt_ctx.pid_list[pid_list_index].stream_type
+                     , info->pmt_ctx.pid_list[pid_list_index].program_id );
+    return info->pmt_ctx.pid_list[pid_list_index].program_id;
 }
 
 static int mpegts_get_stream_timestamp
@@ -1845,6 +1979,263 @@ static int mpegts_malloc_stream_parse_ctx
     return 0;
 }
 
+static inline uint16_t get_output_stream_nums( output_stream_type output, uint8_t v_num, uint8_t a_num, uint8_t c_num, uint8_t d_num )
+{
+    return ((output & OUTPUT_STREAM_VIDEO  ) ? v_num : 0)
+         + ((output & OUTPUT_STREAM_AUDIO  ) ? a_num : 0)
+         + ((output & OUTPUT_STREAM_CAPTION) ? c_num : 0)
+         + ((output & OUTPUT_STREAM_DSMCC  ) ? d_num : 0);
+}
+
+static int mpegts_update_psi
+(
+    mpegts_info_t              *info,
+    uint16_t                    program_id,
+    tsp_psi_ctx_t              *psi_ctx,
+    output_stream_type          output_stream
+)
+{
+    /* parse ts packets. */
+    int      read_pos       = 0;
+    uint8_t *section_header = NULL;
+    /* headers */
+    tsp_header_t h;
+    while( read_pos < psi_ctx->packet_cache_size )
+    {
+        /* setup header data. */
+        uint8_t *ts_header = &(psi_ctx->packet_buffer[read_pos]);
+        tsp_parse_header( ts_header, &h );
+        read_pos += TS_PACKET_HEADER_SIZE;
+        if( h.payload_unit_start_indicator )
+        {
+            /* check adaptation field. */
+            if( h.adaptation_field_control > 1 )
+            {
+                uint8_t adaptation_field_size = psi_ctx->packet_buffer[read_pos];
+                read_pos += 1;
+                if( adaptation_field_size )
+                    read_pos += adaptation_field_size;
+            }
+            /* check pointer field. */
+            uint8_t pointer_field = psi_ctx->packet_buffer[read_pos];
+            read_pos += 1;
+            if( pointer_field )
+                read_pos += pointer_field;
+            /* set section header. */
+            section_header = &(psi_ctx->packet_buffer[read_pos]);
+            break;
+        }
+    }
+    if( !section_header )
+        return -1;
+    /* parse section header. */
+    int section_start         = read_pos;
+    int section_length        = 0;
+    int prg_inf_length        = 0;
+    int section_header_length = 0;
+    if( program_id == TS_PID_PAT )
+    {
+        /* PAT */
+        /* setup header data. */
+        tsp_pat_si_t pat_si;
+        tsp_parse_pat_header( section_header, &pat_si );
+        /* get section length. */
+        section_length        = pat_si.section_length;
+        section_header_length = TS_PID_PAT_SECTION_HEADER_SIZE;
+    }
+    else if( program_id == TS_PID_CAT )
+    {
+        /* CAT */
+        /* setup header data. */
+        tsp_cat_si_t cat_si;
+        tsp_parse_cat_header( section_header, &cat_si );
+        /* get section length. */
+        section_length        = cat_si.section_length;
+        section_header_length = TS_PID_CAT_SECTION_HEADER_SIZE;
+    }
+    else if( program_id == info->pmt_program_id )
+    {
+        /* PMT */
+        /* setup header data. */
+        tsp_pmt_si_t pmt_si;
+        tsp_parse_pmt_header( section_header, &pmt_si );
+        /* get section length. */
+        section_length        = pmt_si.section_length;
+        prg_inf_length        = pmt_si.program_info_length;
+        section_header_length = TS_PID_PMT_SECTION_HEADER_SIZE;
+    }
+    int section_total = section_length + 3;     /* 3: section_header[0]-[2] */
+    /* check payload total size. */
+    int read_count = 0;
+    for( int i = 1; read_pos < psi_ctx->packet_cache_size; ++i )
+    {
+        int payload_size = TS_PACKET_SIZE * i - read_pos;
+        read_count += payload_size;
+        read_pos   += payload_size;
+        /* seek next packet payload data. */
+        read_pos += TS_PACKET_HEADER_SIZE;
+    }
+    if( read_count < section_total )
+        return -1;
+    /* check if update is necessary. */
+    if( program_id == TS_PID_PAT )
+    {
+        /* PAT */
+        if( info->pat_ctx.pid_list_num == 1 )
+            return 1;
+    }
+    else if( program_id == TS_PID_CAT )
+    {
+        /* CAT */
+        return 1;
+    }
+    else if( program_id == info->pmt_program_id )
+    {
+        /* PMT */
+        uint16_t total_stream_num  = info->video_stream_num + info->audio_stream_num + info->caption_stream_num + info->dsmcc_stream_num;
+        uint16_t output_stream_num = get_output_stream_nums( output_stream, info->video_stream_num, info->audio_stream_num, info->caption_stream_num, info->dsmcc_stream_num );
+        if( total_stream_num == output_stream_num )
+            return 1;
+    }
+    else
+        return 0;
+    /* buffering section data. */
+  //uint8_t section_buffer[TS_PACKET_TABLE_SECTION_SIZE_MAX];
+    uint8_t *section_buffer = psi_ctx->cache_buffer;
+    memcpy( section_buffer, section_header, section_header_length );
+    read_count = section_header_length;
+    read_pos   = section_start + section_header_length;
+    for( int i = 1; read_pos < psi_ctx->packet_cache_size; ++i )
+    {
+        int payload_size = TS_PACKET_SIZE * i - read_pos;
+        int rest_size    = section_total - read_count;
+        if( payload_size > rest_size )
+        {
+            memcpy( &(section_buffer[read_count]), &(psi_ctx->packet_buffer[read_pos]), rest_size );
+            read_count += rest_size;
+            break;
+        }
+        memcpy( &(section_buffer[read_count]), &(psi_ctx->packet_buffer[read_pos]), payload_size );
+        read_count += payload_size;
+        read_pos   += payload_size;
+        /* seek next packet payload data. */
+        read_pos += TS_PACKET_HEADER_SIZE;
+    }
+#if 0
+    if( read_count < section_total )
+        return -1;
+#endif
+    /* check CRC32. */
+    int crc32_pos = section_total - CRC32_SIZE;
+    if( memcmp( psi_ctx->origin_crc32, &(section_buffer[crc32_pos]), CRC32_SIZE ) )
+    {
+        /* copy section information. */
+        int write_count = section_header_length + prg_inf_length;
+        memcpy( psi_ctx->section_buffer, section_buffer, write_count );
+        read_count = write_count;
+        /* update section data. */
+        if( program_id == TS_PID_PAT )
+        {
+            /* PAT */
+            while( read_count < section_total - CRC32_SIZE )
+            {
+                uint8_t *section_data   = &(section_buffer[read_count]);
+                uint16_t program_number =  (section_data[0] << 8) | section_data[1];
+                uint16_t pmt_program_id = ((section_data[2] & 0x1F) << 8) | section_data[3];
+                if( program_number == 0 || pmt_program_id == info->pmt_program_id )
+                {
+                    memcpy( &(psi_ctx->section_buffer[write_count]), &(section_buffer[read_count]), TS_PACKET_PAT_SECTION_DATA_SIZE );
+                    write_count += TS_PACKET_PAT_SECTION_DATA_SIZE;
+                }
+                /* seek next section. */
+                read_count += TS_PACKET_PAT_SECTION_DATA_SIZE;
+            }
+        }
+#if 0
+        else if( program_id == TS_PID_CAT )
+        {
+            /* CAT */
+            // Not supported.
+        }
+#endif
+        else if( program_id == info->pmt_program_id )
+        {
+            /* PMT */
+            while( read_count < section_total - CRC32_SIZE )
+            {
+                uint8_t *section_data        = &(section_buffer[read_count]);
+              //mpeg_stream_type stream_type =   section_data[0];
+                uint16_t elementary_PID      = ((section_data[1] & 0x1F) << 8) | section_data[2];
+                uint16_t ES_info_length      = ((section_data[3] & 0x0F) << 8) | section_data[4];
+                /* check output stream. */
+                int     output         = 0;
+                int32_t pid_list_index = 0;
+                while( pid_list_index < info->pmt_ctx.pid_list_num )
+                {
+                    if( elementary_PID == info->pmt_ctx.pid_list[pid_list_index].program_id )
+                        break;
+                     ++pid_list_index;
+                }
+                if( pid_list_index < info->pmt_ctx.pid_list_num )
+                {
+                    mpeg_stream_group_type stream_judge = info->pmt_ctx.pid_list[pid_list_index].stream_judge;
+                    if( stream_judge & STREAM_IS_VIDEO && output_stream & OUTPUT_STREAM_VIDEO )
+                        output = 1;
+                    else if( stream_judge & STREAM_IS_AUDIO && output_stream & OUTPUT_STREAM_AUDIO )
+                        output = 1;
+                    else if( stream_judge & STREAM_IS_CAPTION && output_stream & OUTPUT_STREAM_CAPTION )
+                        output = 1;
+                    else if( stream_judge & STREAM_IS_DSMCC && output_stream & OUTPUT_STREAM_DSMCC )
+                        output = 1;
+                }
+                if( output )
+                {
+                    memcpy( &(psi_ctx->section_buffer[write_count]), &(section_buffer[read_count]), TS_PACKET_PMT_SECTION_DATA_SIZE + ES_info_length );
+                    write_count += TS_PACKET_PMT_SECTION_DATA_SIZE + ES_info_length;
+                }
+                /* seek next section. */
+                read_count += TS_PACKET_PMT_SECTION_DATA_SIZE + ES_info_length;
+            }
+        }
+        /* update section length. */
+        psi_ctx->section_length    = write_count - 3 + CRC32_SIZE;
+        psi_ctx->section_buffer[1] = (section_buffer[1] & 0xF0) | psi_ctx->section_length >> 8;
+        psi_ctx->section_buffer[2] =  psi_ctx->section_length & 0xFF;
+        /* update CRC32. */
+        uint32_t new_crc = calc_crc32( psi_ctx->section_buffer, write_count );
+        for( int i = 0; i < CRC32_SIZE; ++i )
+            psi_ctx->section_buffer[write_count + i] = (new_crc >> (32 - 8 * (i + 1))) & 0xFF;
+        /* save original CRC32 for update check. */
+        memcpy( psi_ctx->origin_crc32, &(section_buffer[crc32_pos]), CRC32_SIZE );
+    }
+    /* update ts packets. */
+    section_total = psi_ctx->section_length + 3;        /* 3: section_header[0]-[2] */
+    read_count    = 0;
+    read_pos      = section_start;
+    for( int i = 1; read_pos < psi_ctx->packet_cache_size; ++i )
+    {
+        int payload_size = TS_PACKET_SIZE * i - read_pos;
+        if( read_count < section_total )
+        {
+            int rest_size = section_total - read_count;
+            if( payload_size > rest_size )
+            {
+                memcpy( &(psi_ctx->packet_buffer[read_pos]), &(psi_ctx->section_buffer[read_count]), rest_size );
+                memset( &(psi_ctx->packet_buffer[read_pos + rest_size]), 0xFF, payload_size - rest_size );
+            }
+            else
+                memcpy( &(psi_ctx->packet_buffer[read_pos]), &(psi_ctx->section_buffer[read_count]), payload_size );
+            read_count += payload_size;
+        }
+        else
+            memset( &(psi_ctx->packet_buffer[read_pos]), 0xFF, payload_size );
+        read_pos += payload_size;
+        /* seek next packet payload data. */
+        read_pos += TS_PACKET_HEADER_SIZE;
+    }
+    return 0;
+}
+
 static const char *get_stream_information
 (
     void                       *ih,
@@ -2061,6 +2452,7 @@ static int get_specific_stream_data
     void                       *ih,
     get_sample_data_mode        get_mode,
     output_stream_type          output_stream,
+    int                         update_psi,
     get_stream_data_cb_t       *cb
 )
 {
@@ -2195,19 +2587,70 @@ static int get_specific_stream_data
     if( cb && cb->func && read_size )
     {
         //mapi_log( LOG_LV4, "[mpegts_parser] %s()  read_size:%u\n", __func__, read_size );
-        /* read packet data. */
-        uint8_t buffer[256];
-        mpegts_file_read( tsf_ctx, buffer, read_size );
-        /* output. */
-        get_stream_data_cb_ret_t cb_ret = {
-            .sample_type   = sample_type,
-            .stream_number = stream_number,
-            .buffer        = buffer,
-            .read_size     = read_size,
-            .read_offset   = read_offset,
-            .progress      = mpegts_ftell( tsf_ctx )
+        enum {
+            OUTPUT_NONE  = 0,
+            OUTPUT_READ  = 1,
+            OUTPUT_CACHE = 2,
         };
-        cb->func( cb->params, (void *)&cb_ret );
+        uint8_t *buffer = NULL;
+        /* check PSI update. */
+        int output = OUTPUT_READ;
+        if( /* psi_required && */ sample_type == SAMPLE_TYPE_PSI && update_psi )
+        {
+            tsp_psi_ctx_t *psi_ctx = NULL;
+            if( h.program_id == TS_PID_PAT )
+                psi_ctx = &(info->pat_ctx);
+#if 0
+            else if( h.program_id == TS_PID_CAT )
+                psi_ctx = &(info->cat_ctx);
+#endif
+            else if( h.program_id == info->pmt_program_id )
+                psi_ctx = &(info->pmt_ctx);
+            if( psi_ctx )
+            {
+                /* cache packet. */
+                if(  h.payload_unit_start_indicator )
+                    psi_ctx->packet_cache_count = psi_ctx->packet_cache_size = 0;
+                mpegts_file_read( tsf_ctx, &(psi_ctx->packet_buffer[psi_ctx->packet_cache_size]), read_size );
+                psi_ctx->packet_cache_size += read_size;
+                ++ psi_ctx->packet_cache_count;
+                /* update PSI */
+                if( mpegts_update_psi( info, h.program_id, psi_ctx, output_stream ) > -1 )
+                {
+                    output = OUTPUT_CACHE;
+                    /* output PSI packets. */
+                    buffer    = psi_ctx->packet_buffer;
+                    read_size = psi_ctx->packet_cache_size;
+                }
+                else
+                {
+                    output = OUTPUT_NONE;
+                    /* check packet count. */
+                    if( psi_ctx->packet_cache_count == psi_ctx->packet_num + TS_PSI_PACKET_NUM_CHECK_MARGIN )
+                        psi_ctx->packet_cache_count = psi_ctx->packet_cache_size = 0;
+                }
+            }
+        }
+        if( output )
+        {
+            uint8_t read_buffer[256];
+            if( output == OUTPUT_READ )
+            {
+                buffer = read_buffer;
+                /* read packet data. */
+                mpegts_file_read( tsf_ctx, buffer, read_size );
+            }
+            /* output. */
+            get_stream_data_cb_ret_t cb_ret = {
+                .sample_type   = sample_type,
+                .stream_number = stream_number,
+                .buffer        = buffer,
+                .read_size     = read_size,
+                .read_offset   = read_offset,
+                .progress      = mpegts_ftell( tsf_ctx )
+            };
+            cb->func( cb->params, (void *)&cb_ret );
+        }
     }
     /* seek next. */
     mpegts_file_seek( tsf_ctx, 0, MPEGTS_SEEK_NEXT );
@@ -2517,9 +2960,9 @@ static int set_pmt_stream_info( mpegts_info_t *info )
     tsp_header_t h;
     /* check stream num. */
     uint8_t video_stream_num = 0, audio_stream_num = 0, caption_stream_num = 0, dsmcc_stream_num = 0;
-    for( int32_t pid_list_index = 0; pid_list_index < info->pid_list_num_in_pmt; ++pid_list_index )
+    for( int32_t pid_list_index = 0; pid_list_index < info->pmt_ctx.pid_list_num; ++pid_list_index )
     {
-        mpeg_stream_group_type stream_judge = info->pid_list_in_pmt[pid_list_index].stream_judge;
+        mpeg_stream_group_type stream_judge = info->pmt_ctx.pid_list[pid_list_index].stream_judge;
         if( stream_judge & STREAM_IS_VIDEO )
             ++video_stream_num;
         else if( stream_judge & STREAM_IS_AUDIO )
@@ -2569,12 +3012,12 @@ static int set_pmt_stream_info( mpegts_info_t *info )
     }
     /* check exist. */
     video_stream_num = audio_stream_num = caption_stream_num = dsmcc_stream_num = 0;
-    for( int32_t pid_list_index = 0; pid_list_index < info->pid_list_num_in_pmt; ++pid_list_index )
+    for( int32_t pid_list_index = 0; pid_list_index < info->pmt_ctx.pid_list_num; ++pid_list_index )
     {
-        uint16_t               program_id        = info->pid_list_in_pmt[pid_list_index].program_id;
-        mpeg_stream_type       stream_type       = info->pid_list_in_pmt[pid_list_index].stream_type;
-        mpeg_stream_group_type stream_judge      = info->pid_list_in_pmt[pid_list_index].stream_judge;
-        mpeg_stream_type       reg_stream_type   = info->pid_list_in_pmt[pid_list_index].reg_stream_type;
+        uint16_t               program_id        = info->pmt_ctx.pid_list[pid_list_index].program_id;
+        mpeg_stream_type       stream_type       = info->pmt_ctx.pid_list[pid_list_index].stream_type;
+        mpeg_stream_group_type stream_judge      = info->pmt_ctx.pid_list[pid_list_index].stream_judge;
+        mpeg_stream_type       reg_stream_type   = info->pmt_ctx.pid_list[pid_list_index].reg_stream_type;
         /*  */
         static const char *stream_name[4] = { " video ", " audio ", "caption", " dsm-cc" };
         tss_ctx_t *stream     = NULL;
@@ -2705,15 +3148,31 @@ static void release_all_stream_handle( mpegts_info_t *info )
 static void release_pid_list( mpegts_info_t *info )
 {
     release_all_stream_handle( info );
-    if( info->pid_list_in_pmt )
+    tsp_psi_ctx_t *psi_ctx[] = {
+        &(info->pat_ctx), &(info->cat_ctx), &(info->pmt_ctx), NULL
+    };
+    for( int i = 0; psi_ctx[i]; ++i )
     {
-        free( info->pid_list_in_pmt );
-        info->pid_list_in_pmt = NULL;
-    }
-    if( info->pid_list_in_pat )
-    {
-        free( info->pid_list_in_pat );
-        info->pid_list_in_pat = NULL;
+        if( psi_ctx[i]->pid_list )
+        {
+            free( psi_ctx[i]->pid_list );
+            psi_ctx[i]->pid_list = NULL;
+        }
+        if( psi_ctx[i]->packet_buffer )
+        {
+            free( psi_ctx[i]->packet_buffer );
+            psi_ctx[i]->packet_buffer = NULL;
+        }
+        if( psi_ctx[i]->section_buffer )
+        {
+            free( psi_ctx[i]->section_buffer );
+            psi_ctx[i]->section_buffer = NULL;
+        }
+        if( psi_ctx[i]->cache_buffer )
+        {
+            free( psi_ctx[i]->cache_buffer );
+            psi_ctx[i]->cache_buffer = NULL;
+        }
     }
     info->status = PARSER_STATUS_NON_PARSING;
 }
@@ -2734,15 +3193,16 @@ fail_parse:
 static int set_pmt_program_id( mpegts_info_t *info, uint16_t program_id )
 {
     mapi_log( LOG_LV2, "[check] %s()\n", __func__ );
-    if( info->pid_list_in_pat )
-        free( info->pid_list_in_pat );
-    info->pid_list_in_pat = (uint16_t *)malloc( sizeof(uint16_t) );
-    if( !info->pid_list_in_pat )
-        return -1;
-    info->pid_list_num_in_pat = 1;
-    info->pid_list_in_pat[0]  = program_id;
     if( info->status == PARSER_STATUS_NON_PARSING )
+    {
+        /* save the specified PMT PID. */
+        info->specified_pmt_program_id = program_id;
         return 0;
+    }
+    /* setup specified PMT PID. */
+    int result = mpegts_set_user_specified_pmt( info, program_id );
+    if( result < 1 )
+        return result;
     /* reset pmt information. */
     info->tsf_ctx.sync_byte_position = 0;
     info->tsf_ctx.read_position      = -1;
@@ -2753,13 +3213,13 @@ static int set_pmt_program_id( mpegts_info_t *info, uint16_t program_id )
     info->start_pcr                  = MPEG_TIMESTAMP_INVALID_VALUE;
     info->last_pcr                   = MPEG_TIMESTAMP_INVALID_VALUE;
     release_all_stream_handle( info );
-    if( info->pid_list_in_pmt )
+    if( info->pmt_ctx.pid_list )
     {
-        free( info->pid_list_in_pmt );
-        info->pid_list_in_pmt = NULL;
+        free( info->pmt_ctx.pid_list );
+        info->pmt_ctx.pid_list = NULL;
     }
     int64_t start_position = mpegts_ftell( &(info->tsf_ctx) );
-    int result = parse_pmt_info( info );
+    result = parse_pmt_info( info );
     if( result )
         goto end_reset;
     mpegts_file_seek( &(info->tsf_ctx), start_position, MPEGTS_SEEK_RESET );
@@ -2775,13 +3235,13 @@ static int set_stream_program_id( mpegts_info_t *info, uint16_t program_id )
     /* search program id and stream type. */
     int result = -1;
 #if 0       // FIXME
-    for( int32_t pid_list_index = 0; pid_list_index < info->pid_list_num_in_pmt; ++pid_list_index )
+    for( int32_t pid_list_index = 0; pid_list_index < info->pmt_ctx.pid_list_num; ++pid_list_index )
     {
-        if( info->pid_list_in_pmt[pid_list_index].program_id == program_id )
+        if( info->pmt_ctx.pid_list[pid_list_index].program_id == program_id )
         {
-            mpeg_stream_group_type stream_judge = set_stream_info( info, info->pid_list_in_pmt[pid_list_index].program_id
-                                                                 , info->pid_list_in_pmt[pid_list_index].stream_type
-                                                                 , info->pid_list_in_pmt[pid_list_index].stream_judge );
+            mpeg_stream_group_type stream_judge = set_stream_info( info, info->pmt_ctx.pid_list[pid_list_index].program_id
+                                                                 , info->pmt_ctx.pid_list[pid_list_index].stream_type
+                                                                 , info->pmt_ctx.pid_list[pid_list_index].stream_judge );
             if( (stream_judge & STREAM_IS_VIDEO) || (stream_judge & STREAM_IS_AUDIO) )
                 result = 0;
         }
@@ -2853,7 +3313,7 @@ static int parse( void *ih )
         release_pid_list( info );
     int result = -1;
     int64_t start_position = mpegts_ftell( &(info->tsf_ctx) );
-    if( !info->pid_list_in_pat && mpegts_parse_pat( info ) )
+    if( mpegts_parse_pat( info ) )
         goto end_parse;
     if( mpegts_parse_cat( info ) )
         mapi_log( LOG_LV2, "[check] CAT packet was not detected.\n" );
@@ -2893,6 +3353,7 @@ static void *initialize( const char *input_file, int64_t buffer_size )
     info->tsf_ctx.ts_packet_length       = TS_PACKET_SIZE;
     info->tsf_ctx.packet_check_count_num = TS_PACKET_SEARCH_CHECK_COUNT_NUM;
     info->packet_check_retry_num         = TS_PACKET_SEARCH_RETRY_COUNT_NUM;
+    info->specified_pmt_program_id       = TS_PID_ERR;
     info->pcr_program_id                 = TS_PID_ERR;
     info->ecm_program_id                 = TS_PID_ERR;
     info->emm_program_id                 = TS_PID_ERR;

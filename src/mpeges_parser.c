@@ -428,6 +428,7 @@ static int get_specific_stream_data
     void                       *ih,
     get_sample_data_mode        get_mode,
     output_stream_type          output_stream,
+    int                         update_psi,
     get_stream_data_cb_t       *cb
 )
 {
@@ -435,6 +436,7 @@ static int get_specific_stream_data
     (void) ih;
     (void) get_mode;
     (void) output_stream;
+    (void) update_psi;
     (void) cb;
 #endif
     return -1;
