@@ -592,7 +592,7 @@ static int parse( void *ih )
 static void *initialize( const char *mpeges, int64_t buffer_size )
 {
     mapi_log( LOG_LV2, "[mpeges_parser] %s()\n", __func__ );
-    mpeges_info_t     *info       = (mpeges_info_t     *)calloc( sizeof(mpeges_info_t), 1 );
+    mpeges_info_t     *info       = (mpeges_info_t     *)calloc( 1, sizeof(mpeges_info_t) );
     mpeg_video_info_t *video_info = (mpeg_video_info_t *)malloc( sizeof(mpeg_video_info_t) );
     if( !info || !video_info )
         goto fail_initialize;

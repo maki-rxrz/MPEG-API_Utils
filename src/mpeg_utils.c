@@ -350,16 +350,16 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
     video_stream_data_t *video_stream     = NULL;
     audio_stream_data_t *audio_stream     = NULL;
     if( video_stream_num )
-        video_stream = (video_stream_data_t *)calloc( sizeof(video_stream_data_t), video_stream_num );
+        video_stream = (video_stream_data_t *)calloc( video_stream_num, sizeof(video_stream_data_t) );
     if( audio_stream_num )
-        audio_stream = (audio_stream_data_t *)calloc( sizeof(audio_stream_data_t), audio_stream_num );
+        audio_stream = (audio_stream_data_t *)calloc( audio_stream_num, sizeof(audio_stream_data_t) );
     if( (video_stream_num && !video_stream)
      || (audio_stream_num && !audio_stream) )
         goto fail_create_list;
     /* create lists. */
     uint16_t thread_num = video_stream_num + audio_stream_num;
     parse_param_t *param    = (parse_param_t *)malloc( sizeof(parse_param_t) * thread_num );
-    int64_t       *progress = (int64_t       *)calloc( sizeof(int64_t) * thread_num, thread_num );
+    int64_t       *progress = (int64_t       *)calloc( thread_num, sizeof(int64_t) * thread_num );
     if( !param || !progress )
     {
         if( param )

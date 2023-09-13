@@ -168,10 +168,10 @@ static void *parse(const char *input)
         goto fail_parse;
     info->header.video_file_num = scan_num;
 
-    char *tmp = (char *)calloc(sizeof(char), info->header.video_file_num * BUFFER_SIZE);
+    char *tmp = (char *)calloc(info->header.video_file_num * BUFFER_SIZE, sizeof(char));
     if (!tmp)
         goto fail_parse;
-    char **tmp_p = (char **)calloc(sizeof(char *), info->header.video_file_num);
+    char **tmp_p = (char **)calloc(info->header.video_file_num, sizeof(char *));
     if (!tmp_p) {
         free(tmp);
         goto fail_parse;
@@ -270,11 +270,11 @@ static void *parse(const char *input)
     if (frame_count == 0)
         goto fail_parse;
 
-    info->data.gops = (d2v_gop_info_t *)calloc(sizeof(d2v_gop_info_t), gop_count);
+    info->data.gops = (d2v_gop_info_t *)calloc(gop_count, sizeof(d2v_gop_info_t));
     if (!info->data.gops)
         goto fail_parse;
 
-    info->data.frames = (d2v_frame_info_t *)calloc(sizeof(d2v_frame_info_t), frame_count);
+    info->data.frames = (d2v_frame_info_t *)calloc(frame_count, sizeof(d2v_frame_info_t));
     if (!info->data.frames)
         goto fail_parse;
 
@@ -363,7 +363,7 @@ static uint8_t *create_keyframe_list(void *h)
     uint32_t total_frames = info->order_total_frames;
 
     /* create keyframe list. */
-    uint8_t *keyframe_list= (uint8_t *)calloc(sizeof(uint8_t), total_frames);
+    uint8_t *keyframe_list= (uint8_t *)calloc(total_frames, sizeof(uint8_t));
     if (!keyframe_list)
         return NULL;
 

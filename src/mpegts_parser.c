@@ -3381,9 +3381,9 @@ end_parse:
 static void *initialize( const char *input_file, int64_t buffer_size )
 {
     mapi_log( LOG_LV2, "[mpegts_parser] %s()\n", __func__ );
-    mpegts_info_t          *info            = (mpegts_info_t *)calloc( sizeof(mpegts_info_t), 1 );
+    mpegts_info_t          *info            = (mpegts_info_t *)calloc( 1, sizeof(mpegts_info_t) );
     char                   *mpegts          = strdup( input_file );
-    mpeg_descriptor_info_t *descriptor_info = (mpeg_descriptor_info_t *)calloc( sizeof(mpeg_descriptor_info_t), 1 );
+    mpeg_descriptor_info_t *descriptor_info = (mpeg_descriptor_info_t *)calloc( 1, sizeof(mpeg_descriptor_info_t) );
     if( !info || !mpegts || !descriptor_info )
         goto fail_initialize;
     if( mpegts_open( &(info->tsf_ctx), mpegts, buffer_size ) )

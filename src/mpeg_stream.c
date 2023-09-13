@@ -143,7 +143,7 @@ extern mpeg_pes_stream_id_type mpeg_pes_get_steam_id_type( mpeg_stream_group_typ
 do {                                                                                        \
     if( !name )                                                                             \
     {                                                                                       \
-        name = (name##_descriptor_info_t *)calloc( sizeof(name##_descriptor_info_t), 1 );   \
+        name = (name##_descriptor_info_t *)calloc( 1, sizeof(name##_descriptor_info_t) );   \
         if( !name )                                                                         \
             return -1;                                                                      \
         descriptor_info->name = name;                                                       \
