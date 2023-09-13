@@ -2190,15 +2190,15 @@ static int mpegts_update_psi
                 /* check output stream. */
                 int     output         = 0;
                 int32_t pid_list_index = 0;
-                while( pid_list_index < info->pmt_ctx.pid_list_num )
+                while( pid_list_index < psi_ctx->pid_list_num )
                 {
-                    if( elementary_PID == info->pmt_ctx.pid_list[pid_list_index].program_id )
+                    if( elementary_PID == psi_ctx->pid_list[pid_list_index].program_id )
                         break;
                      ++pid_list_index;
                 }
-                if( pid_list_index < info->pmt_ctx.pid_list_num )
+                if( pid_list_index < psi_ctx->pid_list_num )
                 {
-                    mpeg_stream_group_type stream_judge = info->pmt_ctx.pid_list[pid_list_index].stream_judge;
+                    mpeg_stream_group_type stream_judge = psi_ctx->pid_list[pid_list_index].stream_judge;
                     if( stream_judge & STREAM_IS_VIDEO && output_stream & OUTPUT_STREAM_VIDEO )
                         output = 1;
                     else if( stream_judge & STREAM_IS_AUDIO && output_stream & OUTPUT_STREAM_AUDIO )
