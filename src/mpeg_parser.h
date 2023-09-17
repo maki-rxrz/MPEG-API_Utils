@@ -86,7 +86,7 @@ typedef struct {
     int                 (* set_service_id           )( void *ih, uint16_t service_id );
     int                 (* set_program_target       )( void *ih, pmt_target_type pmt_target );
     int                 (* set_program_id           )( void *ih, mpegts_select_pid_type pid_type, uint16_t program_id );
-    uint16_t            (* get_program_id           )( void *ih, mpeg_stream_type stream_type );
+    uint16_t            (* get_program_id           )( void *ih, mpeg_stream_type stream_type, uint8_t stream_number );
     int                 (* get_video_info           )( void *ih, uint8_t stream_number, video_sample_info_t *video_info );
     int                 (* get_audio_info           )( void *ih, uint8_t stream_number, audio_sample_info_t *audio_info );
     int                 (* get_pcr                  )( void *ih, pcr_info_t *pcr_info );

@@ -559,11 +559,12 @@ static int set_program_id( void *ih, mpegts_select_pid_type pid_type, uint16_t p
     return -1;
 }
 
-static uint16_t get_program_id( void *ih, mpeg_stream_type stream_type )
+static uint16_t get_program_id( void *ih, mpeg_stream_type stream_type, uint8_t stream_number )
 {
 #if ENABLE_SUPPRESS_WARNINGS
     (void) ih;
     (void) stream_type;
+    (void) stream_number;
 #endif
     return -1;
 }

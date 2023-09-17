@@ -1290,18 +1290,22 @@ static int mpegts_parse_pcr( mpegts_info_t *info )
     return 0;
 }
 
-static uint16_t mpegts_get_program_id( mpegts_info_t *info, mpeg_stream_type stream_type )
+static uint16_t mpegts_get_program_id( mpegts_info_t *info, mpeg_stream_type stream_type, uint8_t stream_number )
 {
     mapi_log( LOG_LV3, "[check] %s()\n", __func__ );
     /* search program id. */
-    int32_t pid_list_index = -1;
-    do
+    uint8_t detect_count   = -1;
+    int32_t pid_list_index = 0;
+    while( pid_list_index < info->pmt_ctx.pid_list_num )
     {
+		if( info->pmt_ctx.pid_list[pid_list_index].stream_type == stream_type )
+            ++detect_count;
+        if( detect_count == stream_number )
+            break;
         ++pid_list_index;
-        if( pid_list_index >= info->pmt_ctx.pid_list_num )
-            return TS_PID_ERR;
     }
-    while( info->pmt_ctx.pid_list[pid_list_index].stream_type != stream_type );
+    if( pid_list_index == info->pmt_ctx.pid_list_num )
+        return TS_PID_ERR;
     mapi_log( LOG_LV3, "[check] %d - stream_type:%d, PID:0x%04X\n", pid_list_index
                      , info->pmt_ctx.pid_list[pid_list_index].stream_type
                      , info->pmt_ctx.pid_list[pid_list_index].program_id );
@@ -3313,14 +3317,14 @@ static int set_program_id( void *ih, mpegts_select_pid_type pid_type, uint16_t p
     return result;
 }
 
-static uint16_t get_program_id( void *ih, mpeg_stream_type stream_type )
+static uint16_t get_program_id( void *ih, mpeg_stream_type stream_type, uint8_t stream_number )
 {
     mapi_log( LOG_LV2, "[mpegts_parser] get_program_id()\n"
                        "[check] stream_type: 0x%02X\n", stream_type );
     mpegts_info_t *info = (mpegts_info_t *)ih;
     if( !info )
         return TS_PID_ERR;
-    return mpegts_get_program_id( info, stream_type );
+    return mpegts_get_program_id( info, stream_type, stream_number );
 }
 
 static int set_service_id( void *ih, uint16_t service_id )
