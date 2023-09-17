@@ -674,8 +674,7 @@ static int mpegts_set_user_specified_pmt( mpegts_info_t *info, uint16_t program_
 static uint16_t mpegts_get_pmt_pid_from_sid( mpegts_info_t *info, uint16_t service_id )
 {
     /* search in PAT. */
-    int i;
-    for( i = 0; i < info->pat_ctx.pid_list_num; ++i )
+    for( int32_t i = 0; i < info->pat_ctx.pid_list_num; ++i )
         if( info->pat_ctx.pid_list[i].program_number == service_id )
             return info->pat_ctx.pid_list[i].program_id;
     return TS_PID_ERR;
@@ -755,6 +754,7 @@ static int mpegts_parse_pat( mpegts_info_t *info )
         sprintf( &(crc32_str[i * 3]), " %02X", crc32[i] );
     mapi_log( LOG_LV2, "[check] CRC32:%s\n", crc32_str );
     mapi_log( LOG_LV2, "[check] file position:%" PRId64 "\n", read_pos );
+    /* setup and prepare buffer. */
     info->pat_ctx.packet_num     = psi_packet_num;
     info->pat_ctx.packet_buffer  = (uint8_t *)malloc( info->tsf_ctx.packet_size * psi_packet_num + TS_PSI_PACKET_NUM_CHECK_MARGIN );        // info->tsf_ctx.packet_size or TS_PACKET_SIZE
     info->pat_ctx.section_buffer = (uint8_t *)malloc( TS_PACKET_TABLE_SECTION_SIZE_MAX );
@@ -914,6 +914,7 @@ static int mpegts_parse_cat( mpegts_info_t *info )
         sprintf( &(crc32_str[i * 3]), " %02X", crc32[i] );
     mapi_log( LOG_LV2, "[check] CRC32:%s\n", crc32_str );
     mapi_log( LOG_LV2, "[check] file position:%" PRId64 "\n", read_pos );
+    /* setup and prepare buffer. */
     info->cat_ctx.packet_num     = psi_packet_num;
 #if 0
     info->cat_ctx.packet_buffer  = (uint8_t *)malloc( info->tsf_ctx.packet_size * psi_packet_num + TS_PSI_PACKET_NUM_CHECK_MARGIN );        // info->tsf_ctx.packet_size or TS_PACKET_SIZE
@@ -1154,6 +1155,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
         sprintf( &(crc32_str[i * 3]), " %02X", crc32[i] );
     mapi_log( LOG_LV2, "[check] CRC32:%s\n", crc32_str );
     mapi_log( LOG_LV2, "[check] file position:%" PRId64 "\n", read_pos );
+    /* setup and prepare buffer. */
     info->pmt_ctx.packet_num     = psi_packet_num;
     info->pmt_ctx.packet_buffer  = (uint8_t *)malloc( info->tsf_ctx.packet_size * psi_packet_num + TS_PSI_PACKET_NUM_CHECK_MARGIN );        // info->tsf_ctx.packet_size or TS_PACKET_SIZE
     info->pmt_ctx.section_buffer = (uint8_t *)malloc( TS_PACKET_TABLE_SECTION_SIZE_MAX );
@@ -2812,6 +2814,7 @@ static int get_pcr( void *ih, pcr_info_t *pcr_info )
     if( !info )
         return -1;
     int64_t reset_position = mpegts_ftell( &(info->tsf_ctx) );
+    /* get PCR. */
     int result = mpegts_get_pcr( info, &(info->pcr) );
     mpegts_file_seek( &(info->tsf_ctx), reset_position, MPEGTS_SEEK_RESET );
     /* setup. */
@@ -3223,7 +3226,7 @@ static int set_pmt_program_id( mpegts_info_t *info, uint16_t program_id )
         info->specified_pmt_program_id = program_id;
         return 0;
     }
-    /* setup specified PMT PID. */
+    /* setup the specified PMT PID. */
     int result = mpegts_set_user_specified_pmt( info, program_id );
     if( result < 1 )
         return result;
@@ -3334,7 +3337,7 @@ static int set_service_id( void *ih, uint16_t service_id )
         return -1;
     mapi_log( LOG_LV2, "[mpegts_parser] set_service_id()\n"
                        "[check] service_id: 0x%04X\n", service_id );
-    if( !service_id )
+    if( service_id == 0 )
     {
         mapi_log( LOG_LV2, "[check] illegal SID is specified.\n" );
         return 1;
