@@ -3172,7 +3172,7 @@ static void release_all_stream_handle( mpegts_info_t *info )
     release_stream_handle( &(info->audio_stream), &(info->audio_stream_num) );
 }
 
-static void release_pid_list( mpegts_info_t *info )
+static void release_all_handle( mpegts_info_t *info )
 {
     release_all_stream_handle( info );
     tsp_psi_ctx_t *psi_ctx[] = {
@@ -3213,7 +3213,7 @@ static int parse_pmt_info( mpegts_info_t *info )
         goto fail_parse;
     return 0;
 fail_parse:
-    release_pid_list( info );
+    release_all_handle( info );
     return -1;
 }
 
@@ -3364,7 +3364,7 @@ static int parse( void *ih )
     if( !info )
         return -1;
     if( info->status == PARSER_STATUS_PARSED )
-        release_pid_list( info );
+        release_all_handle( info );
     int result = -1;
     int64_t start_position = mpegts_ftell( &(info->tsf_ctx) );
     if( mpegts_parse_pat( info ) )
@@ -3446,7 +3446,7 @@ static void release( void *ih )
     /*  release. */
     mpeg_stream_release_descriptor_info( info->descriptor_info );
     free( info->descriptor_info );
-    release_pid_list( info );
+    release_all_handle( info );
     mpegts_close( &(info->tsf_ctx) );
     free( info->mpegts );
     free( info );
