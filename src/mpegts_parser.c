@@ -756,7 +756,7 @@ static int mpegts_parse_pat( mpegts_info_t *info )
     mapi_log( LOG_LV2, "[check] file position:%" PRId64 "\n", read_pos );
     /* setup and prepare buffer. */
     info->pat_ctx.packet_num     = psi_packet_num;
-    info->pat_ctx.packet_buffer  = (uint8_t *)malloc( info->tsf_ctx.packet_size * psi_packet_num + TS_PSI_PACKET_NUM_CHECK_MARGIN );        // info->tsf_ctx.packet_size or TS_PACKET_SIZE
+    info->pat_ctx.packet_buffer  = (uint8_t *)malloc( info->tsf_ctx.packet_size * (psi_packet_num + TS_PSI_PACKET_NUM_CHECK_MARGIN) );      // info->tsf_ctx.packet_size or TS_PACKET_SIZE
     info->pat_ctx.section_buffer = (uint8_t *)malloc( TS_PACKET_TABLE_SECTION_SIZE_MAX );
     info->pat_ctx.cache_buffer   = (uint8_t *)malloc( TS_PACKET_TABLE_SECTION_SIZE_MAX );
     if( !info->pat_ctx.packet_buffer || !info->pat_ctx.section_buffer || !info->pat_ctx.cache_buffer )
@@ -917,7 +917,7 @@ static int mpegts_parse_cat( mpegts_info_t *info )
     /* setup and prepare buffer. */
     info->cat_ctx.packet_num     = psi_packet_num;
 #if 0
-    info->cat_ctx.packet_buffer  = (uint8_t *)malloc( info->tsf_ctx.packet_size * psi_packet_num + TS_PSI_PACKET_NUM_CHECK_MARGIN );        // info->tsf_ctx.packet_size or TS_PACKET_SIZE
+    info->cat_ctx.packet_buffer  = (uint8_t *)malloc( info->tsf_ctx.packet_size * (psi_packet_num + TS_PSI_PACKET_NUM_CHECK_MARGIN) );      // info->tsf_ctx.packet_size or TS_PACKET_SIZE
     info->cat_ctx.section_buffer = (uint8_t *)malloc( TS_PACKET_TABLE_SECTION_SIZE_MAX );
     info->cat_ctx.cache_buffer   = (uint8_t *)malloc( TS_PACKET_TABLE_SECTION_SIZE_MAX );
     if( !info->cat_ctx.packet_buffer || !info->cat_ctx.section_buffer || !info->cat_ctx.cache_buffer )
@@ -1157,7 +1157,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
     mapi_log( LOG_LV2, "[check] file position:%" PRId64 "\n", read_pos );
     /* setup and prepare buffer. */
     info->pmt_ctx.packet_num     = psi_packet_num;
-    info->pmt_ctx.packet_buffer  = (uint8_t *)malloc( info->tsf_ctx.packet_size * psi_packet_num + TS_PSI_PACKET_NUM_CHECK_MARGIN );        // info->tsf_ctx.packet_size or TS_PACKET_SIZE
+    info->pmt_ctx.packet_buffer  = (uint8_t *)malloc( info->tsf_ctx.packet_size * (psi_packet_num + TS_PSI_PACKET_NUM_CHECK_MARGIN) );      // info->tsf_ctx.packet_size or TS_PACKET_SIZE
     info->pmt_ctx.section_buffer = (uint8_t *)malloc( TS_PACKET_TABLE_SECTION_SIZE_MAX );
     info->pmt_ctx.cache_buffer   = (uint8_t *)malloc( TS_PACKET_TABLE_SECTION_SIZE_MAX );
     if( !info->pmt_ctx.packet_buffer || !info->pmt_ctx.section_buffer || !info->pmt_ctx.cache_buffer )
