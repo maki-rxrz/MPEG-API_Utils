@@ -2621,7 +2621,14 @@ static int get_specific_stream_data
         uint8_t *buffer = NULL;
         /* check PSI update. */
         int output = OUTPUT_READ;
-        if( /* psi_required && */ sample_type == SAMPLE_TYPE_PSI && update_psi )
+        if( /* psi_required && */ sample_type == SAMPLE_TYPE_PSI )
+        {
+            if( h.program_id == TS_PID_PAT && info->pat_ctx.pid_list_num > 1 )
+                update_psi = 1;
+        }
+        else
+            update_psi = 0;
+        if( update_psi )
         {
             tsp_psi_ctx_t *psi_ctx = NULL;
             if( h.program_id == TS_PID_PAT )
