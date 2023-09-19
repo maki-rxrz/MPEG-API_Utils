@@ -91,6 +91,7 @@ typedef struct {
     char               *output;
     int                 output_no_overwrite;
     output_mode_type    output_mode;
+    uint16_t            service_id;
     uint16_t            pmt_program_id;
     pmt_target_type     pmt_target;
     frame_rate_t        frame_rate;
@@ -167,6 +168,7 @@ static void print_help( void )
         "                                   - l, libav      Libav reader.\n"
         "                                   - t, tmpgenc    TMPGEnc series.\n"
         "       --no-reader             Disable check of the read delay time.\n"
+        "       --sid <integer>         Specify Service ID.\n"
         "       --pmt-pid <integer>     Specify Program Map Table ID.\n"
         "       --pmt-target <integer>  Specify detection target of PMT.\n"
         "               (default: 0)        - 0 : Select maximum of PMT detected\n"
@@ -379,6 +381,12 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
         }
         else if( !strcasecmp( argv[i], "--no-reader" ) )
             p->reader = MPEG_READER_NONE;
+        else if( !strcasecmp( argv[i], "--sid" ) )
+        {
+            ++i;
+            int base = (strncmp( argv[i], "0x", 2 )) ? 10 : 16;
+            p->service_id = strtol( argv[i], NULL, base );
+        }
         else if( !strcasecmp( argv[i], "--pmt-pid" ) )
         {
             ++i;
@@ -1055,9 +1063,10 @@ static void parse_reader_offset( param_t *p, delay_info_type *delay_info )
     stream_info_t *stream_info = malloc( sizeof(*stream_info) );
     if( !stream_info )
         goto end_parse;
-    if( p->pmt_program_id )
-        if( 0 > mpeg_api_set_pmt_program_id( info, p->pmt_program_id ) )
-            goto end_parse;
+    if( p->service_id && 0 > mpeg_api_set_service_id( info, p->service_id ) )
+        goto end_parse;
+    if( p->pmt_program_id && 0 > mpeg_api_set_pmt_program_id( info, p->pmt_program_id ) )
+        goto end_parse;
     if( p->pmt_target )
         mpeg_api_set_pmt_target( info, p->pmt_target );
     int64_t video_1st_pts, video_key_pts;
