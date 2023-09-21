@@ -2107,7 +2107,7 @@ static int mpegts_update_psi
     if( program_id == TS_PID_PAT )
     {
         /* PAT */
-        if( info->pat_ctx.pid_list_num == 1 )
+        if( psi_ctx->pid_list_num == 1 )
             return 1;
     }
     else if( program_id == TS_PID_CAT )
