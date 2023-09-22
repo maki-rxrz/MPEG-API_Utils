@@ -3027,21 +3027,25 @@ static int set_pmt_stream_info( mpegts_info_t *info )
     for( uint8_t i = 0; i < video_stream_num; ++i )
     {
         tss_ctx_t *stream = &(video_ctx[i]);
+        stream->tsf_ctx.fr_ctx    = NULL;
         stream->stream_parse_info = NULL;
     }
     for( uint8_t i = 0; i < audio_stream_num; ++i )
     {
         tss_ctx_t *stream = &(audio_ctx[i]);
+        stream->tsf_ctx.fr_ctx    = NULL;
         stream->stream_parse_info = NULL;
     }
     for( uint8_t i = 0; i < caption_stream_num; ++i )
     {
         tss_ctx_t *stream = &(caption_ctx[i]);
+        stream->tsf_ctx.fr_ctx    = NULL;
         stream->stream_parse_info = NULL;
     }
     for( uint8_t i = 0; i < dsmcc_stream_num; ++i )
     {
         tss_ctx_t *stream = &(dsmcc_ctx[i]);
+        stream->tsf_ctx.fr_ctx    = NULL;
         stream->stream_parse_info = NULL;
     }
     /* check exist. */
@@ -3177,6 +3181,8 @@ static void release_all_stream_handle( mpegts_info_t *info )
 {
     release_stream_handle( &(info->video_stream), &(info->video_stream_num) );
     release_stream_handle( &(info->audio_stream), &(info->audio_stream_num) );
+    release_stream_handle( &(info->caption_stream), &(info->caption_stream_num) );
+    release_stream_handle( &(info->dsmcc_stream), &(info->dsmcc_stream_num) );
 }
 
 static void release_all_handle( mpegts_info_t *info )
