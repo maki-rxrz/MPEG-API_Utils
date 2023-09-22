@@ -1070,7 +1070,7 @@ static void parse_reader_offset( param_t *p, delay_info_type *delay_info )
     if( p->pmt_target )
         mpeg_api_set_pmt_target( info, p->pmt_target );
     int64_t video_1st_pts, video_key_pts;
-    int get_info_result = mpeg_api_get_stream_info( info, stream_info, &video_1st_pts, &video_key_pts );
+    int get_info_result = mpeg_api_get_stream_parse_info( info, stream_info, &video_1st_pts, &video_key_pts );
     if( !get_info_result )
     {
         int64_t pcr           = stream_info->pcr;

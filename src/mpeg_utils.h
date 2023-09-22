@@ -168,7 +168,7 @@ MAPI_EXPORT int mpeg_api_get_audio_frame( void *ih, uint8_t stream_number, strea
 
 MAPI_EXPORT int mpeg_api_parse( void *ih );
 
-MAPI_EXPORT int mpeg_api_get_stream_info
+MAPI_EXPORT int mpeg_api_get_stream_parse_info
 (
     void                       *ih,
     stream_info_t              *stream_info,

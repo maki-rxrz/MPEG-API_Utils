@@ -940,7 +940,7 @@ MAPI_EXPORT int mpeg_api_parse( void *ih )
     return info->parser->parse( info->parser_info );
 }
 
-MAPI_EXPORT int mpeg_api_get_stream_info
+MAPI_EXPORT int mpeg_api_get_stream_parse_info
 (
     void                       *ih,
     stream_info_t              *stream_info,
