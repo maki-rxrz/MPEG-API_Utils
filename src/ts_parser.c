@@ -2102,15 +2102,26 @@ static void split_stream_all
         get_stream_data_cb_t cb        = { split_all_cb_func, (void *)&cb_params };
         mpeg_api_get_all_stream_data( info, get_mode, p->output_stream, p->update_psi, &cb );
         mapi_log( LOG_LV_PROGRESS, "                                                                              \r" );
-        for( uint8_t i = 0; i < video_stream_num; ++i )
-            mapi_log( LOG_LV_PROGRESS, "   Video Stream[%3u] - output: %" PRIu64 " byte\n"
-                                    , i, (uint64_t)v_cb_params[i].total_size );
-        for( uint8_t i = 0; i < audio_stream_num; ++i )
-            mapi_log( LOG_LV_PROGRESS, "   Audio Stream[%3u] - output: %" PRIu64 " byte\n"
-                                    , i, (uint64_t)a_cb_params[i].total_size );
-        for( uint8_t i = 0; i < caption_stream_num; ++i )
-            mapi_log( LOG_LV_PROGRESS, " Caption Stream[%3u] - output: %" PRIu64 " byte\n"
-                                    , i, (uint64_t)c_cb_params[i].total_size );
+        if( p->output_stream & OUTPUT_STREAM_VIDEO )
+            for( uint8_t i = 0; i < video_stream_num; ++i )
+                if(  v_cb_params[i].total_size )
+                    mapi_log( LOG_LV_PROGRESS, "   Video Stream[%3u] - output: %" PRIu64 " byte\n"
+                                            , i, (uint64_t)v_cb_params[i].total_size );
+        if( p->output_stream & OUTPUT_STREAM_AUDIO )
+            for( uint8_t i = 0; i < audio_stream_num; ++i )
+                if(  a_cb_params[i].total_size )
+                    mapi_log( LOG_LV_PROGRESS, "   Audio Stream[%3u] - output: %" PRIu64 " byte\n"
+                                            , i, (uint64_t)a_cb_params[i].total_size );
+        if( p->output_stream & OUTPUT_STREAM_CAPTION )
+            for( uint8_t i = 0; i < caption_stream_num; ++i )
+                if( c_cb_params[i].total_size )
+                    mapi_log( LOG_LV_PROGRESS, " Caption Stream[%3u] - output: %" PRIu64 " byte\n"
+                                            , i, (uint64_t)c_cb_params[i].total_size );
+        if( p->output_stream & OUTPUT_STREAM_DSMCC )
+            for( uint8_t i = 0; i < dsmcc_stream_num; ++i )
+                if( d_cb_params[i].total_size )
+                    mapi_log( LOG_LV_PROGRESS, "   DSMCC Stream[%3u] - output: %" PRIu64 " byte\n"
+                                            , i, (uint64_t)d_cb_params[i].total_size );
         dumper_close( &split_file );
         mapi_log( LOG_LV_PROGRESS, " %s Stream [split] done - output: %" PRIu64 " byte\n"
                                 , output_stream_name[stream_name_index], (uint64_t)cb_params.total_size );
