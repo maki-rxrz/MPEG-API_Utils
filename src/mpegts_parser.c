@@ -745,6 +745,7 @@ static int mpegts_parse_pat( mpegts_info_t *info )
     if( (section_length - read_count) != CRC32_SIZE )
     {
         free( info->pat_ctx.pid_list );
+        info->pat_ctx.pid_list = NULL;
         return -1;
     }
     info->pat_ctx.pid_list_num = pid_list_num;
@@ -776,6 +777,8 @@ static int mpegts_parse_pat( mpegts_info_t *info )
             free( info->pat_ctx.cache_buffer );
             info->pat_ctx.cache_buffer = NULL;
         }
+        free( info->pat_ctx.pid_list );
+        info->pat_ctx.pid_list = NULL;
         return -1;
     }
     /* check user specified IDs. */
@@ -1177,6 +1180,8 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
             free( info->pmt_ctx.cache_buffer );
             info->pmt_ctx.cache_buffer = NULL;
         }
+        free( info->pmt_ctx.pid_list );
+        info->pmt_ctx.pid_list = NULL;
         goto fail_parse;
     }
     /* seek next. */
