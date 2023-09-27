@@ -2108,7 +2108,7 @@ static void split_stream_all
         for( uint8_t i = 0; i < audio_stream_num; ++i )
             mapi_log( LOG_LV_PROGRESS, "   Audio Stream[%3u] - output: %" PRIu64 " byte\n"
                                     , i, (uint64_t)a_cb_params[i].total_size );
-        for( uint8_t i = 0; i < audio_stream_num; ++i )
+        for( uint8_t i = 0; i < caption_stream_num; ++i )
             mapi_log( LOG_LV_PROGRESS, " Caption Stream[%3u] - output: %" PRIu64 " byte\n"
                                     , i, (uint64_t)c_cb_params[i].total_size );
         dumper_close( &split_file );
