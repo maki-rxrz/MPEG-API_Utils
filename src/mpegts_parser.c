@@ -2518,7 +2518,7 @@ static int get_specific_stream_data
                 break;
             /* PMT, PCR, ECM, EMM */
             if( h.program_id == info->pmt_program_id
-             || h.program_id == info->pcr_program_id
+          /* || h.program_id == info->pcr_program_id */
              || h.program_id == info->ecm_program_id
              || h.program_id == info->emm_program_id )
                 break;
@@ -2555,9 +2555,17 @@ static int get_specific_stream_data
         /* check start position. */
         if( stream && tsf_ctx->read_position >= stream->tsf_ctx.read_position )
             break;
+        /* check pcr packcet. */
+        if( !stream && psi_required )
+        {
+            /* PCR */
+            if( h.program_id == info->pcr_program_id )
+                break;
+        }
         /* seek next. */
         mpegts_file_seek( tsf_ctx, 0, MPEGTS_SEEK_NEXT );
-        stream = NULL;
+        stream      = NULL;
+        sample_type = SAMPLE_TYPE_PSI;
     }
     /* output. */
     uint32_t read_size   = 0;
