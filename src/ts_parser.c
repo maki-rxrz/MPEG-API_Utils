@@ -1219,11 +1219,11 @@ static thread_func_ret demux_sample( void *args )
             total_size += data_size;
         }
         int64_t progress = mpeg_api_get_sample_position( info, get_type, stream_number );
-        mapi_log( LOG_LV_PROGRESS, " %s Stream[%3u] [%8u]  total: %14" PRIu64 " byte ...[%5.2f%%]\r"
+        mapi_log( LOG_LV_PROGRESS, " %s Stream[%3u] [%8u]  total: %14" PRIu64 " Byte ...[%5.2f%%]\r"
                                  , stream_name, stream_number, i, total_size, (progress * 100.0 / file_size) );
     }
     mapi_log( LOG_LV_PROGRESS, "                                                                              \r" );
-    mapi_log( LOG_LV_PROGRESS, " %s Stream[%3u] [demux] end - output: %" PRIu64 " byte\n"
+    mapi_log( LOG_LV_PROGRESS, " %s Stream[%3u] [demux] end - output: %" PRIu64 " Byte\n"
                              , stream_name, stream_number, total_size );
     return (thread_func_ret)(0);
 }
@@ -1346,12 +1346,12 @@ static void demux_sample_data
                         total_size += data_size;
                     }
                     int64_t progress = mpeg_api_get_sample_position( info, SAMPLE_TYPE_VIDEO, i );
-                    mapi_log( LOG_LV_PROGRESS, " [%8u]  size: %10u  total: %14" PRIu64 " byte ...[%5.2f%%]\r"
+                    mapi_log( LOG_LV_PROGRESS, " [%8u]  size: %10u  total: %14" PRIu64 " Byte ...[%5.2f%%]\r"
                                             , j, data_size, total_size, (progress * 100.0 / p->file_size) );
                 }
                 dumper_close( &(video[i]) );
                 mapi_log( LOG_LV_PROGRESS, "                                                                              \r" );
-                mapi_log( LOG_LV_PROGRESS, " Video Stream[%3u] [demux] end - output: %" PRIu64 " byte\n", i, total_size );
+                mapi_log( LOG_LV_PROGRESS, " Video Stream[%3u] [demux] end - output: %" PRIu64 " Byte\n", i, total_size );
             }
         }
         for( uint8_t i = 0; i < audio_stream_num; ++i )
@@ -1374,12 +1374,12 @@ static void demux_sample_data
                         total_size += data_size;
                     }
                     int64_t progress = mpeg_api_get_sample_position( info, SAMPLE_TYPE_AUDIO, i );
-                    mapi_log( LOG_LV_PROGRESS, " [%8u]  size: %10u  total: %14" PRIu64 " byte ...[%5.2f%%]\r"
+                    mapi_log( LOG_LV_PROGRESS, " [%8u]  size: %10u  total: %14" PRIu64 " Byte ...[%5.2f%%]\r"
                                             , j, data_size, total_size, (progress * 100.0 / p->file_size) );
                 }
                 dumper_close( &(audio[i]) );
                 mapi_log( LOG_LV_PROGRESS, "                                                                              \r" );
-                mapi_log( LOG_LV_PROGRESS, " Audio Stream[%3u] [demux] end - output: %" PRIu64 " byte\n", i, total_size );
+                mapi_log( LOG_LV_PROGRESS, " Audio Stream[%3u] [demux] end - output: %" PRIu64 " Byte\n", i, total_size );
             }
         }
     }
@@ -1414,11 +1414,11 @@ static thread_func_ret demux_stream( void *args )
             total_size += data_size;
         }
         int64_t progress = mpeg_api_get_sample_position( info, get_type, stream_number );
-        mapi_log( LOG_LV_PROGRESS, " %s Stream[%3u] [%8u]  total: %14" PRIu64 " byte ...[%5.2f%%]\r"
+        mapi_log( LOG_LV_PROGRESS, " %s Stream[%3u] [%8u]  total: %14" PRIu64 " Byte ...[%5.2f%%]\r"
                                  , stream_name, stream_number, i, total_size, (progress * 100.0 / file_size) );
     }
     mapi_log( LOG_LV_PROGRESS, "                                                                              \r" );
-    mapi_log( LOG_LV_PROGRESS, " %s Stream[%3u] [demux] end - output: %" PRIu64 " byte\n"
+    mapi_log( LOG_LV_PROGRESS, " %s Stream[%3u] [demux] end - output: %" PRIu64 " Byte\n"
                              , stream_name, stream_number, total_size );
     return (thread_func_ret)(0);
 }
@@ -1543,12 +1543,12 @@ static void demux_stream_data
                         total_size += data_size;
                     }
                     int64_t progress = mpeg_api_get_sample_position( info, SAMPLE_TYPE_VIDEO, i );
-                    mapi_log( LOG_LV_PROGRESS, " [%8u]  size: %10u  total: %14" PRIu64 " byte ...[%5.2f%%]\r"
+                    mapi_log( LOG_LV_PROGRESS, " [%8u]  size: %10u  total: %14" PRIu64 " Byte ...[%5.2f%%]\r"
                                              , j, data_size, total_size, (progress * 100.0 / p->file_size) );
                 }
                 dumper_close( &(video[i]) );
                 mapi_log( LOG_LV_PROGRESS, "                                                                              \r" );
-                mapi_log( LOG_LV_PROGRESS, " Video Stream[%3u] [demux] end - output: %" PRIu64 " byte\n", i, total_size );
+                mapi_log( LOG_LV_PROGRESS, " Video Stream[%3u] [demux] end - output: %" PRIu64 " Byte\n", i, total_size );
             }
         }
         for( uint8_t i = 0; i < audio_stream_num; ++i )
@@ -1570,12 +1570,12 @@ static void demux_stream_data
                         total_size += data_size;
                     }
                     int64_t progress = mpeg_api_get_sample_position( info, SAMPLE_TYPE_AUDIO, i );
-                    mapi_log( LOG_LV_PROGRESS, " [%8u]  size: %10u  total: %14" PRIu64 " byte ...[%5.2f%%]\r"
+                    mapi_log( LOG_LV_PROGRESS, " [%8u]  size: %10u  total: %14" PRIu64 " Byte ...[%5.2f%%]\r"
                                             , j, data_size, total_size, (progress * 100.0 / p->file_size) );
                 }
                 dumper_close( &(audio[i]) );
                 mapi_log( LOG_LV_PROGRESS, "                                                                              \r" );
-                mapi_log( LOG_LV_PROGRESS, " Audio Stream[%3u] [demux] end - output: %" PRIu64 " byte\n", i, total_size );
+                mapi_log( LOG_LV_PROGRESS, " Audio Stream[%3u] [demux] end - output: %" PRIu64 " Byte\n", i, total_size );
             }
         }
     }
@@ -1606,7 +1606,7 @@ static void demux_cb_func( void *cb_params, void *cb_ret )
     int percent = progress * 10000 / param->file_size;
     if( (percent - param->percent) > 0 )
     {
-        mapi_log( LOG_LV_PROGRESS, " %s Stream[%3u] [%8u]  total: %14" PRIu64 " byte ...[%5.2f%%]\r"
+        mapi_log( LOG_LV_PROGRESS, " %s Stream[%3u] [%8u]  total: %14" PRIu64 " Byte ...[%5.2f%%]\r"
                                  , param->stream_name, param->stream_number, param->count
                                  , (uint64_t)param->total_size, percent / 100.0 );
         param->percent = percent;
@@ -1635,7 +1635,7 @@ static thread_func_ret demux_all( void *args )
     /* finish. */
     uint64_t total_size = (uint64_t)cb_params.total_size;
     mapi_log( LOG_LV_PROGRESS, "                                                                              \r"
-                               " %s Stream[%3u] [demux] end - output: %" PRIu64 " byte\n"
+                               " %s Stream[%3u] [demux] end - output: %" PRIu64 " Byte\n"
                              , stream_name, stream_number, total_size );
     return (thread_func_ret)(0);
 }
@@ -1752,7 +1752,7 @@ static void demux_stream_all
                 uint64_t total_size = (uint64_t)cb_params.total_size;
                 dumper_close( &(video[i]) );
                 mapi_log( LOG_LV_PROGRESS, "                                                                              \r" );
-                mapi_log( LOG_LV_PROGRESS, " Video Stream[%3u] [demux] end - output: %" PRIu64 " byte\n", i, total_size );
+                mapi_log( LOG_LV_PROGRESS, " Video Stream[%3u] [demux] end - output: %" PRIu64 " Byte\n", i, total_size );
             }
         }
         for( uint8_t i = 0; i < audio_stream_num; ++i )
@@ -1766,7 +1766,7 @@ static void demux_stream_all
                 uint64_t total_size = (uint64_t)cb_params.total_size;
                 dumper_close( &(audio[i]) );
                 mapi_log( LOG_LV_PROGRESS, "                                                                              \r" );
-                mapi_log( LOG_LV_PROGRESS, " Audio Stream[%3u] [demux] end - output: %" PRIu64 " byte\n", i, total_size );
+                mapi_log( LOG_LV_PROGRESS, " Audio Stream[%3u] [demux] end - output: %" PRIu64 " Byte\n", i, total_size );
             }
         }
     }
@@ -1828,14 +1828,14 @@ static void demux_all_cb_func( void *cb_params, void *cb_ret )
     else
     {
         if( valid_size < 0 )
-            mapi_log( LOG_LV_PROGRESS, " %s Stream[%3u] [%8u]  skip: %d byte                               \n"
+            mapi_log( LOG_LV_PROGRESS, " %s Stream[%3u] [%8u]  skip: %d Byte                               \n"
                                      , stream_name, stream_number, cb_p->count, -valid_size );
         total_size = 0;
     }
     int percent = progress * 10000 / param->file_size;
     if( (percent - cb_p->percent) > 0 )
     {
-        mapi_log( LOG_LV_PROGRESS, " %s Stream[%3u] [%8u]  total: %14" PRIu64 " byte ...[%5.2f%%]\r"
+        mapi_log( LOG_LV_PROGRESS, " %s Stream[%3u] [%8u]  total: %14" PRIu64 " Byte ...[%5.2f%%]\r"
                                  , stream_name, stream_number, cb_p->count, (uint64_t)total_size, percent / 100.0 );
         cb_p->percent = percent;
     }
@@ -1912,7 +1912,7 @@ static void demux_stream_all_in_st
             if( !video[i] )
                 continue;
             dumper_close( &(video[i]) );
-            mapi_log( LOG_LV_PROGRESS, " Video Stream[%3u] [demux] done - output: %" PRIu64 " byte\n"
+            mapi_log( LOG_LV_PROGRESS, " Video Stream[%3u] [demux] done - output: %" PRIu64 " Byte\n"
                                     , i, (uint64_t)v_cb_params[i].total_size );
         }
         for( uint8_t i = 0; i < audio_stream_num; ++i )
@@ -1920,7 +1920,7 @@ static void demux_stream_all_in_st
             if( !audio[i] )
                 continue;
             dumper_close( &(audio[i]) );
-            mapi_log( LOG_LV_PROGRESS, " Audio Stream[%3u] [demux] done - output: %" PRIu64 " byte\n"
+            mapi_log( LOG_LV_PROGRESS, " Audio Stream[%3u] [demux] done - output: %" PRIu64 " Byte\n"
                                     , i, (uint64_t)a_cb_params[i].total_size );
         }
         mapi_log( LOG_LV_PROGRESS, " %s Stream [demux] end\n", output_stream_name[stream_name_index] );
@@ -1993,14 +1993,14 @@ static void split_all_cb_func( void *cb_params, void *cb_ret )
     else
     {
         if( valid_size < 0 )
-            mapi_log( LOG_LV_PROGRESS, " %s Stream[%3u] [%8u]  skip: %d byte                               \n"
+            mapi_log( LOG_LV_PROGRESS, " %s Stream[%3u] [%8u]  skip: %d Byte                               \n"
                                      , param->stream_name, stream_number, cb_p->count, -valid_size );
         total_size = 0;
     }
     int percent = progress * 10000 / param->file_size;
     if( (percent - cb_p->percent) > 0 )
     {
-        mapi_log( LOG_LV_PROGRESS, " %s Stream[%3u] [%8u]  total: %14" PRIu64 " byte ...[%5.2f%%]  \r"
+        mapi_log( LOG_LV_PROGRESS, " %s Stream[%3u] [%8u]  total: %14" PRIu64 " Byte ...[%5.2f%%]  \r"
                                  , param->stream_name, stream_number, cb_p->count, (uint64_t)total_size, percent / 100.0 );
         cb_p->percent = percent;
     }
@@ -2107,25 +2107,25 @@ static void split_stream_all
         if( p->output_stream & OUTPUT_STREAM_VIDEO )
             for( uint8_t i = 0; i < video_stream_num; ++i )
                 if(  v_cb_params[i].total_size )
-                    mapi_log( LOG_LV_PROGRESS, "   Video Stream[%3u] - output: %" PRIu64 " byte\n"
+                    mapi_log( LOG_LV_PROGRESS, "   Video Stream[%3u] - output: %" PRIu64 " Byte\n"
                                             , i, (uint64_t)v_cb_params[i].total_size );
         if( p->output_stream & OUTPUT_STREAM_AUDIO )
             for( uint8_t i = 0; i < audio_stream_num; ++i )
                 if(  a_cb_params[i].total_size )
-                    mapi_log( LOG_LV_PROGRESS, "   Audio Stream[%3u] - output: %" PRIu64 " byte\n"
+                    mapi_log( LOG_LV_PROGRESS, "   Audio Stream[%3u] - output: %" PRIu64 " Byte\n"
                                             , i, (uint64_t)a_cb_params[i].total_size );
         if( p->output_stream & OUTPUT_STREAM_CAPTION )
             for( uint8_t i = 0; i < caption_stream_num; ++i )
                 if( c_cb_params[i].total_size )
-                    mapi_log( LOG_LV_PROGRESS, " Caption Stream[%3u] - output: %" PRIu64 " byte\n"
+                    mapi_log( LOG_LV_PROGRESS, " Caption Stream[%3u] - output: %" PRIu64 " Byte\n"
                                             , i, (uint64_t)c_cb_params[i].total_size );
         if( p->output_stream & OUTPUT_STREAM_DSMCC )
             for( uint8_t i = 0; i < dsmcc_stream_num; ++i )
                 if( d_cb_params[i].total_size )
-                    mapi_log( LOG_LV_PROGRESS, "   DSMCC Stream[%3u] - output: %" PRIu64 " byte\n"
+                    mapi_log( LOG_LV_PROGRESS, "   DSMCC Stream[%3u] - output: %" PRIu64 " Byte\n"
                                             , i, (uint64_t)d_cb_params[i].total_size );
         dumper_close( &split_file );
-        mapi_log( LOG_LV_PROGRESS, " %s Stream [split] done - output: %" PRIu64 " byte\n"
+        mapi_log( LOG_LV_PROGRESS, " %s Stream [split] done - output: %" PRIu64 " Byte\n"
                                 , output_stream_name[stream_name_index], (uint64_t)cb_params.total_size );
         mapi_log( LOG_LV_PROGRESS, " %s Stream [split] end\n", output_stream_name[stream_name_index] );
     }
@@ -2179,8 +2179,8 @@ static void parse_mpeg( param_t *p )
         uint8_t audio_stream_num   = mpeg_api_get_stream_num( info, SAMPLE_TYPE_AUDIO   );
         uint8_t caption_stream_num = mpeg_api_get_stream_num( info, SAMPLE_TYPE_CAPTION );
         uint8_t dsmcc_stream_num   = mpeg_api_get_stream_num( info, SAMPLE_TYPE_DSMCC   );
-        mapi_log( LOG_LV_OUTPUT, "[log] stream_num:  Video:%4u  Audio:%4u  Caption:%4u\n", video_stream_num, audio_stream_num, caption_stream_num );
-        if( !video_stream_num && !audio_stream_num /* && !caption_stream_num */ )
+        mapi_log( LOG_LV_OUTPUT, "[log] stream_num:  Video:%4u  Audio:%4u  Caption:%4u  DSM-CC:%4u\n", video_stream_num, audio_stream_num, caption_stream_num, dsmcc_stream_num );
+        if( !video_stream_num && !audio_stream_num /* && !caption_stream_num && !dsmcc_stream_num */ )
             goto end_parse;
         /* check for pipe output. */
         if( p->output_dst & OUTPUT_TO_PIPE )
