@@ -2386,6 +2386,10 @@ extern mpeg_stream_group_type mpeg_stream_judge_type
                         stream_judge = STREAM_IS_ARIB_CAPTION;          /* 0x30: default, 0x31-0x37: non-default */
                     else if( 0x38 <= component_tag && component_tag <= 0x3F )
                         stream_judge = STREAM_IS_ARIB_STRING_SUPER;     /* 0x38: default, 0x39-0x3F: non-default */
+                    else if( component_tag == 0x87 )
+                        stream_judge = STREAM_IS_ARIB_CAPTION;          /* 0x87: ARIB Caption for 1seg */
+                    else if( component_tag == 0x88 )
+                        stream_judge = STREAM_IS_ARIB_STRING_SUPER;     /* 0x88: ARIB String Super for 1seg */
                 }
                 if( stream_judge != STREAM_IS_UNKNOWN )
                     break;
