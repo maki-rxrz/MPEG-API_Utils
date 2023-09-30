@@ -753,8 +753,8 @@ static int mpegts_parse_pat( mpegts_info_t *info )
     mapi_log( LOG_LV2, "[check] file position:%" PRId64 "\n", read_pos );
     /* setup and prepare buffer. */
     info->pat_ctx.packet_num     = psi_packet_num;
-    info->pat_ctx.packet_buffer  = (uint8_t *)malloc( info->tsf_ctx.packet_size * (psi_packet_num + TS_PSI_PACKET_NUM_CHECK_MARGIN) );      // info->tsf_ctx.packet_size or TS_PACKET_SIZE
-    info->pat_ctx.section_buffer = (uint8_t *)malloc( TS_PACKET_TABLE_SECTION_SIZE_MAX );
+    info->pat_ctx.packet_buffer  = (uint8_t *)malloc( info->tsf_ctx.packet_size * (psi_packet_num + TS_PSI_PACKET_NUM_CHECK_MARGIN) * pid_list_num );       // info->tsf_ctx.packet_size or TS_PACKET_SIZE
+    info->pat_ctx.section_buffer = (uint8_t *)malloc( TS_PACKET_TABLE_SECTION_SIZE_MAX * pid_list_num );
     info->pat_ctx.cache_buffer   = (uint8_t *)malloc( TS_PACKET_TABLE_SECTION_SIZE_MAX );
     if( !info->pat_ctx.packet_buffer || !info->pat_ctx.section_buffer || !info->pat_ctx.cache_buffer )
     {
@@ -1982,6 +1982,20 @@ static int mpegts_malloc_stream_parse_ctx
     return 0;
 }
 
+static tsp_psi_ctx_t *mpegts_get_pmt_ctx( mpegts_info_t *info, uint16_t program_id )
+{
+    if( info->pmt_ctx_index < info->pat_ctx.pid_list_num )
+    {
+        if( program_id == info->pmt_ctx[info->pmt_ctx_index].pmt_program_id )
+            return &(info->pmt_ctx[info->pmt_ctx_index]);
+    }
+    else
+        for( int32_t i = 0; i < info->pat_ctx.pid_list_num; ++i )
+            if( program_id == info->pmt_ctx[i].pmt_program_id )
+                return &(info->pmt_ctx[i]);
+    return NULL;
+}
+
 static inline uint16_t get_output_stream_nums( output_stream_type output, uint8_t v_num, uint8_t a_num, uint8_t c_num, uint8_t d_num )
 {
     return ((output & OUTPUT_STREAM_VIDEO  ) ? v_num : 0)
@@ -2081,11 +2095,23 @@ static int mpegts_update_psi
     if( read_count < section_total )
         return -1;
     /* check if update is necessary. */
+    int32_t index_start = 0;
+    int32_t output_num  = 1;
     if( program_id == TS_PID_PAT )
     {
         /* PAT */
         if( psi_ctx->pid_list_num == 1 )
             return 1;
+        if( info->pmt_ctx_index == psi_ctx->pid_list_num )
+        {
+          //index_start = 0;
+            output_num  = psi_ctx->pid_list_num;
+        }
+        else
+        {
+            index_start = info->pmt_ctx_index;
+          //output_num  = 1;
+        }
     }
     else if( program_id == TS_PID_CAT )
     {
@@ -2102,6 +2128,7 @@ static int mpegts_update_psi
     }
     else
         return 0;
+    int32_t index_max = index_start + output_num;
     /* buffering section data. */
   //uint8_t section_buffer[TS_PACKET_TABLE_SECTION_SIZE_MAX];
     uint8_t *section_buffer = psi_ctx->cache_buffer;
@@ -2134,25 +2161,39 @@ static int mpegts_update_psi
     {
         /* copy section information. */
         int write_count = section_header_length + prg_inf_length;
-        memcpy( psi_ctx->section_buffer, section_buffer, write_count );
+        for( int32_t i = index_start; i < index_max; ++i )
+        {
+            uint8_t *write_buffer = &(psi_ctx->section_buffer[TS_PACKET_TABLE_SECTION_SIZE_MAX * i]);
+            memcpy( write_buffer, section_buffer, write_count );
+        }
         read_count = write_count;
         /* update section data. */
         if( program_id == TS_PID_PAT )
         {
             /* PAT */
-            while( read_count < section_total - CRC32_SIZE )
+            int r_counts[index_max];
+            int w_counts[index_max];
+            for( int32_t i = index_start; i < index_max; ++i )
             {
-                uint8_t *section_data   = &(section_buffer[read_count]);
-                uint16_t program_number =  (section_data[0] << 8) | section_data[1];
-                uint16_t pmt_program_id = ((section_data[2] & 0x1F) << 8) | section_data[3];
-                if( program_number == 0 || pmt_program_id == info->pmt_ctx[info->pmt_ctx_index].pmt_program_id )     // FIXME: multi PMT
+                uint8_t *write_buffer = &(psi_ctx->section_buffer[TS_PACKET_TABLE_SECTION_SIZE_MAX * i]);
+                r_counts[i] = read_count;
+                w_counts[i] = write_count;
+                while( r_counts[i] < section_total - CRC32_SIZE )
                 {
-                    memcpy( &(psi_ctx->section_buffer[write_count]), &(section_buffer[read_count]), TS_PACKET_PAT_SECTION_DATA_SIZE );
-                    write_count += TS_PACKET_PAT_SECTION_DATA_SIZE;
+                    uint8_t *section_data   = &(section_buffer[r_counts[i]]);
+                    uint16_t program_number =  (section_data[0] << 8) | section_data[1];
+                    uint16_t pmt_program_id = ((section_data[2] & 0x1F) << 8) | section_data[3];
+                    if( program_number == 0 || pmt_program_id == info->pmt_ctx[i].pmt_program_id )
+                    {
+                        memcpy( &(write_buffer[w_counts[i]]), &(section_buffer[r_counts[i]]), TS_PACKET_PAT_SECTION_DATA_SIZE );
+                        w_counts[i] += TS_PACKET_PAT_SECTION_DATA_SIZE;
+                    }
+                    /* seek next section. */
+                    r_counts[i] += TS_PACKET_PAT_SECTION_DATA_SIZE;
                 }
-                /* seek next section. */
-                read_count += TS_PACKET_PAT_SECTION_DATA_SIZE;
             }
+            read_count  = r_counts[index_start];
+            write_count = w_counts[index_start];
         }
 #if 0
         else if( program_id == TS_PID_CAT )
@@ -2200,41 +2241,58 @@ static int mpegts_update_psi
                 read_count += TS_PACKET_PMT_SECTION_DATA_SIZE + ES_info_length;
             }
         }
-        /* update section length. */
-        psi_ctx->section_length    = write_count - 3 + CRC32_SIZE;
-        psi_ctx->section_buffer[1] = (section_buffer[1] & 0xF0) | psi_ctx->section_length >> 8;
-        psi_ctx->section_buffer[2] =  psi_ctx->section_length & 0xFF;
-        /* update CRC32. */
-        uint32_t new_crc = calc_crc32( psi_ctx->section_buffer, write_count );
-        for( int i = 0; i < CRC32_SIZE; ++i )
-            psi_ctx->section_buffer[write_count + i] = (new_crc >> (32 - 8 * (i + 1))) & 0xFF;
+        /* update section information. */
+        psi_ctx->section_length = write_count - 3 + CRC32_SIZE;
+        for( int32_t i = index_start; i < index_max; ++i )
+        {
+            uint8_t *write_buffer = &(psi_ctx->section_buffer[TS_PACKET_TABLE_SECTION_SIZE_MAX * i]);
+            /* section length. */
+            write_buffer[1] = (section_buffer[1] & 0xF0) | psi_ctx->section_length >> 8;
+            write_buffer[2] =  psi_ctx->section_length & 0xFF;
+            /* CRC32. */
+            uint32_t new_crc = calc_crc32( write_buffer, write_count );
+            for( int i = 0; i < CRC32_SIZE; ++i )
+                write_buffer[write_count + i] = (new_crc >> (32 - 8 * (i + 1))) & 0xFF;
+        }
         /* save original CRC32 for update check. */
         memcpy( psi_ctx->origin_crc32, &(section_buffer[crc32_pos]), CRC32_SIZE );
     }
     /* update ts packets. */
     section_total = psi_ctx->section_length + 3;        /* 3: section_header[0]-[2] */
-    read_count    = 0;
-    read_pos      = section_start;
-    for( int i = 1; read_pos < psi_ctx->packet_cache_size; ++i )
+    for( int32_t i = index_start; i < index_max; ++i )
     {
-        int payload_size = TS_PACKET_SIZE * i - read_pos;
-        if( read_count < section_total )
+        uint8_t *read_buffer  = &(psi_ctx->section_buffer[TS_PACKET_TABLE_SECTION_SIZE_MAX * i]);
+        uint8_t *write_buffer = &(psi_ctx->packet_buffer[info->tsf_ctx.packet_size * (psi_ctx->packet_num + TS_PSI_PACKET_NUM_CHECK_MARGIN) * i]);
+        if( i > 0)
         {
-            int rest_size = section_total - read_count;
-            if( payload_size > rest_size )
+            /* copy ts packet header. */
+            memcpy( write_buffer, psi_ctx->packet_buffer, section_start );
+            for( int packet_count = 1; packet_count < psi_ctx->packet_cache_count; ++packet_count )
+                memcpy( &(write_buffer[TS_PACKET_SIZE * packet_count]), &(psi_ctx->packet_buffer[TS_PACKET_SIZE * packet_count]), TS_PACKET_HEADER_SIZE );
+        }
+        read_count = 0;
+        read_pos   = section_start;
+        for( int packet_count = 1; read_pos < psi_ctx->packet_cache_size; ++packet_count )
+        {
+            int payload_size = TS_PACKET_SIZE * packet_count - read_pos;
+            if( read_count < section_total )
             {
-                memcpy( &(psi_ctx->packet_buffer[read_pos]), &(psi_ctx->section_buffer[read_count]), rest_size );
-                memset( &(psi_ctx->packet_buffer[read_pos + rest_size]), 0xFF, payload_size - rest_size );
+                int rest_size = section_total - read_count;
+                if( payload_size > rest_size )
+                {
+                    memcpy( &(write_buffer[read_pos]), &(read_buffer[read_count]), rest_size );
+                    memset( &(write_buffer[read_pos + rest_size]), 0xFF, payload_size - rest_size );
+                }
+                else
+                    memcpy( &(write_buffer[read_pos]), &(read_buffer[read_count]), payload_size );
+                read_count += payload_size;
             }
             else
-                memcpy( &(psi_ctx->packet_buffer[read_pos]), &(psi_ctx->section_buffer[read_count]), payload_size );
-            read_count += payload_size;
+                memset( &(write_buffer[read_pos]), 0xFF, payload_size );
+            read_pos += payload_size;
+            /* seek next packet payload data. */
+            read_pos += TS_PACKET_HEADER_SIZE;
         }
-        else
-            memset( &(psi_ctx->packet_buffer[read_pos]), 0xFF, payload_size );
-        read_pos += payload_size;
-        /* seek next packet payload data. */
-        read_pos += TS_PACKET_HEADER_SIZE;
     }
     return 0;
 }
@@ -2500,11 +2558,12 @@ static int get_specific_stream_data
         {
             if( h.program_id < MPEGTS_PID_RESERVED_CHECK_VALUE )
                 break;
-            /* PMT, PCR, ECM, EMM */
-            if( h.program_id == psi_ctx->pmt_program_id
-          /* || h.program_id == psi_ctx->pcr_program_id */
-             || h.program_id == psi_ctx->ecm_program_id
+            /* ECM, EMM */
+            if( h.program_id == psi_ctx->ecm_program_id
              || h.program_id == info->emm_program_id )
+                break;
+            /* PMT */
+            if( mpegts_get_pmt_ctx( info, h.program_id ) )
                 break;
         }
         /* check the target stream. */
@@ -2612,6 +2671,7 @@ static int get_specific_stream_data
         };
         uint8_t *buffer = NULL;
         /* check PSI update. */
+        int cb_num = 0;
         int output = OUTPUT_READ;
         if( /* psi_required && */ sample_type == SAMPLE_TYPE_PSI )
         {
@@ -2624,13 +2684,20 @@ static int get_specific_stream_data
         {
             psi_ctx = NULL;
             if( h.program_id == TS_PID_PAT )
+            {
+                /* PAT */
                 psi_ctx = &(info->pat_ctx);
+                if( psi_ctx->pid_list_num > 1 )
+                    cb_num = (info->pmt_ctx_index == psi_ctx->pid_list_num) ? psi_ctx->pid_list_num : 1;
+            }
 #if 0
             else if( h.program_id == TS_PID_CAT )
+                /* CAT */
                 psi_ctx = &(info->cat_ctx);
 #endif
-            else if( h.program_id == psi_ctx->pmt_program_id )      // FIXME: multi PMT
-                psi_ctx = &(info->pmt_ctx[info->pmt_ctx_index]);
+            else
+                /* PMT */
+                psi_ctx = mpegts_get_pmt_ctx( info, h.program_id );
             if( psi_ctx )
             {
                 /* cache packet. */
@@ -2672,9 +2739,25 @@ static int get_specific_stream_data
                 .buffer        = buffer,
                 .read_size     = read_size,
                 .read_offset   = read_offset,
-                .progress      = mpegts_ftell( tsf_ctx )
+                .progress      = mpegts_ftell( tsf_ctx ),
+                .service_id    = 0
             };
-            cb->func( cb->params, (void *)&cb_ret );
+            if( cb_num > 1 )
+            {
+                for( int i = 0; i < cb_num; ++i )
+                {
+                    cb_ret.buffer     = &(buffer[info->tsf_ctx.packet_size * (info->pat_ctx.packet_num + TS_PSI_PACKET_NUM_CHECK_MARGIN) * i]);
+                    cb_ret.service_id = info->pat_ctx.pid_list[i].program_number;
+                    cb->func( cb->params, (void *)&cb_ret );
+                }
+            }
+            else
+            {
+                if( cb_num == 1 )
+                    cb_ret.buffer = &(buffer[info->tsf_ctx.packet_size * (info->pat_ctx.packet_num + TS_PSI_PACKET_NUM_CHECK_MARGIN) * info->pmt_ctx_index]);
+                cb_ret.service_id = info->pat_ctx.pid_list[info->pmt_ctx_index].program_number;
+                cb->func( cb->params, (void *)&cb_ret );
+            }
         }
     }
     /* seek next. */

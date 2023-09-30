@@ -199,6 +199,7 @@ typedef struct {
     uint32_t          read_size;
     int32_t           read_offset;
     int64_t           progress;
+    uint16_t          service_id;
 } get_stream_data_cb_ret_t;
 
 #define BYTE_DATA_SHIFT( data, size )           \
