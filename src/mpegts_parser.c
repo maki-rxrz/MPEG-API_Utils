@@ -101,24 +101,9 @@ typedef struct {
     uint8_t                     origin_crc32[CRC32_SIZE];
     int32_t                     pid_list_num;
     mpegts_pid_info_t          *pid_list;
-} mpegts_psi_ctx_t;
-
-typedef struct {
-    parser_status_type          status;
-    char                       *mpegts;
-    int64_t                     file_size;
-    int64_t                     buffer_size;
-    mpegts_file_ctx_t           tsf_ctx;
-    mpegts_psi_ctx_t            pat_ctx;
-    mpegts_psi_ctx_t            cat_ctx;
-    mpegts_psi_ctx_t            pmt_ctx;
-    uint32_t                    packet_check_retry_num;
-    uint16_t                    specified_service_id;
-    uint16_t                    specified_pmt_program_id;
     uint16_t                    pmt_program_id;
     uint16_t                    pcr_program_id;
     uint16_t                    ecm_program_id;
-    uint16_t                    emm_program_id;
     mpegts_stream_ctx_t        *video_stream;
     mpegts_stream_ctx_t        *audio_stream;
     mpegts_stream_ctx_t        *caption_stream;
@@ -133,6 +118,22 @@ typedef struct {
 #endif
     int64_t                     start_pcr;
     int64_t                     last_pcr;
+} mpegts_psi_ctx_t;
+
+typedef struct {
+    parser_status_type          status;
+    char                       *mpegts;
+    int64_t                     file_size;
+    int64_t                     buffer_size;
+    mpegts_file_ctx_t           tsf_ctx;
+    mpegts_psi_ctx_t            pat_ctx;
+    mpegts_psi_ctx_t            cat_ctx;
+    mpegts_psi_ctx_t           *pmt_ctx;
+    int32_t                     pmt_ctx_index;
+    uint32_t                    packet_check_retry_num;
+    uint16_t                    specified_service_id;
+    uint16_t                    specified_pmt_program_id;
+    uint16_t                    emm_program_id;
     pmt_target_type             pmt_target;
     mpeg_descriptor_info_t     *descriptor_info;
 } mpegts_info_t;
@@ -653,21 +654,16 @@ static int mpegts_get_table_section_data
 static int mpegts_set_user_specified_pmt( mpegts_info_t *info, uint16_t program_id )
 {
     /* search in PAT. */
-    int i;
-    for( i = 0; i < info->pat_ctx.pid_list_num; ++i )
-        if( info->pat_ctx.pid_list[i].program_id == program_id )
+    int32_t pmt_ctx_index;
+    for( pmt_ctx_index = 0; pmt_ctx_index < info->pat_ctx.pid_list_num; ++pmt_ctx_index )
+        if( info->pat_ctx.pid_list[pmt_ctx_index].program_id == program_id )
             break;
-    if( i == info->pat_ctx.pid_list_num )
+    if( pmt_ctx_index == info->pat_ctx.pid_list_num )
         return -1;
-    /* sort. */
-    if( i > 0 )
-    {
-        mpegts_pid_info_t target_info = info->pat_ctx.pid_list[i];
-        for( int j = i; j > 0; --j )
-            info->pat_ctx.pid_list[j] = info->pat_ctx.pid_list[j - 1];
-        info->pat_ctx.pid_list[0] = target_info;
-        return 1;
-    }
+    if( info->pat_ctx.pid_list[pmt_ctx_index].program_number == 0 )
+        return -1;
+    /* setup active PMT. */
+    info->pmt_ctx_index = pmt_ctx_index;
     return 0;
 }
 
@@ -780,26 +776,6 @@ static int mpegts_parse_pat( mpegts_info_t *info )
         free( info->pat_ctx.pid_list );
         info->pat_ctx.pid_list = NULL;
         return -1;
-    }
-    /* check user specified IDs. */
-    uint16_t target_pmt_pid = TS_PID_ERR;
-    if( info->specified_service_id )
-    {
-        /* search target PID. */
-        target_pmt_pid = mpegts_get_pmt_pid_from_sid( info, info->specified_service_id );
-        info->specified_service_id = 0;
-    }
-    if( target_pmt_pid == TS_PID_ERR && info->specified_pmt_program_id != TS_PID_ERR )
-        target_pmt_pid = info->specified_pmt_program_id;
-    if( target_pmt_pid != TS_PID_ERR )
-    {
-        /* setup specified PMT PID. */
-        int result = mpegts_set_user_specified_pmt( info, target_pmt_pid );
-        if( result == -1 )
-            mapi_log( LOG_LV2, "[check] illegal pmt_PID:0x%04X is specified. using PID in PAT.\n", target_pmt_pid );
-        else if( result == 1 )
-            mapi_log( LOG_LV2, "[check] using pmt_PID:0x%04X\n", target_pmt_pid );
-        info->specified_pmt_program_id = TS_PID_ERR;
     }
     /* seek next. */
     mpegts_file_seek( &(info->tsf_ctx), 0, MPEGTS_SEEK_NEXT );
@@ -951,41 +927,25 @@ fail_parse:
     return -1;
 }
 
-static int mpegts_search_pmt_packet( mpegts_info_t *info, tsp_pmt_si_t *pmt_si )
+static int mpegts_search_pmt_packet( mpegts_info_t *info, tsp_pmt_si_t *pmt_si, int32_t pid_list_index )
 {
     /* search. */
     tsp_header_t h;
     uint8_t section_header[TS_PID_PMT_SECTION_HEADER_SIZE];
-    int32_t pid_list_index = -1;
-    int64_t start_position = mpegts_ftell( &(info->tsf_ctx) );
     do
-    {
-        mpegts_file_seek( &(info->tsf_ctx), start_position, MPEGTS_SEEK_RESET );
-        ++pid_list_index;
-        if( pid_list_index >= info->pat_ctx.pid_list_num )
+        if( mpegts_get_table_section_header( &(info->tsf_ctx), &h, info->pat_ctx.pid_list[pid_list_index].program_id
+                                           , section_header, TS_PID_PMT_SECTION_HEADER_SIZE ) )
             return -1;
-        do
-        {
-            if( 0 > mpegts_get_table_section_header( &(info->tsf_ctx), &h, info->pat_ctx.pid_list[pid_list_index].program_id
-                                                   , section_header, TS_PID_PMT_SECTION_HEADER_SIZE ) )
-                break;
-        }
-        while( section_header[0] != PSI_TABLE_ID_PMT );
-    }
     while( section_header[0] != PSI_TABLE_ID_PMT );
-    /* setup PMT PID. */
-    info->pmt_program_id = h.program_id;
     /* setup header data. */
     tsp_parse_pmt_header( section_header, pmt_si );
     show_pmt_section_info( pmt_si );
-    /* setup PCR PID. */
-    info->pcr_program_id = pmt_si->pcr_program_id;
     return 0;
 }
 
 #define PMT_PARSE_COUNT_NUM     (9)
 
-static int mpegts_parse_pmt( mpegts_info_t *info )
+static int mpegts_parse_pmt( mpegts_info_t *info, int32_t pmt_ctx_index )
 {
     mapi_log( LOG_LV2, "[check] %s()\n", __func__ );
     int64_t read_pos = -1;
@@ -994,6 +954,7 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
     if( !buffer_data )
         return -1;
     /* search. */
+    uint16_t pmt_program_id = TS_PID_ERR, pcr_program_id = TS_PID_ERR;
     tsp_pmt_si_t pmt_si;
     uint8_t  pmt_packet_num[PMT_PARSE_COUNT_NUM]  = { 0 };
     int      prg_inf_lengths[PMT_PARSE_COUNT_NUM] = { 0 };
@@ -1014,13 +975,14 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
         while( retry_count )
         {
             --retry_count;
-            if( mpegts_search_pmt_packet( info, &pmt_si ) )
+            if( mpegts_search_pmt_packet( info, &pmt_si, pmt_ctx_index ) )
             {
-                if( i == 0 )
-                    goto fail_parse;
                 retry_count = 0;
                 break;
             }
+            /* get PMT/PCR PID. */
+            pmt_program_id = info->pat_ctx.pid_list[pmt_ctx_index].program_id;
+            pcr_program_id = pmt_si.pcr_program_id;
             /* get section length. */
             section_length = pmt_si.section_length - 9;     /* 9: section_header[3]-[11] */
             prg_inf_length = pmt_si.program_info_length;
@@ -1028,13 +990,13 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
             /* check file position. */
             read_pos = info->tsf_ctx.read_position;
             /* buffering section data. */
-            if( mpegts_get_table_section_data( &(info->tsf_ctx), info->pmt_program_id, section_buffers[i], section_length, &psi_packet_num ) )
+            if( mpegts_get_table_section_data( &(info->tsf_ctx), pmt_program_id, section_buffers[i], section_length, &psi_packet_num ) )
                 continue;
             /* check pid list num. */
             int32_t pid_list_num = 0, read_count = prg_inf_length;
             while( read_count < section_length - CRC32_SIZE )
             {
-                uint8_t *section_data = &(section_buffers[i][read_count]);
+                uint8_t *section_data   = &(section_buffers[i][read_count]);
                 uint16_t ES_info_length = ((section_data[3] & 0x0F) << 8) | section_data[4];
                 /* seek next section. */
                 read_count += TS_PACKET_PMT_SECTION_DATA_SIZE + ES_info_length;
@@ -1045,19 +1007,21 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
             section_pid_num[i] = pid_list_num;
             break;
         }
-        if( !retry_count )
+        if( retry_count )
         {
-            if( i == 0 )
-                goto fail_parse;
-            break;
+            if( reset_position < 0 )
+                reset_position = read_pos;
+            section_lengths[i] = section_length;
+            prg_inf_lengths[i] = prg_inf_length;
+            pmt_packet_num[i]  = psi_packet_num;
         }
-        if( i == 0 )
-            reset_position = read_pos;
-        section_lengths[i] = section_length;
-        prg_inf_lengths[i] = prg_inf_length;
-        pmt_packet_num[i]  = psi_packet_num;
         /* seek next. */
         mpegts_file_seek( &(info->tsf_ctx), read_pos + check_offset, MPEGTS_SEEK_RESET );
+    }
+    if( reset_position < 0 )
+    {
+        free( buffer_data );
+        return 1;
     }
     mpegts_file_seek( &(info->tsf_ctx), reset_position, MPEGTS_SEEK_RESET );
     read_pos = reset_position;
@@ -1068,8 +1032,10 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
         int         count;
         int         target;
     } target_candidate[PMT_PARSE_COUNT_NUM] = { { 0 } };
-    for( int i = 0; i < PMT_PARSE_COUNT_NUM && section_lengths[i]; ++i )
+    for( int i = 0; i < PMT_PARSE_COUNT_NUM; ++i )
     {
+        if( section_lengths[i] == 0 )
+            continue;
         int crc_pos = section_lengths[i] - CRC32_SIZE;
         uint32_t crc32 = 0;
         for( int j = 0; j < CRC32_SIZE; ++j )
@@ -1110,9 +1076,10 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
     int      pid_num_in_pmt = section_pid_num[target_pmt];
     uint8_t  psi_packet_num = pmt_packet_num[target_pmt];
     /* listup. */
-    info->pmt_ctx.pid_list_num = pid_num_in_pmt;
-    info->pmt_ctx.pid_list     = (mpegts_pid_info_t *)malloc( sizeof(mpegts_pid_info_t) * pid_num_in_pmt );
-    if( !info->pmt_ctx.pid_list )
+    tsp_psi_ctx_t *psi_ctx = &(info->pmt_ctx[pmt_ctx_index]);
+    psi_ctx->pid_list_num = pid_num_in_pmt;
+    psi_ctx->pid_list     = (mpegts_pid_info_t *)malloc( sizeof(mpegts_pid_info_t) * pid_num_in_pmt );
+    if( !psi_ctx->pid_list )
         goto fail_parse;
     int32_t pid_list_num = 0, read_count = 0;
     mpeg_descriptor_info_t *descriptor_info = info->descriptor_info;
@@ -1123,8 +1090,8 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
         uint16_t  descriptor_num  = 0;
         if( mpegts_parse_descriptor( descriptor_data, prg_inf_length, descriptor_info, &descriptor_num ) )
             goto fail_parse;
-        if( !mpegts_get_ca_pid_from_descriptor( descriptor_info, descriptor_num, &(info->ecm_program_id) ) )
-            mapi_log( LOG_LV2, "[check] ecm_PID:0x%04X\n", info->ecm_program_id );
+        if( !mpegts_get_ca_pid_from_descriptor( descriptor_info, descriptor_num, &(psi_ctx->ecm_program_id) ) )
+            mapi_log( LOG_LV2, "[check] ecm_PID:0x%04X\n", psi_ctx->ecm_program_id );
         read_count += prg_inf_length;
     }
     while( read_count < section_length - CRC32_SIZE )
@@ -1144,10 +1111,10 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
         if( mpegts_parse_descriptor( descriptor_data, ES_info_length, descriptor_info, &descriptor_num ) )
             goto fail_parse;
         /* setup stream type and PID. */
-        info->pmt_ctx.pid_list[pid_list_num].stream_judge    = mpeg_stream_judge_type( stream_type, descriptor_num, descriptor_info );
-        info->pmt_ctx.pid_list[pid_list_num].stream_type     = stream_type;
-        info->pmt_ctx.pid_list[pid_list_num].program_id      = elementary_PID;
-        info->pmt_ctx.pid_list[pid_list_num].reg_stream_type = mpeg_stream_get_registration_stream_type( descriptor_info );
+        psi_ctx->pid_list[pid_list_num].stream_judge    = mpeg_stream_judge_type( stream_type, descriptor_num, descriptor_info );
+        psi_ctx->pid_list[pid_list_num].stream_type     = stream_type;
+        psi_ctx->pid_list[pid_list_num].program_id      = elementary_PID;
+        psi_ctx->pid_list[pid_list_num].reg_stream_type = mpeg_stream_get_registration_stream_type( descriptor_info );
         /* seek next section. */
         read_count += ES_info_length;
         ++pid_list_num;
@@ -1159,29 +1126,31 @@ static int mpegts_parse_pmt( mpegts_info_t *info )
     mapi_log( LOG_LV2, "[check] CRC32:%s\n", crc32_str );
     mapi_log( LOG_LV2, "[check] file position:%" PRId64 "\n", read_pos );
     /* setup and prepare buffer. */
-    info->pmt_ctx.packet_num     = psi_packet_num;
-    info->pmt_ctx.packet_buffer  = (uint8_t *)malloc( info->tsf_ctx.packet_size * (psi_packet_num + TS_PSI_PACKET_NUM_CHECK_MARGIN) );      // info->tsf_ctx.packet_size or TS_PACKET_SIZE
-    info->pmt_ctx.section_buffer = (uint8_t *)malloc( TS_PACKET_TABLE_SECTION_SIZE_MAX );
-    info->pmt_ctx.cache_buffer   = (uint8_t *)malloc( TS_PACKET_TABLE_SECTION_SIZE_MAX );
-    if( !info->pmt_ctx.packet_buffer || !info->pmt_ctx.section_buffer || !info->pmt_ctx.cache_buffer )
+    psi_ctx->pmt_program_id = pmt_program_id;
+    psi_ctx->pcr_program_id = pcr_program_id;
+    psi_ctx->packet_num     = psi_packet_num;
+    psi_ctx->packet_buffer  = (uint8_t *)malloc( info->tsf_ctx.packet_size * (psi_packet_num + TS_PSI_PACKET_NUM_CHECK_MARGIN) );       // info->tsf_ctx.packet_size or TS_PACKET_SIZE
+    psi_ctx->section_buffer = (uint8_t *)malloc( TS_PACKET_TABLE_SECTION_SIZE_MAX );
+    psi_ctx->cache_buffer   = (uint8_t *)malloc( TS_PACKET_TABLE_SECTION_SIZE_MAX );
+    if( !psi_ctx->packet_buffer || !psi_ctx->section_buffer || !psi_ctx->cache_buffer )
     {
-        if( info->pmt_ctx.packet_buffer )
+        if( psi_ctx->packet_buffer )
         {
-            free( info->pmt_ctx.packet_buffer );
-            info->pmt_ctx.packet_buffer = NULL;
+            free( psi_ctx->packet_buffer );
+            psi_ctx->packet_buffer = NULL;
         }
-        if( info->pmt_ctx.section_buffer )
+        if( psi_ctx->section_buffer )
         {
-            free( info->pmt_ctx.section_buffer );
-            info->pmt_ctx.section_buffer = NULL;
+            free( psi_ctx->section_buffer );
+            psi_ctx->section_buffer = NULL;
         }
-        if( info->pmt_ctx.cache_buffer )
+        if( psi_ctx->cache_buffer )
         {
-            free( info->pmt_ctx.cache_buffer );
-            info->pmt_ctx.cache_buffer = NULL;
+            free( psi_ctx->cache_buffer );
+            psi_ctx->cache_buffer = NULL;
         }
-        free( info->pmt_ctx.pid_list );
-        info->pmt_ctx.pid_list = NULL;
+        free( psi_ctx->pid_list );
+        psi_ctx->pid_list = NULL;
         goto fail_parse;
     }
     /* seek next. */
@@ -1196,11 +1165,12 @@ fail_parse:
     return -1;
 }
 
-static int mpegts_get_pcr( mpegts_info_t *info, int64_t *pcr )
+static int mpegts_get_pcr( mpegts_info_t *info, int64_t *pcr, uint32_t pmt_ctx_index )
 {
     mapi_log( LOG_LV2, "[check] %s()\n", __func__ );
     *pcr = MPEG_TIMESTAMP_INVALID_VALUE;
-    uint16_t program_id = info->pcr_program_id;
+    tsp_psi_ctx_t *psi_ctx    = &(info->pmt_ctx[pmt_ctx_index]);
+    uint16_t       program_id = psi_ctx->pcr_program_id;
     if( program_id & MPEGTS_ILLEGAL_PROGRAM_ID_MASK )
         return -1;
     int64_t read_pos = -1;
@@ -1255,12 +1225,13 @@ static int mpegts_get_pcr( mpegts_info_t *info, int64_t *pcr )
     return 0;
 }
 
-static int mpegts_parse_pcr( mpegts_info_t *info )
+static int mpegts_parse_pcr( mpegts_info_t *info, int32_t pmt_ctx_index )
 {
     mapi_log( LOG_LV2, "[check] %s()\n", __func__ );
+    tsp_psi_ctx_t *psi_ctx = &(info->pmt_ctx[pmt_ctx_index]);
     int64_t reset_position = mpegts_ftell( &(info->tsf_ctx) );
     /* get start pcr. */
-    if( mpegts_get_pcr( info, &(info->start_pcr) ) )
+    if( mpegts_get_pcr( info, &(psi_ctx->start_pcr), pmt_ctx_index ) )
         return -1;
     /* get last pcr. */
     int64_t start_position = info->tsf_ctx.read_position;
@@ -1276,24 +1247,24 @@ static int mpegts_parse_pcr( mpegts_info_t *info )
         {
             mpegts_file_seek( &(info->tsf_ctx), start_position + seek_offset, MPEGTS_SEEK_RESET );
             tsp_header_t h;
-            if( mpegts_search_program_id_packet( &(info->tsf_ctx), &h, info->pcr_program_id ) )
+            if( mpegts_search_program_id_packet( &(info->tsf_ctx), &h, psi_ctx->pcr_program_id ) )
                 continue;
             mpegts_file_seek( &(info->tsf_ctx), -(info->tsf_ctx.packet_size), MPEGTS_SEEK_CUR );
         }
         else
         {
             mpegts_file_seek( &(info->tsf_ctx), start_position + info->tsf_ctx.packet_size, MPEGTS_SEEK_RESET );
-            info->last_pcr = info->start_pcr;
+            psi_ctx->last_pcr = psi_ctx->start_pcr;
         }
         /* search last pcr. */
-        while( !mpegts_get_pcr( info, &last_pcr ) )
-            info->last_pcr = last_pcr;
+        while( !mpegts_get_pcr( info, &last_pcr, pmt_ctx_index ) )
+            psi_ctx->last_pcr = last_pcr;
     }
-    while( info->last_pcr == (int64_t)MPEG_TIMESTAMP_INVALID_VALUE );
+    while( psi_ctx->last_pcr == (int64_t)MPEG_TIMESTAMP_INVALID_VALUE );
     /* reset position. */
     mpegts_file_seek( &(info->tsf_ctx), reset_position, MPEGTS_SEEK_RESET );
-    mapi_log( LOG_LV2, "[check] start PCR:%" PRId64 " [%" PRId64 "ms]\n", info->start_pcr, info->start_pcr / 90 );
-    mapi_log( LOG_LV2, "[check]  last PCR:%" PRId64 " [%" PRId64 "ms]\n", info->last_pcr, info->last_pcr / 90 );
+    mapi_log( LOG_LV2, "[check] start PCR:%" PRId64 " [%" PRId64 "ms]\n", psi_ctx->start_pcr, psi_ctx->start_pcr / 90 );
+    mapi_log( LOG_LV2, "[check]  last PCR:%" PRId64 " [%" PRId64 "ms]\n", psi_ctx->last_pcr, psi_ctx->last_pcr / 90 );
     return 0;
 }
 
@@ -1301,22 +1272,23 @@ static uint16_t mpegts_get_program_id( mpegts_info_t *info, mpeg_stream_type str
 {
     mapi_log( LOG_LV3, "[check] %s()\n", __func__ );
     /* search program id. */
-    uint8_t detect_count   = -1;
-    int32_t pid_list_index = 0;
-    while( pid_list_index < info->pmt_ctx.pid_list_num )
+    tsp_psi_ctx_t *psi_ctx        = &(info->pmt_ctx[info->pmt_ctx_index]);
+    uint8_t        detect_count   = -1;
+    int32_t        pid_list_index = 0;
+    while( pid_list_index < psi_ctx->pid_list_num )
     {
-		if( info->pmt_ctx.pid_list[pid_list_index].stream_type == stream_type )
+        if( psi_ctx->pid_list[pid_list_index].stream_type == stream_type )
             ++detect_count;
         if( detect_count == stream_number )
             break;
         ++pid_list_index;
     }
-    if( pid_list_index == info->pmt_ctx.pid_list_num )
+    if( pid_list_index == psi_ctx->pid_list_num )
         return TS_PID_ERR;
     mapi_log( LOG_LV3, "[check] %d - stream_type:%d, PID:0x%04X\n", pid_list_index
-                     , info->pmt_ctx.pid_list[pid_list_index].stream_type
-                     , info->pmt_ctx.pid_list[pid_list_index].program_id );
-    return info->pmt_ctx.pid_list[pid_list_index].program_id;
+                     , psi_ctx->pid_list[pid_list_index].stream_type
+                     , psi_ctx->pid_list[pid_list_index].program_id );
+    return psi_ctx->pid_list[pid_list_index].program_id;
 }
 
 static int mpegts_get_stream_timestamp
@@ -2084,7 +2056,7 @@ static int mpegts_update_psi
         section_length        = cat_si.section_length;
         section_header_length = TS_PID_CAT_SECTION_HEADER_SIZE;
     }
-    else if( program_id == info->pmt_program_id )
+    else if( program_id == psi_ctx->pmt_program_id )
     {
         /* PMT */
         /* setup header data. */
@@ -2120,11 +2092,11 @@ static int mpegts_update_psi
         /* CAT */
         return 1;
     }
-    else if( program_id == info->pmt_program_id )
+    else if( program_id == psi_ctx->pmt_program_id )
     {
         /* PMT */
-        uint16_t total_stream_num  = info->video_stream_num + info->audio_stream_num + info->caption_stream_num + info->dsmcc_stream_num;
-        uint16_t output_stream_num = get_output_stream_nums( output_stream, info->video_stream_num, info->audio_stream_num, info->caption_stream_num, info->dsmcc_stream_num );
+        uint16_t total_stream_num  = psi_ctx->video_stream_num + psi_ctx->audio_stream_num + psi_ctx->caption_stream_num + psi_ctx->dsmcc_stream_num;
+        uint16_t output_stream_num = get_output_stream_nums( output_stream, psi_ctx->video_stream_num, psi_ctx->audio_stream_num, psi_ctx->caption_stream_num, psi_ctx->dsmcc_stream_num );
         if( total_stream_num == output_stream_num )
             return 1;
     }
@@ -2173,7 +2145,7 @@ static int mpegts_update_psi
                 uint8_t *section_data   = &(section_buffer[read_count]);
                 uint16_t program_number =  (section_data[0] << 8) | section_data[1];
                 uint16_t pmt_program_id = ((section_data[2] & 0x1F) << 8) | section_data[3];
-                if( program_number == 0 || pmt_program_id == info->pmt_program_id )
+                if( program_number == 0 || pmt_program_id == info->pmt_ctx[info->pmt_ctx_index].pmt_program_id )     // FIXME: multi PMT
                 {
                     memcpy( &(psi_ctx->section_buffer[write_count]), &(section_buffer[read_count]), TS_PACKET_PAT_SECTION_DATA_SIZE );
                     write_count += TS_PACKET_PAT_SECTION_DATA_SIZE;
@@ -2189,7 +2161,7 @@ static int mpegts_update_psi
             // Not supported.
         }
 #endif
-        else if( program_id == info->pmt_program_id )
+        else if( program_id == psi_ctx->pmt_program_id )
         {
             /* PMT */
             while( read_count < section_total - CRC32_SIZE )
@@ -2278,15 +2250,16 @@ static const char *get_stream_information
     mpegts_info_t *info = (mpegts_info_t *)ih;
     if( !info || key >= GET_INFO_KEY_MAX )
         return NULL;
-    tss_ctx_t *stream = NULL;
-    if( sample_type == SAMPLE_TYPE_VIDEO && stream_number < info->video_stream_num )
-        stream = &(info->video_stream[stream_number]);
-    else if( sample_type == SAMPLE_TYPE_AUDIO && stream_number < info->audio_stream_num )
-        stream = &(info->audio_stream[stream_number]);
-    else if( sample_type == SAMPLE_TYPE_CAPTION && stream_number < info->caption_stream_num )
-        stream = &(info->caption_stream[stream_number]);
-    else if( sample_type == SAMPLE_TYPE_DSMCC && stream_number < info->dsmcc_stream_num )
-        stream = &(info->dsmcc_stream[stream_number]);
+    tsp_psi_ctx_t *psi_ctx = &(info->pmt_ctx[info->pmt_ctx_index]);
+    tss_ctx_t     *stream  = NULL;
+    if( sample_type == SAMPLE_TYPE_VIDEO && stream_number < psi_ctx->video_stream_num )
+        stream = &(psi_ctx->video_stream[stream_number]);
+    else if( sample_type == SAMPLE_TYPE_AUDIO && stream_number < psi_ctx->audio_stream_num )
+        stream = &(psi_ctx->audio_stream[stream_number]);
+    else if( sample_type == SAMPLE_TYPE_CAPTION && stream_number < psi_ctx->caption_stream_num )
+        stream = &(psi_ctx->caption_stream[stream_number]);
+    else if( sample_type == SAMPLE_TYPE_DSMCC && stream_number < psi_ctx->dsmcc_stream_num )
+        stream = &(psi_ctx->dsmcc_stream[stream_number]);
     else
         return NULL;
     return stream->private_info.keys[key].info;
@@ -2298,15 +2271,16 @@ static mpeg_stream_type get_sample_stream_type( void *ih, mpeg_sample_type sampl
     if( !info )
         return STREAM_INVALID;
     /* check stream type. */
-    tss_ctx_t *stream = NULL;
-    if( sample_type == SAMPLE_TYPE_VIDEO && stream_number < info->video_stream_num )
-        stream = &(info->video_stream[stream_number]);
-    else if( sample_type == SAMPLE_TYPE_AUDIO && stream_number < info->audio_stream_num )
-        stream = &(info->audio_stream[stream_number]);
-    else if( sample_type == SAMPLE_TYPE_CAPTION && stream_number < info->caption_stream_num )
-        stream = &(info->caption_stream[stream_number]);
-    else if( sample_type == SAMPLE_TYPE_DSMCC && stream_number < info->dsmcc_stream_num )
-        stream = &(info->dsmcc_stream[stream_number]);
+    tsp_psi_ctx_t *psi_ctx = &(info->pmt_ctx[info->pmt_ctx_index]);
+    tss_ctx_t     *stream  = NULL;
+    if( sample_type == SAMPLE_TYPE_VIDEO && stream_number < psi_ctx->video_stream_num )
+        stream = &(psi_ctx->video_stream[stream_number]);
+    else if( sample_type == SAMPLE_TYPE_AUDIO && stream_number < psi_ctx->audio_stream_num )
+        stream = &(psi_ctx->audio_stream[stream_number]);
+    else if( sample_type == SAMPLE_TYPE_CAPTION && stream_number < psi_ctx->caption_stream_num )
+        stream = &(psi_ctx->caption_stream[stream_number]);
+    else if( sample_type == SAMPLE_TYPE_DSMCC && stream_number < psi_ctx->dsmcc_stream_num )
+        stream = &(psi_ctx->dsmcc_stream[stream_number]);
     else
         return STREAM_INVALID;
     if( stream->stream_type == STREAM_PES_PRIVATE_DATA || stream->stream_type == STREAM_VIDEO_PRIVATE /* = STREAM_AUDIO_LPCM */ )
@@ -2340,37 +2314,38 @@ static int get_sample_data
     if( !info || position < 0 )
         return -1;
     /* check program id. */
+    tsp_psi_ctx_t          *psi_ctx      = &(info->pmt_ctx[info->pmt_ctx_index]);
     tsf_ctx_t              *tsf_ctx      = NULL;
     uint16_t                program_id   = TS_PID_ERR;
  /* mpeg_stream_type        stream_type  = STREAM_INVALID;
     mpeg_stream_group_type  stream_judge = STREAM_IS_UNKNOWN; */
-    if( sample_type == SAMPLE_TYPE_VIDEO && stream_number < info->video_stream_num )
+    if( sample_type == SAMPLE_TYPE_VIDEO && stream_number < psi_ctx->video_stream_num )
     {
-        tsf_ctx      = &(info->video_stream[stream_number].tsf_ctx);
-     /* stream_judge =   info->video_stream[stream_number].stream_judge;
-        stream_type  =   info->video_stream[stream_number].stream_type; */
-        program_id   =   info->video_stream[stream_number].program_id;
+        tsf_ctx      = &(psi_ctx->video_stream[stream_number].tsf_ctx);
+     /* stream_judge =   psi_ctx->video_stream[stream_number].stream_judge;
+        stream_type  =   psi_ctx->video_stream[stream_number].stream_type; */
+        program_id   =   psi_ctx->video_stream[stream_number].program_id;
     }
-    else if( sample_type == SAMPLE_TYPE_AUDIO && stream_number < info->audio_stream_num )
+    else if( sample_type == SAMPLE_TYPE_AUDIO && stream_number < psi_ctx->audio_stream_num )
     {
-        tsf_ctx      = &(info->audio_stream[stream_number].tsf_ctx);
-     /* stream_judge =   info->audio_stream[stream_number].stream_judge;
-        stream_type  =   info->audio_stream[stream_number].stream_type; */
-        program_id   =   info->audio_stream[stream_number].program_id;
+        tsf_ctx      = &(psi_ctx->audio_stream[stream_number].tsf_ctx);
+     /* stream_judge =   psi_ctx->audio_stream[stream_number].stream_judge;
+        stream_type  =   psi_ctx->audio_stream[stream_number].stream_type; */
+        program_id   =   psi_ctx->audio_stream[stream_number].program_id;
     }
-    else if( sample_type == SAMPLE_TYPE_CAPTION && stream_number < info->caption_stream_num )
+    else if( sample_type == SAMPLE_TYPE_CAPTION && stream_number < psi_ctx->caption_stream_num )
     {
-        tsf_ctx      = &(info->caption_stream[stream_number].tsf_ctx);
-     /* stream_judge =   info->caption_stream[stream_number].stream_judge;
-        stream_type  =   info->caption_stream[stream_number].stream_type; */
-        program_id   =   info->caption_stream[stream_number].program_id;
+        tsf_ctx      = &(psi_ctx->caption_stream[stream_number].tsf_ctx);
+     /* stream_judge =   psi_ctx->caption_stream[stream_number].stream_judge;
+        stream_type  =   psi_ctx->caption_stream[stream_number].stream_type; */
+        program_id   =   psi_ctx->caption_stream[stream_number].program_id;
     }
-    else if( sample_type == SAMPLE_TYPE_DSMCC && stream_number < info->dsmcc_stream_num )
+    else if( sample_type == SAMPLE_TYPE_DSMCC && stream_number < psi_ctx->dsmcc_stream_num )
     {
-        tsf_ctx      = &(info->dsmcc_stream[stream_number].tsf_ctx);
-     /* stream_judge =   info->dsmcc_stream[stream_number].stream_judge;
-        stream_type  =   info->dsmcc_stream[stream_number].stream_type; */
-        program_id   =   info->dsmcc_stream[stream_number].program_id;
+        tsf_ctx      = &(psi_ctx->dsmcc_stream[stream_number].tsf_ctx);
+     /* stream_judge =   psi_ctx->dsmcc_stream[stream_number].stream_judge;
+        stream_type  =   psi_ctx->dsmcc_stream[stream_number].stream_type; */
+        program_id   =   psi_ctx->dsmcc_stream[stream_number].program_id;
     }
     else
         return -1;
@@ -2408,15 +2383,16 @@ static int64_t get_sample_position( void *ih, mpeg_sample_type sample_type, uint
     mpegts_info_t *info = (mpegts_info_t *)ih;
     if( !info )
         return -1;
-    tsf_ctx_t *tsf_ctx = NULL;
-    if( sample_type == SAMPLE_TYPE_VIDEO && stream_number < info->video_stream_num )
-        tsf_ctx = &(info->video_stream[stream_number].tsf_ctx);
-    else if( sample_type == SAMPLE_TYPE_AUDIO && stream_number < info->audio_stream_num )
-        tsf_ctx = &(info->audio_stream[stream_number].tsf_ctx);
-    else if( sample_type == SAMPLE_TYPE_CAPTION && stream_number < info->caption_stream_num )
-        tsf_ctx = &(info->caption_stream[stream_number].tsf_ctx);
-    else if( sample_type == SAMPLE_TYPE_DSMCC && stream_number < info->dsmcc_stream_num )
-        tsf_ctx = &(info->dsmcc_stream[stream_number].tsf_ctx);
+    tsp_psi_ctx_t *psi_ctx = &(info->pmt_ctx[info->pmt_ctx_index]);
+    tsf_ctx_t     *tsf_ctx = NULL;
+    if( sample_type == SAMPLE_TYPE_VIDEO && stream_number < psi_ctx->video_stream_num )
+        tsf_ctx = &(psi_ctx->video_stream[stream_number].tsf_ctx);
+    else if( sample_type == SAMPLE_TYPE_AUDIO && stream_number < psi_ctx->audio_stream_num )
+        tsf_ctx = &(psi_ctx->audio_stream[stream_number].tsf_ctx);
+    else if( sample_type == SAMPLE_TYPE_CAPTION && stream_number < psi_ctx->caption_stream_num )
+        tsf_ctx = &(psi_ctx->caption_stream[stream_number].tsf_ctx);
+    else if( sample_type == SAMPLE_TYPE_DSMCC && stream_number < psi_ctx->dsmcc_stream_num )
+        tsf_ctx = &(psi_ctx->dsmcc_stream[stream_number].tsf_ctx);
     else
         return -1;
     //return mpegts_ftell( tsf_ctx );
@@ -2428,15 +2404,16 @@ static int set_sample_position( void *ih, mpeg_sample_type sample_type, uint8_t 
     mpegts_info_t *info = (mpegts_info_t *)ih;
     if( !info || position < 0 )
         return -1;
-    tsf_ctx_t *tsf_ctx = NULL;
-    if( sample_type == SAMPLE_TYPE_VIDEO && stream_number < info->video_stream_num )
-        tsf_ctx = &(info->video_stream[stream_number].tsf_ctx);
-    else if( sample_type == SAMPLE_TYPE_AUDIO && stream_number < info->audio_stream_num )
-        tsf_ctx = &(info->audio_stream[stream_number].tsf_ctx);
-    else if( sample_type == SAMPLE_TYPE_CAPTION && stream_number < info->caption_stream_num )
-        tsf_ctx = &(info->caption_stream[stream_number].tsf_ctx);
-    else if( sample_type == SAMPLE_TYPE_DSMCC && stream_number < info->dsmcc_stream_num )
-        tsf_ctx = &(info->dsmcc_stream[stream_number].tsf_ctx);
+    tsp_psi_ctx_t *psi_ctx = &(info->pmt_ctx[info->pmt_ctx_index]);
+    tsf_ctx_t     *tsf_ctx = NULL;
+    if( sample_type == SAMPLE_TYPE_VIDEO && stream_number < psi_ctx->video_stream_num )
+        tsf_ctx = &(psi_ctx->video_stream[stream_number].tsf_ctx);
+    else if( sample_type == SAMPLE_TYPE_AUDIO && stream_number < psi_ctx->audio_stream_num )
+        tsf_ctx = &(psi_ctx->audio_stream[stream_number].tsf_ctx);
+    else if( sample_type == SAMPLE_TYPE_CAPTION && stream_number < psi_ctx->caption_stream_num )
+        tsf_ctx = &(psi_ctx->caption_stream[stream_number].tsf_ctx);
+    else if( sample_type == SAMPLE_TYPE_DSMCC && stream_number < psi_ctx->dsmcc_stream_num )
+        tsf_ctx = &(psi_ctx->dsmcc_stream[stream_number].tsf_ctx);
     else
         return -1;
     mpegts_file_seek( tsf_ctx, position, MPEGTS_SEEK_SET );
@@ -2450,27 +2427,28 @@ static int seek_next_sample_position( void *ih, mpeg_sample_type sample_type, ui
     mpegts_info_t *info = (mpegts_info_t *)ih;
     if( !info )
         return -1;
-    int64_t    seek_position = -1;
-    tsf_ctx_t *tsf_ctx       = NULL;
-    if( sample_type == SAMPLE_TYPE_VIDEO && stream_number < info->video_stream_num )
+    tsp_psi_ctx_t *psi_ctx       = &(info->pmt_ctx[info->pmt_ctx_index]);
+    tsf_ctx_t     *tsf_ctx       = NULL;
+    int64_t        seek_position = -1;
+    if( sample_type == SAMPLE_TYPE_VIDEO && stream_number < psi_ctx->video_stream_num )
     {
-        tsf_ctx       = &(info->video_stream[stream_number].tsf_ctx);
-        seek_position =   info->video_stream[stream_number].tsf_ctx.read_position;
+        tsf_ctx       = &(psi_ctx->video_stream[stream_number].tsf_ctx);
+        seek_position =   psi_ctx->video_stream[stream_number].tsf_ctx.read_position;
     }
-    else if( sample_type == SAMPLE_TYPE_AUDIO && stream_number < info->audio_stream_num )
+    else if( sample_type == SAMPLE_TYPE_AUDIO && stream_number < psi_ctx->audio_stream_num )
     {
-        tsf_ctx       = &(info->audio_stream[stream_number].tsf_ctx);
-        seek_position =   info->audio_stream[stream_number].tsf_ctx.read_position;
+        tsf_ctx       = &(psi_ctx->audio_stream[stream_number].tsf_ctx);
+        seek_position =   psi_ctx->audio_stream[stream_number].tsf_ctx.read_position;
     }
-    else if( sample_type == SAMPLE_TYPE_CAPTION && stream_number < info->caption_stream_num )
+    else if( sample_type == SAMPLE_TYPE_CAPTION && stream_number < psi_ctx->caption_stream_num )
     {
-        tsf_ctx       = &(info->caption_stream[stream_number].tsf_ctx);
-        seek_position =   info->caption_stream[stream_number].tsf_ctx.read_position;
+        tsf_ctx       = &(psi_ctx->caption_stream[stream_number].tsf_ctx);
+        seek_position =   psi_ctx->caption_stream[stream_number].tsf_ctx.read_position;
     }
-    else if( sample_type == SAMPLE_TYPE_DSMCC && stream_number < info->dsmcc_stream_num )
+    else if( sample_type == SAMPLE_TYPE_DSMCC && stream_number < psi_ctx->dsmcc_stream_num )
     {
-        tsf_ctx       = &(info->dsmcc_stream[stream_number].tsf_ctx);
-        seek_position =   info->dsmcc_stream[stream_number].tsf_ctx.read_position;
+        tsf_ctx       = &(psi_ctx->dsmcc_stream[stream_number].tsf_ctx);
+        seek_position =   psi_ctx->dsmcc_stream[stream_number].tsf_ctx.read_position;
     }
     if( seek_position < 0 )
         return -1;
@@ -2490,8 +2468,9 @@ static int get_specific_stream_data
     mpegts_info_t *info = (mpegts_info_t *)ih;
     if( !info )
         return -1;
-    tsp_header_t  h;
-    tsf_ctx_t    *tsf_ctx = &(info->tsf_ctx);
+    tsp_header_t   h;
+    tsp_psi_ctx_t *psi_ctx = &(info->pmt_ctx[info->pmt_ctx_index]);
+    tsf_ctx_t     *tsf_ctx = &(info->tsf_ctx);
 #if 0
     /* reset start position. */
     mpegts_file_seek( tsf_ctx, 0, MPEGTS_SEEK_RESET );
@@ -2501,10 +2480,10 @@ static int get_specific_stream_data
     /* check output mode. */
     int psi_required = get_mode == GET_SAMPLE_DATA_CONTAINER;
     /* list up the targets. */
-    uint8_t video_stream_num   = (output_stream & OUTPUT_STREAM_VIDEO  ) ? info->video_stream_num   : 0;
-    uint8_t audio_stream_num   = (output_stream & OUTPUT_STREAM_AUDIO  ) ? info->audio_stream_num   : 0;
-    uint8_t caption_stream_num = (output_stream & OUTPUT_STREAM_CAPTION) ? info->caption_stream_num : 0;
-    uint8_t dsmcc_stream_num   = (output_stream & OUTPUT_STREAM_DSMCC  ) ? info->dsmcc_stream_num   : 0;
+    uint8_t video_stream_num   = (output_stream & OUTPUT_STREAM_VIDEO  ) ? psi_ctx->video_stream_num   : 0;
+    uint8_t audio_stream_num   = (output_stream & OUTPUT_STREAM_AUDIO  ) ? psi_ctx->audio_stream_num   : 0;
+    uint8_t caption_stream_num = (output_stream & OUTPUT_STREAM_CAPTION) ? psi_ctx->caption_stream_num : 0;
+    uint8_t dsmcc_stream_num   = (output_stream & OUTPUT_STREAM_DSMCC  ) ? psi_ctx->dsmcc_stream_num   : 0;
     /* search. */
     mpeg_sample_type  sample_type   = SAMPLE_TYPE_PSI;
     uint8_t           stream_number = 0;
@@ -2522,40 +2501,40 @@ static int get_specific_stream_data
             if( h.program_id < MPEGTS_PID_RESERVED_CHECK_VALUE )
                 break;
             /* PMT, PCR, ECM, EMM */
-            if( h.program_id == info->pmt_program_id
-          /* || h.program_id == info->pcr_program_id */
-             || h.program_id == info->ecm_program_id
+            if( h.program_id == psi_ctx->pmt_program_id
+          /* || h.program_id == psi_ctx->pcr_program_id */
+             || h.program_id == psi_ctx->ecm_program_id
              || h.program_id == info->emm_program_id )
                 break;
         }
         /* check the target stream. */
         for( uint8_t i = 0; !stream && i < video_stream_num; ++i )
-            if( h.program_id == info->video_stream[i].program_id )
+            if( h.program_id == psi_ctx->video_stream[i].program_id )
             {
                 sample_type   = SAMPLE_TYPE_VIDEO;
                 stream_number = i;
-                stream        = &(info->video_stream[i]);
+                stream        = &(psi_ctx->video_stream[i]);
             }
         for( uint8_t i = 0; !stream && i < audio_stream_num; ++i )
-            if( h.program_id == info->audio_stream[i].program_id )
+            if( h.program_id == psi_ctx->audio_stream[i].program_id )
             {
                 sample_type   = SAMPLE_TYPE_AUDIO;
                 stream_number = i;
-                stream        = &(info->audio_stream[i]);
+                stream        = &(psi_ctx->audio_stream[i]);
             }
         for( uint8_t i = 0; !stream && i < caption_stream_num; ++i )
-            if( h.program_id == info->caption_stream[i].program_id )
+            if( h.program_id == psi_ctx->caption_stream[i].program_id )
             {
                 sample_type   = SAMPLE_TYPE_CAPTION;
                 stream_number = i;
-                stream        = &(info->caption_stream[i]);
+                stream        = &(psi_ctx->caption_stream[i]);
             }
         for( uint8_t i = 0; !stream && i < dsmcc_stream_num; ++i )
-            if( h.program_id == info->dsmcc_stream[i].program_id )
+            if( h.program_id == psi_ctx->dsmcc_stream[i].program_id )
             {
                 sample_type   = SAMPLE_TYPE_DSMCC;
                 stream_number = i;
-                stream        = &(info->dsmcc_stream[i]);
+                stream        = &(psi_ctx->dsmcc_stream[i]);
             }
         /* check start position. */
         if( stream && tsf_ctx->read_position >= stream->tsf_ctx.read_position )
@@ -2564,7 +2543,7 @@ static int get_specific_stream_data
         if( !stream && psi_required )
         {
             /* PCR */
-            if( h.program_id == info->pcr_program_id )
+            if( h.program_id == psi_ctx->pcr_program_id )
                 break;
         }
         /* seek next. */
@@ -2643,15 +2622,15 @@ static int get_specific_stream_data
             update_psi = 0;
         if( update_psi )
         {
-            tsp_psi_ctx_t *psi_ctx = NULL;
+            psi_ctx = NULL;
             if( h.program_id == TS_PID_PAT )
                 psi_ctx = &(info->pat_ctx);
 #if 0
             else if( h.program_id == TS_PID_CAT )
                 psi_ctx = &(info->cat_ctx);
 #endif
-            else if( h.program_id == info->pmt_program_id )
-                psi_ctx = &(info->pmt_ctx);
+            else if( h.program_id == psi_ctx->pmt_program_id )      // FIXME: multi PMT
+                psi_ctx = &(info->pmt_ctx[info->pmt_ctx_index]);
             if( psi_ctx )
             {
                 /* cache packet. */
@@ -2716,28 +2695,29 @@ static int get_stream_data
     mpegts_info_t *info = (mpegts_info_t *)ih;
     if( !info )
         return -1;
-    tsp_header_t  h;
-    tsf_ctx_t    *tsf_ctx    = NULL;
-    uint16_t      program_id = TS_PID_ERR;
-    if( sample_type == SAMPLE_TYPE_VIDEO && stream_number < info->video_stream_num )
+    tsp_header_t   h;
+    tsp_psi_ctx_t *psi_ctx    = &(info->pmt_ctx[info->pmt_ctx_index]);
+    tsf_ctx_t     *tsf_ctx    = NULL;
+    uint16_t       program_id = TS_PID_ERR;
+    if( sample_type == SAMPLE_TYPE_VIDEO && stream_number < psi_ctx->video_stream_num )
     {
-        tsf_ctx    = &(info->video_stream[stream_number].tsf_ctx);
-        program_id =   info->video_stream[stream_number].program_id;
+        tsf_ctx    = &(psi_ctx->video_stream[stream_number].tsf_ctx);
+        program_id =   psi_ctx->video_stream[stream_number].program_id;
     }
-    else if( sample_type == SAMPLE_TYPE_AUDIO && stream_number < info->audio_stream_num )
+    else if( sample_type == SAMPLE_TYPE_AUDIO && stream_number < psi_ctx->audio_stream_num )
     {
-        tsf_ctx    = &(info->audio_stream[stream_number].tsf_ctx);
-        program_id =   info->audio_stream[stream_number].program_id;
+        tsf_ctx    = &(psi_ctx->audio_stream[stream_number].tsf_ctx);
+        program_id =   psi_ctx->audio_stream[stream_number].program_id;
     }
-    else if( sample_type == SAMPLE_TYPE_CAPTION && stream_number < info->caption_stream_num )
+    else if( sample_type == SAMPLE_TYPE_CAPTION && stream_number < psi_ctx->caption_stream_num )
     {
-        tsf_ctx    = &(info->caption_stream[stream_number].tsf_ctx);
-        program_id =   info->caption_stream[stream_number].program_id;
+        tsf_ctx    = &(psi_ctx->caption_stream[stream_number].tsf_ctx);
+        program_id =   psi_ctx->caption_stream[stream_number].program_id;
     }
-    else if( sample_type == SAMPLE_TYPE_DSMCC && stream_number < info->dsmcc_stream_num )
+    else if( sample_type == SAMPLE_TYPE_DSMCC && stream_number < psi_ctx->dsmcc_stream_num )
     {
-        tsf_ctx    = &(info->dsmcc_stream[stream_number].tsf_ctx);
-        program_id =   info->dsmcc_stream[stream_number].program_id;
+        tsf_ctx    = &(psi_ctx->dsmcc_stream[stream_number].tsf_ctx);
+        program_id =   psi_ctx->dsmcc_stream[stream_number].program_id;
     }
     else
         return -1;
@@ -2816,31 +2796,45 @@ static uint8_t get_stream_num( void *ih, mpeg_sample_type sample_type )
     mpegts_info_t *info = (mpegts_info_t *)ih;
     if( !info )
         return 0;
-    uint8_t stream_num = 0;
+    tsp_psi_ctx_t *psi_ctx    = &(info->pmt_ctx[info->pmt_ctx_index]);
+    uint8_t        stream_num = 0;
     if( sample_type == SAMPLE_TYPE_VIDEO )
-        stream_num = info->video_stream_num;
+        stream_num = psi_ctx->video_stream_num;
     else if( sample_type == SAMPLE_TYPE_AUDIO )
-        stream_num = info->audio_stream_num;
+        stream_num = psi_ctx->audio_stream_num;
     else if( sample_type == SAMPLE_TYPE_CAPTION )
-        stream_num = info->caption_stream_num;
+        stream_num = psi_ctx->caption_stream_num;
     else if( sample_type == SAMPLE_TYPE_DSMCC )
-        stream_num = info->dsmcc_stream_num;
+        stream_num = psi_ctx->dsmcc_stream_num;
     return stream_num;
 }
 
-static int get_pcr( void *ih, pcr_info_t *pcr_info )
+static int get_pcr( void *ih, pcr_info_t *pcr_info, uint16_t service_id )
 {
     mpegts_info_t *info = (mpegts_info_t *)ih;
     if( !info )
         return -1;
-    int64_t reset_position = mpegts_ftell( &(info->tsf_ctx) );
+    uint32_t pmt_ctx_index = 0;
+    if( service_id )
+    {
+        for( int32_t i = 0; i < info->pat_ctx.pid_list_num; ++i )
+            if( info->pat_ctx.pid_list[i].program_number == service_id )
+            {
+                pmt_ctx_index = i;
+                break;
+            }
+    }
+    else if( info->pmt_ctx_index < info->pat_ctx.pid_list_num )
+        pmt_ctx_index = info->pmt_ctx_index;
+    tsp_psi_ctx_t *psi_ctx        = &(info->pmt_ctx[pmt_ctx_index]);
+    int64_t        reset_position = mpegts_ftell( &(info->tsf_ctx) );
     /* get PCR. */
-    int result = mpegts_get_pcr( info, &(info->pcr) );
+    int result = mpegts_get_pcr( info, &(psi_ctx->pcr), pmt_ctx_index );
     mpegts_file_seek( &(info->tsf_ctx), reset_position, MPEGTS_SEEK_RESET );
     /* setup. */
-    pcr_info->pcr       = info->pcr;
-    pcr_info->start_pcr = info->start_pcr;
-    pcr_info->last_pcr  = info->last_pcr;
+    pcr_info->pcr       = psi_ctx->pcr;
+    pcr_info->start_pcr = psi_ctx->start_pcr;
+    pcr_info->last_pcr  = psi_ctx->last_pcr;
     return result;
 }
 
@@ -2848,14 +2842,17 @@ static int get_video_info( void *ih, uint8_t stream_number, video_sample_info_t 
 {
     mapi_log( LOG_LV2, "[mpegts_parser] %s()\n", __func__ );
     mpegts_info_t *info = (mpegts_info_t *)ih;
-    if( !info || stream_number >= info->video_stream_num )
+    if( !info )
         return -1;
-    tsf_ctx_t              *tsf_ctx                 = &(info->video_stream[stream_number].tsf_ctx);
-    uint16_t                program_id              =   info->video_stream[stream_number].program_id;
-    mpeg_stream_type        stream_type             =   info->video_stream[stream_number].stream_type;
-    mpeg_stream_group_type  stream_judge            =   info->video_stream[stream_number].stream_judge;
-    void                   *stream_parse_info       =   info->video_stream[stream_number].stream_parse_info;
-    int64_t                *video_stream_gop_number = &(info->video_stream[stream_number].gop_number);
+    tsp_psi_ctx_t *psi_ctx = &(info->pmt_ctx[info->pmt_ctx_index]);
+    if( stream_number >= psi_ctx->video_stream_num )
+        return -1;
+    tsf_ctx_t              *tsf_ctx                 = &(psi_ctx->video_stream[stream_number].tsf_ctx);
+    uint16_t                program_id              =   psi_ctx->video_stream[stream_number].program_id;
+    mpeg_stream_type        stream_type             =   psi_ctx->video_stream[stream_number].stream_type;
+    mpeg_stream_group_type  stream_judge            =   psi_ctx->video_stream[stream_number].stream_judge;
+    void                   *stream_parse_info       =   psi_ctx->video_stream[stream_number].stream_parse_info;
+    int64_t                *video_stream_gop_number = &(psi_ctx->video_stream[stream_number].gop_number);
     /* check PES stream id. */
     mpeg_pes_stream_id_type stream_id_type = mpeg_pes_get_steam_id_type( stream_judge );
     /* get timestamp. */
@@ -2937,12 +2934,15 @@ static int get_audio_info( void *ih, uint8_t stream_number, audio_sample_info_t 
 {
     mapi_log( LOG_LV2, "[mpegts_parser] %s()\n", __func__ );
     mpegts_info_t *info = (mpegts_info_t *)ih;
-    if( !info || stream_number >= info->audio_stream_num )
+    if( !info )
         return -1;
-    tsf_ctx_t              *tsf_ctx      = &(info->audio_stream[stream_number].tsf_ctx);
-    uint16_t                program_id   =   info->audio_stream[stream_number].program_id;
-    mpeg_stream_type        stream_type  =   info->audio_stream[stream_number].stream_type;
-    mpeg_stream_group_type  stream_judge =   info->audio_stream[stream_number].stream_judge;
+    tsp_psi_ctx_t *psi_ctx = &(info->pmt_ctx[info->pmt_ctx_index]);
+    if( stream_number >= psi_ctx->audio_stream_num )
+        return -1;
+    tsf_ctx_t              *tsf_ctx      = &(psi_ctx->audio_stream[stream_number].tsf_ctx);
+    uint16_t                program_id   =   psi_ctx->audio_stream[stream_number].program_id;
+    mpeg_stream_type        stream_type  =   psi_ctx->audio_stream[stream_number].stream_type;
+    mpeg_stream_group_type  stream_judge =   psi_ctx->audio_stream[stream_number].stream_judge;
     /* check PES stream id. */
     mpeg_pes_stream_id_type stream_id_type = mpeg_pes_get_steam_id_type( stream_judge );
     /* get timestamp. */
@@ -3003,21 +3003,49 @@ static inline void release_stream_handle( tss_ctx_t **stream_ctxs, uint8_t *stre
 static int set_pmt_stream_info( mpegts_info_t *info )
 {
     mapi_log( LOG_LV2, "[check] [sub] %s()\n", __func__ );
-    int64_t start_position = mpegts_ftell( &(info->tsf_ctx) );
-    tsp_header_t h;
+    int64_t        start_position = mpegts_ftell( &(info->tsf_ctx) );
+    tsp_psi_ctx_t *psi_ctx        = NULL;
+    tsp_header_t   h;
     /* check stream num. */
     uint8_t video_stream_num = 0, audio_stream_num = 0, caption_stream_num = 0, dsmcc_stream_num = 0;
-    for( int32_t pid_list_index = 0; pid_list_index < info->pmt_ctx.pid_list_num; ++pid_list_index )
+    for( int32_t pmt_ctx_index = 0; pmt_ctx_index < info->pat_ctx.pid_list_num; ++pmt_ctx_index )
     {
-        mpeg_stream_group_type stream_judge = info->pmt_ctx.pid_list[pid_list_index].stream_judge;
-        if( stream_judge & STREAM_IS_VIDEO )
-            ++video_stream_num;
-        else if( stream_judge & STREAM_IS_AUDIO )
-            ++audio_stream_num;
-        else if( stream_judge & STREAM_IS_CAPTION )
-            ++caption_stream_num;
-        else if( stream_judge & STREAM_IS_DSMCC )
-            ++dsmcc_stream_num;
+        psi_ctx = &(info->pmt_ctx[pmt_ctx_index]);
+        /* compare with the detected pmt pid. */
+        int new_pmt = 1;
+        for( int32_t i = 0; i < pmt_ctx_index && new_pmt; ++i )
+        {
+            tsp_psi_ctx_t *pre_psi_ctx = &(info->pmt_ctx[i]);
+            if( pre_psi_ctx->pmt_program_id == psi_ctx->pmt_program_id )
+                new_pmt = 0;
+        }
+        if( !new_pmt )
+            continue;
+        /* check pid list. */
+        for( int32_t pid_list_index = 0; pid_list_index < psi_ctx->pid_list_num; ++pid_list_index )
+        {
+            /* compare with the detected pid. */
+            int new_pid = 1;
+            for( int32_t i = 0; i < pmt_ctx_index && new_pid; ++i )
+            {
+                tsp_psi_ctx_t *pre_psi_ctx = &(info->pmt_ctx[i]);
+                for( int32_t j = 0; j < pre_psi_ctx->pid_list_num && new_pid; ++j )
+                    if( psi_ctx->pid_list[pid_list_index].program_id == pre_psi_ctx->pid_list[j].program_id )
+                        new_pid = 0;
+            }
+            if( !new_pid )
+                continue;
+            /* count by stream type. */
+            mpeg_stream_group_type stream_judge = psi_ctx->pid_list[pid_list_index].stream_judge;
+            if( stream_judge & STREAM_IS_VIDEO )
+                ++video_stream_num;
+            else if( stream_judge & STREAM_IS_AUDIO )
+                ++audio_stream_num;
+            else if( stream_judge & STREAM_IS_CAPTION )
+                ++caption_stream_num;
+            else if( stream_judge & STREAM_IS_DSMCC )
+                ++dsmcc_stream_num;
+        }
     }
     if( !video_stream_num && !audio_stream_num && !caption_stream_num && !dsmcc_stream_num )
         return -1;
@@ -3063,83 +3091,123 @@ static int set_pmt_stream_info( mpegts_info_t *info )
     }
     /* check exist. */
     video_stream_num = audio_stream_num = caption_stream_num = dsmcc_stream_num = 0;
-    for( int32_t pid_list_index = 0; pid_list_index < info->pmt_ctx.pid_list_num; ++pid_list_index )
+    for( int32_t pmt_ctx_index = 0; pmt_ctx_index < info->pat_ctx.pid_list_num; ++pmt_ctx_index )
     {
-        uint16_t               program_id        = info->pmt_ctx.pid_list[pid_list_index].program_id;
-        mpeg_stream_type       stream_type       = info->pmt_ctx.pid_list[pid_list_index].stream_type;
-        mpeg_stream_group_type stream_judge      = info->pmt_ctx.pid_list[pid_list_index].stream_judge;
-        mpeg_stream_type       reg_stream_type   = info->pmt_ctx.pid_list[pid_list_index].reg_stream_type;
-        /*  */
-        static const char *stream_name[4] = { " video ", " audio ", "caption", " dsm-cc" };
-        tss_ctx_t *stream     = NULL;
-        uint8_t   *stream_num = NULL;
-        int        index      = 0;
-        if( stream_judge & STREAM_IS_VIDEO )
+        uint8_t video_count = 0, audio_count = 0, caption_count = 0, dsmcc_count = 0;
+        psi_ctx = &(info->pmt_ctx[pmt_ctx_index]);
+        for( int32_t pid_list_index = 0; pid_list_index < psi_ctx->pid_list_num; ++pid_list_index )
         {
-            stream     = &(video_ctx[video_stream_num]);
-            stream_num = &video_stream_num;
-            index      = 0;
-        }
-        else if( stream_judge & STREAM_IS_AUDIO )
-        {
-            stream     = &(audio_ctx[audio_stream_num]);
-            stream_num = &audio_stream_num;
-            index      = 1;
-        }
-        else if( stream_judge & STREAM_IS_CAPTION )
-        {
-            stream     = &(caption_ctx[caption_stream_num]);
-            stream_num = &caption_stream_num;
-            index      = 2;
-        }
-        else if( stream_judge & STREAM_IS_DSMCC )
-        {
-            stream     = &(dsmcc_ctx[dsmcc_stream_num]);
-            stream_num = &dsmcc_stream_num;
-            index      = 3;
-        }
-        if( !stream )
-            continue;
-        /* search. */
-        int detect_check = (stream_judge & (STREAM_IS_VIDEO | STREAM_IS_AUDIO))
-                         ? mpegts_search_program_id_packet( &(info->tsf_ctx), &h, program_id ) : 0;
-        if( !detect_check )
-        {
-            /* prepare parse context. */
-            if( !mpegts_open( &(stream->tsf_ctx), info->mpegts, info->buffer_size ) )
+            uint16_t               program_id      = psi_ctx->pid_list[pid_list_index].program_id;
+            mpeg_stream_type       stream_type     = psi_ctx->pid_list[pid_list_index].stream_type;
+            mpeg_stream_group_type stream_judge    = psi_ctx->pid_list[pid_list_index].stream_judge;
+            mpeg_stream_type       reg_stream_type = psi_ctx->pid_list[pid_list_index].reg_stream_type;
+            /* check target. */
+            static const char *stream_name[4] = { " video ", " audio ", "caption", " dsm-cc" };
+            tss_ctx_t *chk_stream   = NULL;
+            tss_ctx_t *stream       = NULL;
+            uint8_t   *stream_num   = NULL;
+            uint8_t   *stream_count = NULL;
+            int        index        = 0;
+            if( stream_judge & STREAM_IS_VIDEO )
             {
-                /* allocate. */
-                void *stream_parse_info;
-                if( mpegts_malloc_stream_parse_ctx( /* stream_type, */ stream_judge, &stream_parse_info ) )
-                {
-                    mpegts_close( &(stream->tsf_ctx) );
-                    goto fail_allocate_ctxs;
-                }
-                /* setup. */
-                stream->tsf_ctx.packet_size            = info->tsf_ctx.packet_size;
-                stream->tsf_ctx.sync_byte_position     = -1;
-                stream->tsf_ctx.read_position          = 0;
-                stream->tsf_ctx.ts_packet_length       = TS_PACKET_SIZE;
-                stream->tsf_ctx.packet_check_count_num = TS_PACKET_SEARCH_CHECK_COUNT_NUM;
-                stream->program_id                     = program_id;
-                stream->stream_type                    = stream_type;
-                stream->stream_judge                   = stream_judge;
-                stream->stream_parse_info              = stream_parse_info;
-                stream->gop_number                     = -1;
-                stream->header_offset                  = 0;
-                stream->private_info.reg_stream_type   = reg_stream_type;
-                sprintf( stream->private_info.keys[GET_INFO_KEY_ID].info, "PID %x", program_id );
-                mapi_log( LOG_LV2, "[check] %s PID:0x%04X, stream_type:0x%02X\n"
-                                 , stream_name[index], program_id, stream_type );
-                mpegts_file_seek( &(stream->tsf_ctx), info->tsf_ctx.read_position, MPEGTS_SEEK_SET );
-                ++(*stream_num);
+                chk_stream   = video_ctx;
+                stream       = &(video_ctx[video_stream_num]);
+                stream_num   = &video_stream_num;
+                stream_count = &video_count;
+                index        = 0;
             }
+            else if( stream_judge & STREAM_IS_AUDIO )
+            {
+                chk_stream   = audio_ctx;
+                stream       = &(audio_ctx[audio_stream_num]);
+                stream_num   = &audio_stream_num;
+                stream_count = &audio_count;
+                index        = 1;
+            }
+            else if( stream_judge & STREAM_IS_CAPTION )
+            {
+                chk_stream   = caption_ctx;
+                stream       = &(caption_ctx[caption_stream_num]);
+                stream_num   = &caption_stream_num;
+                stream_count = &caption_count;
+                index        = 2;
+            }
+            else if( stream_judge & STREAM_IS_DSMCC )
+            {
+                chk_stream   = dsmcc_ctx;
+                stream       = &(dsmcc_ctx[dsmcc_stream_num]);
+                stream_num   = &dsmcc_stream_num;
+                stream_count = &dsmcc_count;
+                index        = 3;
+            }
+            else
+                continue;
+            /* compare with the detected pid. */
+            while( chk_stream != stream )
+            {
+                if( chk_stream->program_id == program_id )
+                {
+                    stream = NULL;
+                    break;
+                }
+                ++chk_stream;
+            }
+            if( !stream )
+            {
+                ++(*stream_count);
+                continue;
+            }
+            /* search. */
+            int detect_check = (stream_judge & (STREAM_IS_VIDEO | STREAM_IS_AUDIO))
+                             ? mpegts_search_program_id_packet( &(info->tsf_ctx), &h, program_id ) : 0;
+            if( !detect_check )
+            {
+                /* prepare parse context. */
+                if( !mpegts_open( &(stream->tsf_ctx), info->mpegts, info->buffer_size ) )
+                {
+                    /* allocate. */
+                    void *stream_parse_info;
+                    if( mpegts_malloc_stream_parse_ctx( /* stream_type, */ stream_judge, &stream_parse_info ) )
+                    {
+                        mpegts_close( &(stream->tsf_ctx) );
+                        goto fail_allocate_ctxs;
+                    }
+                    /* setup. */
+                    stream->tsf_ctx.packet_size            = info->tsf_ctx.packet_size;
+                    stream->tsf_ctx.sync_byte_position     = -1;
+                    stream->tsf_ctx.read_position          = 0;
+                    stream->tsf_ctx.ts_packet_length       = TS_PACKET_SIZE;
+                    stream->tsf_ctx.packet_check_count_num = TS_PACKET_SEARCH_CHECK_COUNT_NUM;
+                    stream->program_id                     = program_id;
+                    stream->stream_type                    = stream_type;
+                    stream->stream_judge                   = stream_judge;
+                    stream->stream_parse_info              = stream_parse_info;
+                    stream->gop_number                     = -1;
+                    stream->header_offset                  = 0;
+                    stream->private_info.reg_stream_type   = reg_stream_type;
+                    sprintf( stream->private_info.keys[GET_INFO_KEY_ID].info, "PID %x", program_id );
+                    mapi_log( LOG_LV2, "[check] %s PID:0x%04X, stream_type:0x%02X\n"
+                                     , stream_name[index], program_id, stream_type );
+                    mpegts_file_seek( &(stream->tsf_ctx), info->tsf_ctx.read_position, MPEGTS_SEEK_SET );
+                    ++(*stream_num);
+                    ++(*stream_count);
+                }
+            }
+            else
+                mapi_log( LOG_LV2, "[check] Undetected - %s PID:0x%04X, stream_type:0x%02X\n"
+                                 , stream_name[index], program_id, stream_type );
+            /* reset position. */
+            mpegts_file_seek( &(info->tsf_ctx), start_position, MPEGTS_SEEK_RESET );
         }
-        else
-            mapi_log( LOG_LV2, "[check] Undetected - %s PID:0x%04X, stream_type:0x%02X\n"
-                             , stream_name[index], program_id, stream_type );
-        /* reset position. */
-        mpegts_file_seek( &(info->tsf_ctx), start_position, MPEGTS_SEEK_RESET );
+        /* setup. */
+        psi_ctx->video_stream       = &(video_ctx[video_stream_num - video_count]);
+        psi_ctx->audio_stream       = &(audio_ctx[audio_stream_num - audio_count]);;
+        psi_ctx->caption_stream     = &(caption_ctx[caption_stream_num - caption_count]);
+        psi_ctx->dsmcc_stream       = &(dsmcc_ctx[dsmcc_stream_num - dsmcc_count]);
+        psi_ctx->video_stream_num   = video_count;
+        psi_ctx->audio_stream_num   = audio_count;
+        psi_ctx->caption_stream_num = caption_count;
+        psi_ctx->dsmcc_stream_num   = dsmcc_count;
     }
     if( !video_stream_num )
     {
@@ -3163,15 +3231,47 @@ static int set_pmt_stream_info( mpegts_info_t *info )
     }
     if( !video_ctx && !audio_ctx && !caption_ctx && !dsmcc_ctx )
         return -1;
+    /* create pid list for multi service. */
+    mpegts_pid_info_t *pid_list = (mpegts_pid_info_t *)malloc( sizeof(mpegts_pid_info_t) * (video_stream_num + audio_stream_num + caption_stream_num + dsmcc_stream_num) );
+    if( !pid_list )
+        goto fail_allocate_ctxs;
+    uint16_t pid_list_num = 0;
+    for( int32_t pmt_ctx_index = 0; pmt_ctx_index < info->pat_ctx.pid_list_num; ++pmt_ctx_index )
+    {
+        psi_ctx = &(info->pmt_ctx[pmt_ctx_index]);
+        for( int32_t pid_list_index = 0; pid_list_index < psi_ctx->pid_list_num; ++pid_list_index )
+        {
+            if( psi_ctx->pid_list[pid_list_index].stream_judge == STREAM_IS_UNKNOWN )
+                continue;
+            /* compare with the detected pid. */
+            int new_pid = 1;
+            for( int32_t i = 0; i < pmt_ctx_index && new_pid; ++i )
+            {
+                tsp_psi_ctx_t *pre_psi_ctx = &(info->pmt_ctx[i]);
+                for( int32_t j = 0; j < pre_psi_ctx->pid_list_num && new_pid; ++j )
+                    if( psi_ctx->pid_list[pid_list_index].program_id == pre_psi_ctx->pid_list[j].program_id )
+                        new_pid = 0;
+            }
+            if( new_pid )
+            {
+                /* copy pid list information. */
+                pid_list[pid_list_num] = psi_ctx->pid_list[pid_list_index];
+                ++pid_list_num;
+            }
+        }
+    }
     /* setup. */
-    info->video_stream       = video_ctx;
-    info->audio_stream       = audio_ctx;
-    info->caption_stream     = caption_ctx;
-    info->dsmcc_stream       = dsmcc_ctx;
-    info->video_stream_num   = video_stream_num;
-    info->audio_stream_num   = audio_stream_num;
-    info->caption_stream_num = caption_stream_num;
-    info->dsmcc_stream_num   = dsmcc_stream_num;
+    psi_ctx                     = &(info->pmt_ctx[info->pat_ctx.pid_list_num]);
+    psi_ctx->video_stream       = video_ctx;
+    psi_ctx->audio_stream       = audio_ctx;
+    psi_ctx->caption_stream     = caption_ctx;
+    psi_ctx->dsmcc_stream       = dsmcc_ctx;
+    psi_ctx->video_stream_num   = video_stream_num;
+    psi_ctx->audio_stream_num   = audio_stream_num;
+    psi_ctx->caption_stream_num = caption_stream_num;
+    psi_ctx->dsmcc_stream_num   = dsmcc_stream_num;
+    psi_ctx->pid_list           = pid_list;
+    psi_ctx->pid_list_num       = pid_list_num;
     return 0;
 fail_allocate_ctxs:
     /* release. */
@@ -3194,51 +3294,110 @@ fail_set_pmt_stream_info:
 
 static void release_all_stream_handle( mpegts_info_t *info )
 {
-    release_stream_handle( &(info->video_stream), &(info->video_stream_num) );
-    release_stream_handle( &(info->audio_stream), &(info->audio_stream_num) );
-    release_stream_handle( &(info->caption_stream), &(info->caption_stream_num) );
-    release_stream_handle( &(info->dsmcc_stream), &(info->dsmcc_stream_num) );
+    tsp_psi_ctx_t *psi_ctx = &(info->pmt_ctx[info->pat_ctx.pid_list_num]);
+    release_stream_handle( &(psi_ctx->video_stream), &(psi_ctx->video_stream_num) );
+    release_stream_handle( &(psi_ctx->audio_stream), &(psi_ctx->audio_stream_num) );
+    release_stream_handle( &(psi_ctx->caption_stream), &(psi_ctx->caption_stream_num) );
+    release_stream_handle( &(psi_ctx->dsmcc_stream), &(psi_ctx->dsmcc_stream_num) );
+}
+
+static void release_psi_ctx_handle( tsp_psi_ctx_t *psi_ctx )
+{
+    if( psi_ctx->pid_list )
+    {
+        free( psi_ctx->pid_list );
+        psi_ctx->pid_list = NULL;
+    }
+    if( psi_ctx->packet_buffer )
+    {
+        free( psi_ctx->packet_buffer );
+        psi_ctx->packet_buffer = NULL;
+    }
+    if( psi_ctx->section_buffer )
+    {
+        free( psi_ctx->section_buffer );
+        psi_ctx->section_buffer = NULL;
+    }
+    if( psi_ctx->cache_buffer )
+    {
+        free( psi_ctx->cache_buffer );
+        psi_ctx->cache_buffer = NULL;
+    }
 }
 
 static void release_all_handle( mpegts_info_t *info )
 {
     release_all_stream_handle( info );
-    tsp_psi_ctx_t *psi_ctx[] = {
-        &(info->pat_ctx), &(info->cat_ctx), &(info->pmt_ctx), NULL
-    };
-    for( int i = 0; psi_ctx[i]; ++i )
+    if( info->pmt_ctx )
     {
-        if( psi_ctx[i]->pid_list )
-        {
-            free( psi_ctx[i]->pid_list );
-            psi_ctx[i]->pid_list = NULL;
-        }
-        if( psi_ctx[i]->packet_buffer )
-        {
-            free( psi_ctx[i]->packet_buffer );
-            psi_ctx[i]->packet_buffer = NULL;
-        }
-        if( psi_ctx[i]->section_buffer )
-        {
-            free( psi_ctx[i]->section_buffer );
-            psi_ctx[i]->section_buffer = NULL;
-        }
-        if( psi_ctx[i]->cache_buffer )
-        {
-            free( psi_ctx[i]->cache_buffer );
-            psi_ctx[i]->cache_buffer = NULL;
-        }
+        for( int32_t i = 0; i < info->pat_ctx.pid_list_num + 1; ++i )
+            release_psi_ctx_handle( &(info->pmt_ctx[i]) );
+        free( info->pmt_ctx );
+        info->pmt_ctx = NULL;
     }
+    release_psi_ctx_handle( &(info->cat_ctx) );
+    release_psi_ctx_handle( &(info->pat_ctx) );
     info->status = PARSER_STATUS_NON_PARSING;
 }
 
 static int parse_pmt_info( mpegts_info_t *info )
 {
     mapi_log( LOG_LV2, "[check] [sub] %s()\n", __func__ );
-    if( mpegts_parse_pmt( info ) )
+    /* prepare. */
+    info->pmt_ctx = (mpegts_psi_ctx_t *)calloc( info->pat_ctx.pid_list_num + 1, sizeof(mpegts_psi_ctx_t) );
+    if( !info->pmt_ctx )
         goto fail_parse;
-    if( mpegts_parse_pcr( info ) )
+    for( int32_t i = 0; i < info->pat_ctx.pid_list_num + 1; ++i )
+    {
+        info->pmt_ctx[i].pmt_program_id = TS_PID_ERR;
+        info->pmt_ctx[i].pcr_program_id = TS_PID_ERR;
+        info->pmt_ctx[i].ecm_program_id = TS_PID_ERR;
+        info->pmt_ctx[i].pcr            = MPEG_TIMESTAMP_INVALID_VALUE;
+        info->pmt_ctx[i].start_pcr      = MPEG_TIMESTAMP_INVALID_VALUE;
+        info->pmt_ctx[i].last_pcr       = MPEG_TIMESTAMP_INVALID_VALUE;
+    }
+    /* parse. */
+    int64_t start_position = mpegts_ftell( &(info->tsf_ctx) );
+    for( int32_t i = 0; i < info->pat_ctx.pid_list_num; ++i )
+    {
+        
+        if( mpegts_parse_pmt( info, i ) < 0 )
+            goto fail_parse;
+        if( info->pmt_ctx[i].pcr_program_id && mpegts_parse_pcr( info, i ) )
+            goto fail_parse;
+        /* reset position. */
+        mpegts_file_seek( &(info->tsf_ctx), start_position, MPEGTS_SEEK_RESET );
+    }
+    /* setup active PMT. */
+    int32_t pmt_ctx_index = 0;
+    while( pmt_ctx_index < info->pat_ctx.pid_list_num )
+    {
+        if( info->pat_ctx.pid_list[pmt_ctx_index].program_number )
+            break;
+        ++pmt_ctx_index;
+    }
+    if( pmt_ctx_index == info->pat_ctx.pid_list_num )
         goto fail_parse;
+    info->pmt_ctx_index = pmt_ctx_index;
+    /* check user specified IDs. */
+    uint16_t target_pmt_pid = TS_PID_ERR;
+    if( info->specified_service_id )
+    {
+        /* search target PID. */
+        target_pmt_pid = mpegts_get_pmt_pid_from_sid( info, info->specified_service_id );
+        info->specified_service_id = 0;
+    }
+    if( target_pmt_pid == TS_PID_ERR && info->specified_pmt_program_id != TS_PID_ERR )
+        target_pmt_pid = info->specified_pmt_program_id;
+    if( target_pmt_pid != TS_PID_ERR )
+    {
+        /* setup the specified PMT PID. */
+        if( mpegts_set_user_specified_pmt( info, target_pmt_pid ) )
+            mapi_log( LOG_LV2, "[check] illegal pmt_PID:0x%04X is specified. using PID in PAT.\n", target_pmt_pid );
+        else
+            mapi_log( LOG_LV2, "[check] using pmt_PID:0x%04X\n", target_pmt_pid );
+        info->specified_pmt_program_id = TS_PID_ERR;
+    }
     return 0;
 fail_parse:
     release_all_handle( info );
@@ -3256,31 +3415,10 @@ static int set_pmt_program_id( mpegts_info_t *info, uint16_t program_id )
     }
     /* setup the specified PMT PID. */
     int result = mpegts_set_user_specified_pmt( info, program_id );
-    if( result < 1 )
-        return result;
-    /* reset pmt information. */
-    info->tsf_ctx.sync_byte_position = 0;
-    info->tsf_ctx.read_position      = -1;
-    info->pcr_program_id             = TS_PID_ERR;
-    info->ecm_program_id             = TS_PID_ERR;
-    info->emm_program_id             = TS_PID_ERR;
-    info->pcr                        = MPEG_TIMESTAMP_INVALID_VALUE;
-    info->start_pcr                  = MPEG_TIMESTAMP_INVALID_VALUE;
-    info->last_pcr                   = MPEG_TIMESTAMP_INVALID_VALUE;
-    release_all_stream_handle( info );
-    if( info->pmt_ctx.pid_list )
-    {
-        free( info->pmt_ctx.pid_list );
-        info->pmt_ctx.pid_list = NULL;
-    }
-    int64_t start_position = mpegts_ftell( &(info->tsf_ctx) );
-    result = parse_pmt_info( info );
     if( result )
-        goto end_reset;
-    mpegts_file_seek( &(info->tsf_ctx), start_position, MPEGTS_SEEK_RESET );
-    result = set_pmt_stream_info( info );
-end_reset:
-    mpegts_file_seek( &(info->tsf_ctx), start_position, MPEGTS_SEEK_RESET );
+        mapi_log( LOG_LV2, "[check] illegal pmt_PID:0x%04X is specified. using PID in PAT.\n", program_id );
+    else
+        mapi_log( LOG_LV2, "[check] using pmt_PID:0x%04X\n", program_id );
     return result;
 }
 
@@ -3290,13 +3428,14 @@ static int set_stream_program_id( mpegts_info_t *info, uint16_t program_id )
     /* search program id and stream type. */
     int result = -1;
 #if 0       // FIXME
-    for( int32_t pid_list_index = 0; pid_list_index < info->pmt_ctx.pid_list_num; ++pid_list_index )
+    tsp_psi_ctx_t *psi_ctx = &(info->pmt_ctx[info->pmt_ctx_index]);
+    for( int32_t pid_list_index = 0; pid_list_index < psi_ctx->pid_list_num; ++pid_list_index )
     {
-        if( info->pmt_ctx.pid_list[pid_list_index].program_id == program_id )
+        if( psi_ctx->pid_list[pid_list_index].program_id == program_id )
         {
-            mpeg_stream_group_type stream_judge = set_stream_info( info, info->pmt_ctx.pid_list[pid_list_index].program_id
-                                                                 , info->pmt_ctx.pid_list[pid_list_index].stream_type
-                                                                 , info->pmt_ctx.pid_list[pid_list_index].stream_judge );
+            mpeg_stream_group_type stream_judge = set_stream_info( info, psi_ctx->pid_list[pid_list_index].program_id
+                                                                 , psi_ctx->pid_list[pid_list_index].stream_type
+                                                                 , psi_ctx->pid_list[pid_list_index].stream_judge );
             if( (stream_judge & STREAM_IS_VIDEO) || (stream_judge & STREAM_IS_AUDIO) )
                 result = 0;
         }
@@ -3437,12 +3576,7 @@ static void *initialize( const char *input_file, int64_t buffer_size )
     info->packet_check_retry_num         = TS_PACKET_SEARCH_RETRY_COUNT_NUM;
     info->specified_service_id           = 0;
     info->specified_pmt_program_id       = TS_PID_ERR;
-    info->pcr_program_id                 = TS_PID_ERR;
-    info->ecm_program_id                 = TS_PID_ERR;
     info->emm_program_id                 = TS_PID_ERR;
-    info->pcr                            = MPEG_TIMESTAMP_INVALID_VALUE;
-    info->start_pcr                      = MPEG_TIMESTAMP_INVALID_VALUE;
-    info->last_pcr                       = MPEG_TIMESTAMP_INVALID_VALUE;
     info->descriptor_info                = descriptor_info;
     /* first check. */
     if( mpegts_first_check( &(info->tsf_ctx) ) )

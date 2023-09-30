@@ -107,7 +107,7 @@ MAPI_EXPORT int mpeg_api_get_stream_all
     get_stream_data_cb_t       *cb
 );
 
-MAPI_EXPORT uint8_t mpeg_api_get_stream_num( void *ih, mpeg_sample_type sample_type );
+MAPI_EXPORT uint8_t mpeg_api_get_stream_num( void *ih, mpeg_sample_type sample_type, uint16_t service_id );
 
 MAPI_EXPORT const char *mpeg_api_get_stream_information
 (
@@ -160,7 +160,7 @@ MAPI_EXPORT int mpeg_api_get_sample_data
 
 MAPI_EXPORT int mpeg_api_free_sample_buffer( void *ih, uint8_t **buffer );
 
-MAPI_EXPORT int mpeg_api_get_pcr( void *ih, pcr_info_t *pcr_info );
+MAPI_EXPORT int mpeg_api_get_pcr( void *ih, pcr_info_t *pcr_info, uint16_t service_id );
 
 MAPI_EXPORT int mpeg_api_get_video_frame( void *ih, uint8_t stream_number, stream_info_t *stream_info );
 
@@ -173,7 +173,8 @@ MAPI_EXPORT int mpeg_api_get_stream_parse_info
     void                       *ih,
     stream_info_t              *stream_info,
     int64_t                    *video_1st_pts,
-    int64_t                    *video_key_pts
+    int64_t                    *video_key_pts,
+    uint16_t                    service_id
 );
 
 MAPI_EXPORT int mpeg_api_set_pmt_target( void *ih, pmt_target_type pmt_target );

@@ -471,11 +471,12 @@ static uint8_t get_stream_num( void *ih, mpeg_sample_type sample_type )
     return (sample_type == SAMPLE_TYPE_VIDEO);
 }
 
-static int get_pcr( void *ih, pcr_info_t *pcr_info )
+static int get_pcr( void *ih, pcr_info_t *pcr_info, uint16_t service_id )
 {
 #if ENABLE_SUPPRESS_WARNINGS
     (void) ih;
     (void) pcr_info;
+    (void) service_id;
 #endif
     return -1;
 }

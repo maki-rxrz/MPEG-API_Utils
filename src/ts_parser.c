@@ -2174,11 +2174,11 @@ static void parse_mpeg( param_t *p )
         }
         if( p->output_stream == OUTPUT_STREAM_NONE_PCR_ONLY )
             goto end_parse;
-        /* check Video and Audio information. */
-        uint8_t video_stream_num   = mpeg_api_get_stream_num( info, SAMPLE_TYPE_VIDEO   );
-        uint8_t audio_stream_num   = mpeg_api_get_stream_num( info, SAMPLE_TYPE_AUDIO   );
-        uint8_t caption_stream_num = mpeg_api_get_stream_num( info, SAMPLE_TYPE_CAPTION );
-        uint8_t dsmcc_stream_num   = mpeg_api_get_stream_num( info, SAMPLE_TYPE_DSMCC   );
+        /* check stream information. */
+        uint8_t video_stream_num   = mpeg_api_get_stream_num( info, SAMPLE_TYPE_VIDEO  , 0 );
+        uint8_t audio_stream_num   = mpeg_api_get_stream_num( info, SAMPLE_TYPE_AUDIO  , 0 );
+        uint8_t caption_stream_num = mpeg_api_get_stream_num( info, SAMPLE_TYPE_CAPTION, 0 );
+        uint8_t dsmcc_stream_num   = mpeg_api_get_stream_num( info, SAMPLE_TYPE_DSMCC  , 0 );
         mapi_log( LOG_LV_OUTPUT, "[log] stream_num:  Video:%4u  Audio:%4u  Caption:%4u  DSM-CC:%4u\n", video_stream_num, audio_stream_num, caption_stream_num, dsmcc_stream_num );
         if( !video_stream_num && !audio_stream_num /* && !caption_stream_num && !dsmcc_stream_num */ )
             goto end_parse;

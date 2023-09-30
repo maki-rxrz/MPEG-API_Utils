@@ -345,8 +345,8 @@ MAPI_EXPORT int mpeg_api_create_sample_list( void *ih )
     mpeg_parser_t *parser      = info->parser;
     void          *parser_info = info->parser_info;
     /* check stream num. */
-    int8_t               video_stream_num = parser->get_stream_num( parser_info, SAMPLE_TYPE_VIDEO );
-    int8_t               audio_stream_num = parser->get_stream_num( parser_info, SAMPLE_TYPE_AUDIO );
+    int8_t               video_stream_num = parser->get_stream_num( parser_info, SAMPLE_TYPE_VIDEO, 0 );
+    int8_t               audio_stream_num = parser->get_stream_num( parser_info, SAMPLE_TYPE_AUDIO, 0 );
     video_stream_data_t *video_stream     = NULL;
     audio_stream_data_t *audio_stream     = NULL;
     if( video_stream_num )
@@ -490,8 +490,8 @@ MAPI_EXPORT int mpeg_api_get_all_stream_data
     /* set start position. */
     if( get_mode == GET_SAMPLE_DATA_RAW )
     {
-        uint8_t video_stream_num = parser->get_stream_num( parser_info, SAMPLE_TYPE_VIDEO );
-        uint8_t audio_stream_num = parser->get_stream_num( parser_info, SAMPLE_TYPE_AUDIO );
+        uint8_t video_stream_num = parser->get_stream_num( parser_info, SAMPLE_TYPE_VIDEO, 0 );
+        uint8_t audio_stream_num = parser->get_stream_num( parser_info, SAMPLE_TYPE_AUDIO, 0 );
         for( uint8_t i = 0; i < video_stream_num; ++i )
         {
             video_sample_info_t video_sample_info;
@@ -616,12 +616,12 @@ MAPI_EXPORT int mpeg_api_get_stream_data
     return result;
 }
 
-MAPI_EXPORT uint8_t mpeg_api_get_stream_num( void *ih, mpeg_sample_type sample_type )
+MAPI_EXPORT uint8_t mpeg_api_get_stream_num( void *ih, mpeg_sample_type sample_type, uint16_t service_id )
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
         return 0;
-    return info->parser->get_stream_num( info->parser_info, sample_type );
+    return info->parser->get_stream_num( info->parser_info, sample_type, service_id );
 }
 
 MAPI_EXPORT const char *mpeg_api_get_stream_information
@@ -866,12 +866,12 @@ MAPI_EXPORT int mpeg_api_free_sample_buffer( void *ih, uint8_t **buffer )
     return 0;
 }
 
-MAPI_EXPORT int mpeg_api_get_pcr( void *ih, pcr_info_t *pcr_info )
+MAPI_EXPORT int mpeg_api_get_pcr( void *ih, pcr_info_t *pcr_info, uint16_t service_id )
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
         return -1;
-    return info->parser->get_pcr( info->parser_info, pcr_info );
+    return info->parser->get_pcr( info->parser_info, pcr_info, service_id );
 }
 
 MAPI_EXPORT int mpeg_api_get_video_frame( void *ih, uint8_t stream_number, stream_info_t *stream_info )
@@ -945,7 +945,8 @@ MAPI_EXPORT int mpeg_api_get_stream_parse_info
     void                       *ih,
     stream_info_t              *stream_info,
     int64_t                    *video_1st_pts,
-    int64_t                    *video_key_pts
+    int64_t                    *video_key_pts,
+    uint16_t                    service_id
 )
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
@@ -989,7 +990,7 @@ MAPI_EXPORT int mpeg_api_get_stream_parse_info
     check_stream_exist |= parser->get_audio_info( parser_info, stream_number, &audio_sample_info ) ? AUDIO_NONE : 0;
     /* get pcr. */
     pcr_info_t pcr_info;
-    parser->get_pcr( info->parser_info, &pcr_info );
+    parser->get_pcr( info->parser_info, &pcr_info, service_id );
     /* setup. */
     stream_info->pcr                = pcr_info.pcr < pcr_info.start_pcr ? pcr_info.start_pcr : pcr_info.pcr;
     stream_info->video_pts          = video_sample_info.pts;
