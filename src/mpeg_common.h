@@ -37,6 +37,8 @@
 
 #define CRC32_SIZE                      (4)
 
+#define MAPI_ALL_SERVICE_PMT_PID        (0)
+
 typedef enum {
     SAMPLE_TYPE_VIDEO,
     SAMPLE_TYPE_AUDIO,

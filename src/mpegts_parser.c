@@ -653,6 +653,12 @@ static int mpegts_get_table_section_data
 
 static int mpegts_set_user_specified_pmt( mpegts_info_t *info, uint16_t program_id )
 {
+    /* check for all. */
+    if( program_id == MAPI_ALL_SERVICE_PMT_PID )
+    {
+        info->pmt_ctx_index = info->pat_ctx.pid_list_num;
+        return 0;
+    }
     /* search in PAT. */
     int32_t pmt_ctx_index;
     for( pmt_ctx_index = 0; pmt_ctx_index < info->pat_ctx.pid_list_num; ++pmt_ctx_index )
@@ -3496,6 +3502,9 @@ static int set_pmt_program_id( mpegts_info_t *info, uint16_t program_id )
         info->specified_pmt_program_id = program_id;
         return 0;
     }
+    /* check for all. */
+    if( program_id == MAPI_ALL_SERVICE_PMT_PID )
+        return mpegts_set_user_specified_pmt( info, program_id );
     /* setup the specified PMT PID. */
     int result = mpegts_set_user_specified_pmt( info, program_id );
     if( result )
