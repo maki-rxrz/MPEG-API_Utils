@@ -3098,46 +3098,48 @@ static int set_pmt_stream_info( mpegts_info_t *info )
             stream_num = &dsmcc_stream_num;
             index      = 3;
         }
-        if( stream )
+        if( !stream )
+            continue;
+        /* search. */
+        int detect_check = (stream_judge & (STREAM_IS_VIDEO | STREAM_IS_AUDIO))
+                         ? mpegts_search_program_id_packet( &(info->tsf_ctx), &h, program_id ) : 0;
+        if( !detect_check )
         {
-            int detect_check = (stream_judge & (STREAM_IS_VIDEO | STREAM_IS_AUDIO))
-                             ? mpegts_search_program_id_packet( &(info->tsf_ctx), &h, program_id ) : 0;
-            if( !detect_check )
+            /* prepare parse context. */
+            if( !mpegts_open( &(stream->tsf_ctx), info->mpegts, info->buffer_size ) )
             {
-                if( !mpegts_open( &(stream->tsf_ctx), info->mpegts, info->buffer_size ) )
+                /* allocate. */
+                void *stream_parse_info;
+                if( mpegts_malloc_stream_parse_ctx( /* stream_type, */ stream_judge, &stream_parse_info ) )
                 {
-                    /* allocate. */
-                    void *stream_parse_info;
-                    if( mpegts_malloc_stream_parse_ctx( /* stream_type, */ stream_judge, &stream_parse_info ) )
-                    {
-                        mpegts_close( &(stream->tsf_ctx) );
-                        goto fail_allocate_ctxs;
-                    }
-                    /* setup. */
-                    stream->tsf_ctx.packet_size            = info->tsf_ctx.packet_size;
-                    stream->tsf_ctx.sync_byte_position     = -1;
-                    stream->tsf_ctx.read_position          = 0;
-                    stream->tsf_ctx.ts_packet_length       = TS_PACKET_SIZE;
-                    stream->tsf_ctx.packet_check_count_num = TS_PACKET_SEARCH_CHECK_COUNT_NUM;
-                    stream->program_id                     = program_id;
-                    stream->stream_type                    = stream_type;
-                    stream->stream_judge                   = stream_judge;
-                    stream->stream_parse_info              = stream_parse_info;
-                    stream->gop_number                     = -1;
-                    stream->header_offset                  = 0;
-                    stream->private_info.reg_stream_type   = reg_stream_type;
-                    sprintf( stream->private_info.keys[GET_INFO_KEY_ID].info, "PID %x", program_id );
-                    mapi_log( LOG_LV2, "[check] %s PID:0x%04X, stream_type:0x%02X\n"
-                                     , stream_name[index], program_id, stream_type );
-                    mpegts_file_seek( &(stream->tsf_ctx), info->tsf_ctx.read_position, MPEGTS_SEEK_SET );
-                    ++(*stream_num);
+                    mpegts_close( &(stream->tsf_ctx) );
+                    goto fail_allocate_ctxs;
                 }
-            }
-            else
-                mapi_log( LOG_LV2, "[check] Undetected - %s PID:0x%04X, stream_type:0x%02X\n"
+                /* setup. */
+                stream->tsf_ctx.packet_size            = info->tsf_ctx.packet_size;
+                stream->tsf_ctx.sync_byte_position     = -1;
+                stream->tsf_ctx.read_position          = 0;
+                stream->tsf_ctx.ts_packet_length       = TS_PACKET_SIZE;
+                stream->tsf_ctx.packet_check_count_num = TS_PACKET_SEARCH_CHECK_COUNT_NUM;
+                stream->program_id                     = program_id;
+                stream->stream_type                    = stream_type;
+                stream->stream_judge                   = stream_judge;
+                stream->stream_parse_info              = stream_parse_info;
+                stream->gop_number                     = -1;
+                stream->header_offset                  = 0;
+                stream->private_info.reg_stream_type   = reg_stream_type;
+                sprintf( stream->private_info.keys[GET_INFO_KEY_ID].info, "PID %x", program_id );
+                mapi_log( LOG_LV2, "[check] %s PID:0x%04X, stream_type:0x%02X\n"
                                  , stream_name[index], program_id, stream_type );
-            mpegts_file_seek( &(info->tsf_ctx), start_position, MPEGTS_SEEK_RESET );
+                mpegts_file_seek( &(stream->tsf_ctx), info->tsf_ctx.read_position, MPEGTS_SEEK_SET );
+                ++(*stream_num);
+            }
         }
+        else
+            mapi_log( LOG_LV2, "[check] Undetected - %s PID:0x%04X, stream_type:0x%02X\n"
+                             , stream_name[index], program_id, stream_type );
+        /* reset position. */
+        mpegts_file_seek( &(info->tsf_ctx), start_position, MPEGTS_SEEK_RESET );
     }
     if( !video_stream_num )
     {
