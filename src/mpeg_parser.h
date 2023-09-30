@@ -84,6 +84,8 @@ typedef struct {
     void                (* release                  )( void *ih );
     int                 (* parse                    )( void *ih );
     int                 (* set_service_id           )( void *ih, uint16_t service_id );
+    int32_t             (* get_service_id_num       )( void *ih );
+    int32_t             (* get_service_id_info      )( void *ih, service_id_info_t *sid_info, int32_t sid_info_num );
     int                 (* set_program_target       )( void *ih, pmt_target_type pmt_target );
     int                 (* set_program_id           )( void *ih, mpegts_select_pid_type pid_type, uint16_t program_id );
     uint16_t            (* get_program_id           )( void *ih, mpeg_stream_type stream_type, uint8_t stream_number );

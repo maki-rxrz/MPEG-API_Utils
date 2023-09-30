@@ -3607,6 +3607,29 @@ static int set_service_id( void *ih, uint16_t service_id )
     return result;
 }
 
+static int32_t get_service_id_num( void *ih )
+{
+    mpegts_info_t *info = (mpegts_info_t *)ih;
+    if( !info || info->status == PARSER_STATUS_NON_PARSING )
+        return -1;
+    return info->pat_ctx.pid_list_num;
+}
+
+static int32_t get_service_id_info( void *ih, service_id_info_t *sid_info, int32_t sid_info_num )
+{
+    mpegts_info_t *info = (mpegts_info_t *)ih;
+    if( !info || info->status == PARSER_STATUS_NON_PARSING )
+        return -1;
+    /* setup. */
+    int32_t list_num = (sid_info_num < info->pat_ctx.pid_list_num) ? sid_info_num : info->pat_ctx.pid_list_num;
+    for( int32_t i = 0; i < list_num; ++i )
+    {
+        sid_info[i].service_id     = info->pat_ctx.pid_list[i].program_number;
+        sid_info[i].pmt_program_id = info->pat_ctx.pid_list[i].program_id;
+    }
+    return list_num;
+}
+
 static int parse( void *ih )
 {
     mapi_log( LOG_LV2, "[mpegts_parser] %s()\n", __func__ );
@@ -3702,6 +3725,8 @@ mpeg_parser_t mpegts_parser = {
     release,
     parse,
     set_service_id,
+    get_service_id_num,
+    get_service_id_info,
     set_program_target,
     set_program_id,
     get_program_id,

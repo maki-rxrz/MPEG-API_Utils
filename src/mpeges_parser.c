@@ -579,6 +579,24 @@ static int set_service_id( void *ih, uint16_t service_id )
     return -1;
 }
 
+static int32_t get_service_id_num( void *ih )
+{
+#if ENABLE_SUPPRESS_WARNINGS
+    (void) ih;
+#endif
+    return 0;
+}
+
+static int32_t get_service_id_info( void *ih, service_id_info_t *sid_info, int32_t sid_info_num )
+{
+#if ENABLE_SUPPRESS_WARNINGS
+    (void) ih;
+    (void) sid_info;
+    (void) sid_info_num;
+#endif
+    return 0;
+}
+
 static int parse( void *ih )
 {
     mapi_log( LOG_LV2, "[mpeges_parser] %s()\n", __func__ );
@@ -641,6 +659,8 @@ mpeg_parser_t mpeges_parser = {
     release,
     parse,
     set_service_id,
+    get_service_id_num,
+    get_service_id_info,
     set_program_target,
     set_program_id,
     get_program_id,
