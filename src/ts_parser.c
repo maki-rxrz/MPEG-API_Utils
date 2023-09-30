@@ -1970,6 +1970,8 @@ static void split_all_cb_func( void *cb_params, void *cb_ret )
         cb_p = &(param->a_cb_param[stream_number]);
     else if( sample_type == SAMPLE_TYPE_CAPTION )
         cb_p = &(param->c_cb_param[stream_number]);
+    else if( sample_type == SAMPLE_TYPE_DSMCC )
+        cb_p = &(param->d_cb_param[stream_number]);
     else /* sample_type == SAMPLE_TYPE_PSI */
         cb_p = param->p_cb_param;
     /* output. */
