@@ -85,14 +85,15 @@ typedef struct {
     int                 (* parse                    )( void *ih );
     int                 (* set_service_id           )( void *ih, uint16_t service_id );
     int32_t             (* get_service_id_num       )( void *ih );
+    int                 (* set_service_id_info      )( void *ih, service_id_info_t *sid_info, int32_t sid_info_num );
     int32_t             (* get_service_id_info      )( void *ih, service_id_info_t *sid_info, int32_t sid_info_num );
     int                 (* set_program_target       )( void *ih, pmt_target_type pmt_target );
     int                 (* set_program_id           )( void *ih, mpegts_select_pid_type pid_type, uint16_t program_id );
-    uint16_t            (* get_program_id           )( void *ih, mpeg_stream_type stream_type, uint8_t stream_number );
+    uint16_t            (* get_program_id           )( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, uint16_t service_id );
     int                 (* get_video_info           )( void *ih, uint8_t stream_number, video_sample_info_t *video_info );
     int                 (* get_audio_info           )( void *ih, uint8_t stream_number, audio_sample_info_t *audio_info );
     int                 (* get_pcr                  )( void *ih, pcr_info_t *pcr_info, uint16_t service_id );
-    uint8_t             (* get_stream_num           )( void *ih, mpeg_sample_type sample_type );
+    uint8_t             (* get_stream_num           )( void *ih, mpeg_sample_type sample_type, uint16_t service_id );
     int                 (* get_stream_data          )( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, int32_t read_offset, get_sample_data_mode get_mode, get_stream_data_cb_t *cb );
     int                 (* get_specific_stream_data )( void *ih, get_sample_data_mode get_mode, output_stream_type output_stream, int update_psi, get_stream_data_cb_t *cb );
     int64_t             (* get_sample_position      )( void *ih, mpeg_sample_type sample_type, uint8_t stream_number );

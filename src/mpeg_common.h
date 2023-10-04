@@ -190,6 +190,7 @@ typedef struct {
 typedef struct {
     uint16_t            service_id;
     uint16_t            pmt_program_id;
+    uint16_t            pcr_program_id;
 } service_id_info_t;
 
 typedef void (*get_stream_data_cb_func)( void *cb_params, void *cb_ret );
@@ -207,6 +208,7 @@ typedef struct {
     int32_t           read_offset;
     int64_t           progress;
     uint16_t          service_id;
+    uint16_t          pmt_program_id;
 } get_stream_data_cb_ret_t;
 
 #define BYTE_DATA_SHIFT( data, size )           \

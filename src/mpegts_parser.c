@@ -88,6 +88,7 @@ typedef struct {
     uint16_t                    program_id;
     mpeg_stream_type            reg_stream_type;
     uint16_t                    program_number;
+    int                         disable_pid;
 } mpegts_pid_info_t;
 
 typedef struct {
@@ -657,6 +658,9 @@ static int mpegts_set_user_specified_pmt( mpegts_info_t *info, uint16_t program_
     if( program_id == MAPI_ALL_SERVICE_PMT_PID )
     {
         info->pmt_ctx_index = info->pat_ctx.pid_list_num;
+        /* reset disable flag. */
+        for( int32_t i = 0; i < info->pat_ctx.pid_list_num; ++i )
+            info->pat_ctx.pid_list[i].disable_pid = 0;
         return 0;
     }
     /* search in PAT. */
@@ -1274,27 +1278,33 @@ static int mpegts_parse_pcr( mpegts_info_t *info, int32_t pmt_ctx_index )
     return 0;
 }
 
-static uint16_t mpegts_get_program_id( mpegts_info_t *info, mpeg_stream_type stream_type, uint8_t stream_number )
+static uint16_t mpegts_get_program_id( mpegts_info_t *info, mpeg_sample_type sample_type, uint8_t stream_number, uint16_t service_id )
 {
     mapi_log( LOG_LV3, "[check] %s()\n", __func__ );
-    /* search program id. */
-    tsp_psi_ctx_t *psi_ctx        = &(info->pmt_ctx[info->pmt_ctx_index]);
-    uint8_t        detect_count   = -1;
-    int32_t        pid_list_index = 0;
-    while( pid_list_index < psi_ctx->pid_list_num )
+    int32_t pmt_ctx_index = info->pmt_ctx_index;
+    /* search service id. */
+    if( service_id )
     {
-        if( psi_ctx->pid_list[pid_list_index].stream_type == stream_type )
-            ++detect_count;
-        if( detect_count == stream_number )
-            break;
-        ++pid_list_index;
+        for( pmt_ctx_index = 0; pmt_ctx_index < info->pat_ctx.pid_list_num; ++pmt_ctx_index )
+            if( info->pat_ctx.pid_list[pmt_ctx_index].program_number == service_id )
+                break;
+        if( pmt_ctx_index == info->pat_ctx.pid_list_num )
+            pmt_ctx_index = info->pmt_ctx_index;
     }
-    if( pid_list_index == psi_ctx->pid_list_num )
+    /* search program id. */
+    tsp_psi_ctx_t *psi_ctx = &(info->pmt_ctx[pmt_ctx_index]);
+    tss_ctx_t     *stream  = NULL;
+    if( sample_type == SAMPLE_TYPE_VIDEO && stream_number < psi_ctx->video_stream_num )
+        stream = &(psi_ctx->video_stream[stream_number]);
+    else if( sample_type == SAMPLE_TYPE_AUDIO && stream_number < psi_ctx->audio_stream_num )
+        stream = &(psi_ctx->audio_stream[stream_number]);
+    else if( sample_type == SAMPLE_TYPE_CAPTION && stream_number < psi_ctx->caption_stream_num )
+        stream = &(psi_ctx->caption_stream[stream_number]);
+    else if( sample_type == SAMPLE_TYPE_DSMCC && stream_number < psi_ctx->dsmcc_stream_num )
+        stream = &(psi_ctx->dsmcc_stream[stream_number]);
+    else
         return TS_PID_ERR;
-    mapi_log( LOG_LV3, "[check] %d - stream_type:%d, PID:0x%04X\n", pid_list_index
-                     , psi_ctx->pid_list[pid_list_index].stream_type
-                     , psi_ctx->pid_list[pid_list_index].program_id );
-    return psi_ctx->pid_list[pid_list_index].program_id;
+    return stream->program_id;
 }
 
 static int mpegts_get_stream_timestamp
@@ -1997,8 +2007,48 @@ static tsp_psi_ctx_t *mpegts_get_pmt_ctx( mpegts_info_t *info, uint16_t program_
     }
     else
         for( int32_t i = 0; i < info->pat_ctx.pid_list_num; ++i )
+        {
+            if( info->pat_ctx.pid_list[i].disable_pid )
+                continue;
             if( program_id == info->pmt_ctx[i].pmt_program_id )
                 return &(info->pmt_ctx[i]);
+        }
+    return NULL;
+}
+
+static tsp_psi_ctx_t *mpegts_get_pcr_ctx( mpegts_info_t *info, uint16_t program_id )
+{
+    if( info->pmt_ctx_index < info->pat_ctx.pid_list_num )
+    {
+        if( program_id == info->pmt_ctx[info->pmt_ctx_index].pcr_program_id )
+            return &(info->pmt_ctx[info->pmt_ctx_index]);
+    }
+    else
+        for( int32_t i = 0; i < info->pat_ctx.pid_list_num; ++i )
+        {
+            if( info->pat_ctx.pid_list[i].disable_pid )
+                continue;
+            if( program_id == info->pmt_ctx[i].pcr_program_id )
+                return &(info->pmt_ctx[i]);
+        }
+    return NULL;
+}
+
+static tsp_psi_ctx_t *mpegts_get_ecm_ctx( mpegts_info_t *info, uint16_t program_id )
+{
+    if( info->pmt_ctx_index < info->pat_ctx.pid_list_num )
+    {
+        if( program_id == info->pmt_ctx[info->pmt_ctx_index].ecm_program_id )
+            return &(info->pmt_ctx[info->pmt_ctx_index]);
+    }
+    else
+        for( int32_t i = 0; i < info->pat_ctx.pid_list_num; ++i )
+        {
+            if( info->pat_ctx.pid_list[i].disable_pid )
+                continue;
+            if( program_id == info->pmt_ctx[i].ecm_program_id )
+                return &(info->pmt_ctx[i]);
+        }
     return NULL;
 }
 
@@ -2552,6 +2602,9 @@ static int get_specific_stream_data
     mpeg_sample_type  sample_type   = SAMPLE_TYPE_PSI;
     uint8_t           stream_number = 0;
     tss_ctx_t        *stream        = NULL;
+    tsp_psi_ctx_t    *pmt_psi_ctx   = NULL;
+    tsp_psi_ctx_t    *pcr_psi_ctx   = NULL;
+    tsp_psi_ctx_t    *ecm_psi_ctx   = NULL;
     while( 1 )
     {
         if( mpegts_read_packet_header( tsf_ctx, &h ) )
@@ -2559,17 +2612,35 @@ static int get_specific_stream_data
         /* seek ts packet head. */
         mpegts_file_seek( tsf_ctx, -(TS_PACKET_HEADER_SIZE), MPEGTS_SEEK_CUR );
         tsf_ctx->sync_byte_position = 0;
+        /* check enable service. */
+        if( info->pmt_ctx_index == info->pat_ctx.pid_list_num )
+        {
+            int enable_service = 0;
+            for( int32_t i = 0; i < info->pat_ctx.pid_list_num && enable_service == 0; ++i )
+            {
+                tsp_psi_ctx_t *chk_psi_ctx = &(info->pmt_ctx[i]);
+                for( int32_t j = 0; j < chk_psi_ctx->pid_list_num && enable_service == 0; ++j )
+                    if( h.program_id == chk_psi_ctx->pid_list[j].program_id )
+                    {
+                        if( info->pat_ctx.pid_list[i].disable_pid )
+                            goto next_packet;
+                        enable_service = 1;
+                    }
+            }
+        }
         /* check psi and ecm/emm packcet. */
         if( psi_required )
         {
             if( h.program_id < MPEGTS_PID_RESERVED_CHECK_VALUE )
                 break;
-            /* ECM, EMM */
-            if( h.program_id == psi_ctx->ecm_program_id
-             || h.program_id == info->emm_program_id )
+            /* EMM */
+            if( h.program_id == info->emm_program_id )
                 break;
             /* PMT */
-            if( mpegts_get_pmt_ctx( info, h.program_id ) )
+            if( (pmt_psi_ctx = mpegts_get_pmt_ctx( info, h.program_id )) )
+                break;
+            /* ECM */
+            if( (ecm_psi_ctx = mpegts_get_ecm_ctx( info, h.program_id )) )
                 break;
         }
         /* check the target stream. */
@@ -2608,9 +2679,10 @@ static int get_specific_stream_data
         if( !stream && psi_required )
         {
             /* PCR */
-            if( h.program_id == psi_ctx->pcr_program_id )
+            if( (pcr_psi_ctx = mpegts_get_pcr_ctx( info, h.program_id )) )
                 break;
         }
+    next_packet:
         /* seek next. */
         mpegts_file_seek( tsf_ctx, 0, MPEGTS_SEEK_NEXT );
         stream      = NULL;
@@ -2701,9 +2773,9 @@ static int get_specific_stream_data
                 /* CAT */
                 psi_ctx = &(info->cat_ctx);
 #endif
-            else
+            else if( pmt_psi_ctx )
                 /* PMT */
-                psi_ctx = mpegts_get_pmt_ctx( info, h.program_id );
+                psi_ctx = pmt_psi_ctx;
             if( psi_ctx )
             {
                 /* cache packet. */
@@ -2740,20 +2812,24 @@ static int get_specific_stream_data
             }
             /* output. */
             get_stream_data_cb_ret_t cb_ret = {
-                .sample_type   = sample_type,
-                .stream_number = stream_number,
-                .buffer        = buffer,
-                .read_size     = read_size,
-                .read_offset   = read_offset,
-                .progress      = mpegts_ftell( tsf_ctx ),
-                .service_id    = 0
+                .sample_type    = sample_type,
+                .stream_number  = stream_number,
+                .buffer         = buffer,
+                .read_size      = read_size,
+                .read_offset    = read_offset,
+                .progress       = mpegts_ftell( tsf_ctx ),
+                .service_id     = 0,
+                .pmt_program_id = 0
             };
             if( cb_num > 1 )
             {
                 for( int i = 0; i < cb_num; ++i )
                 {
-                    cb_ret.buffer     = &(buffer[info->tsf_ctx.packet_size * (info->pat_ctx.packet_num + TS_PSI_PACKET_NUM_CHECK_MARGIN) * i]);
-                    cb_ret.service_id = info->pat_ctx.pid_list[i].program_number;
+                    if( info->pat_ctx.pid_list[i].disable_pid )
+                        continue;
+                    cb_ret.buffer         = &(buffer[info->tsf_ctx.packet_size * (info->pat_ctx.packet_num + TS_PSI_PACKET_NUM_CHECK_MARGIN) * i]);
+                    cb_ret.service_id     = info->pat_ctx.pid_list[i].program_number;
+                    cb_ret.pmt_program_id = info->pat_ctx.pid_list[i].program_id;
                     cb->func( cb->params, (void *)&cb_ret );
                 }
             }
@@ -2761,7 +2837,27 @@ static int get_specific_stream_data
             {
                 if( cb_num == 1 )
                     cb_ret.buffer = &(buffer[info->tsf_ctx.packet_size * (info->pat_ctx.packet_num + TS_PSI_PACKET_NUM_CHECK_MARGIN) * info->pmt_ctx_index]);
-                cb_ret.service_id = info->pat_ctx.pid_list[info->pmt_ctx_index].program_number;
+                if( info->pmt_ctx_index == info->pat_ctx.pid_list_num )
+                {
+                    if( sample_type != SAMPLE_TYPE_PSI )
+                        for( int32_t i = 0; i < info->pat_ctx.pid_list_num && cb_ret.pmt_program_id == 0; ++i )
+                        {
+                            psi_ctx = &(info->pmt_ctx[i]);
+                            for( int32_t j = 0; j < psi_ctx->pid_list_num && cb_ret.pmt_program_id == 0; ++j )
+                                if( h.program_id == psi_ctx->pid_list[j].program_id )
+                                    cb_ret.pmt_program_id = psi_ctx->pmt_program_id;
+                        }
+                    else
+                    {
+                        /* PMT, PCR, ECM */
+                        if( pmt_psi_ctx )
+                            cb_ret.pmt_program_id = pmt_psi_ctx->pmt_program_id;
+                        else if( pcr_psi_ctx )
+                            cb_ret.pmt_program_id = pcr_psi_ctx->pmt_program_id;
+                        else if( ecm_psi_ctx )
+                            cb_ret.pmt_program_id = ecm_psi_ctx->pmt_program_id;
+                    }
+                }
                 cb->func( cb->params, (void *)&cb_ret );
             }
         }
@@ -2880,13 +2976,22 @@ static int get_stream_data
     return read_offset;
 }
 
-static uint8_t get_stream_num( void *ih, mpeg_sample_type sample_type )
+static uint8_t get_stream_num( void *ih, mpeg_sample_type sample_type, uint16_t service_id )
 {
     mpegts_info_t *info = (mpegts_info_t *)ih;
     if( !info )
         return 0;
-    tsp_psi_ctx_t *psi_ctx    = &(info->pmt_ctx[info->pmt_ctx_index]);
-    uint8_t        stream_num = 0;
+    uint32_t pmt_ctx_index = info->pmt_ctx_index;
+    if( service_id )
+        for( int32_t i = 0; i < info->pat_ctx.pid_list_num; ++i )
+            if( info->pat_ctx.pid_list[i].program_number == service_id )
+            {
+                pmt_ctx_index = i;
+                break;
+            }
+    /* check stream num. */
+    uint8_t stream_num = 0;
+    tsp_psi_ctx_t *psi_ctx = &(info->pmt_ctx[pmt_ctx_index]);
     if( sample_type == SAMPLE_TYPE_VIDEO )
         stream_num = psi_ctx->video_stream_num;
     else if( sample_type == SAMPLE_TYPE_AUDIO )
@@ -3579,14 +3684,14 @@ static int set_program_id( void *ih, mpegts_select_pid_type pid_type, uint16_t p
     return result;
 }
 
-static uint16_t get_program_id( void *ih, mpeg_stream_type stream_type, uint8_t stream_number )
+static uint16_t get_program_id( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, uint16_t service_id )
 {
     mapi_log( LOG_LV2, "[mpegts_parser] get_program_id()\n"
-                       "[check] stream_type: 0x%02X\n", stream_type );
+                       "[check] sample_type: 0x%02X\n", sample_type );
     mpegts_info_t *info = (mpegts_info_t *)ih;
     if( !info )
         return TS_PID_ERR;
-    return mpegts_get_program_id( info, stream_type, stream_number );
+    return mpegts_get_program_id( info, sample_type, stream_number, service_id );
 }
 
 static int set_service_id( void *ih, uint16_t service_id )
@@ -3624,17 +3729,42 @@ static int32_t get_service_id_num( void *ih )
     return info->pat_ctx.pid_list_num;
 }
 
+static int set_service_id_info( void *ih, service_id_info_t *sid_info, int32_t sid_info_num )
+{
+    mpegts_info_t *info = (mpegts_info_t *)ih;
+    if( !info || info->status == PARSER_STATUS_NON_PARSING )
+        return -1;
+    /* setup disable flag. */
+    for( int32_t i = 0; i < info->pat_ctx.pid_list_num; ++i )
+    {
+        info->pat_ctx.pid_list[i].disable_pid = 1;
+        for( int32_t j = 0; j < sid_info_num && info->pat_ctx.pid_list[i].disable_pid; ++j )
+            if( info->pat_ctx.pid_list[i].program_number == sid_info[j].service_id )
+                info->pat_ctx.pid_list[i].disable_pid = 0;
+    }
+    return 0;
+}
+
 static int32_t get_service_id_info( void *ih, service_id_info_t *sid_info, int32_t sid_info_num )
 {
     mpegts_info_t *info = (mpegts_info_t *)ih;
     if( !info || info->status == PARSER_STATUS_NON_PARSING )
         return -1;
+    if( sid_info_num == 0 )
+    {
+        /* return active PMT info. */
+        sid_info[0].service_id     = info->pat_ctx.pid_list[info->pmt_ctx_index].program_number;
+        sid_info[0].pmt_program_id = info->pat_ctx.pid_list[info->pmt_ctx_index].program_id;
+        sid_info[0].pcr_program_id = info->pmt_ctx[info->pmt_ctx_index].pcr_program_id;
+        return 1;
+    }
     /* setup. */
     int32_t list_num = (sid_info_num < info->pat_ctx.pid_list_num) ? sid_info_num : info->pat_ctx.pid_list_num;
     for( int32_t i = 0; i < list_num; ++i )
     {
         sid_info[i].service_id     = info->pat_ctx.pid_list[i].program_number;
         sid_info[i].pmt_program_id = info->pat_ctx.pid_list[i].program_id;
+        sid_info[i].pcr_program_id = info->pmt_ctx[i].pcr_program_id;
     }
     return list_num;
 }
@@ -3735,6 +3865,7 @@ mpeg_parser_t mpegts_parser = {
     parse,
     set_service_id,
     get_service_id_num,
+    set_service_id_info,
     get_service_id_info,
     set_program_target,
     set_program_id,

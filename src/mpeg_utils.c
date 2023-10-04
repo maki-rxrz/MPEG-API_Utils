@@ -1036,12 +1036,28 @@ MAPI_EXPORT int mpeg_api_get_service_id_num( void *ih )
     return info->parser->get_service_id_num( info->parser_info );
 }
 
+MAPI_EXPORT int mpeg_api_set_service_id_info( void *ih, service_id_info_t *sid_info, int32_t sid_info_num )
+{
+    mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
+    if( !info || !info->parser_info )
+        return -1;
+    return info->parser->set_service_id_info( info->parser_info, sid_info, sid_info_num );
+}
+
 MAPI_EXPORT int mpeg_api_get_service_id_info( void *ih, service_id_info_t *sid_info, int32_t sid_info_num )
 {
     mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
     if( !info || !info->parser_info )
         return -1;
     return info->parser->get_service_id_info( info->parser_info, sid_info, sid_info_num );
+}
+
+MAPI_EXPORT uint16_t mpeg_api_get_program_id( void *ih, mpeg_sample_type sample_type, uint8_t stream_no, uint16_t service_id )
+{
+    mpeg_api_info_t *info = (mpeg_api_info_t *)ih;
+    if( !info || !info->parser_info )
+        return -1;
+    return info->parser->get_program_id( info->parser_info, sample_type, stream_no, service_id );
 }
 
 MAPI_EXPORT void *mpeg_api_initialize_info( const char *mpeg, int64_t buffer_size )

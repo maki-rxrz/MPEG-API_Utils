@@ -463,8 +463,11 @@ static int get_stream_data
     return -1;
 }
 
-static uint8_t get_stream_num( void *ih, mpeg_sample_type sample_type )
+static uint8_t get_stream_num( void *ih, mpeg_sample_type sample_type, uint16_t service_id )
 {
+#if ENABLE_SUPPRESS_WARNINGS
+    (void) service_id;
+#endif
     mpeges_info_t *info = (mpeges_info_t *)ih;
     if( !info )
         return 0;
@@ -560,12 +563,13 @@ static int set_program_id( void *ih, mpegts_select_pid_type pid_type, uint16_t p
     return -1;
 }
 
-static uint16_t get_program_id( void *ih, mpeg_stream_type stream_type, uint8_t stream_number )
+static uint16_t get_program_id( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, uint16_t service_id )
 {
 #if ENABLE_SUPPRESS_WARNINGS
     (void) ih;
-    (void) stream_type;
+    (void) sample_type;
     (void) stream_number;
+    (void) service_id;
 #endif
     return -1;
 }
@@ -585,6 +589,16 @@ static int32_t get_service_id_num( void *ih )
     (void) ih;
 #endif
     return 0;
+}
+
+static int set_service_id_info( void *ih, service_id_info_t *sid_info, int32_t sid_info_num )
+{
+#if ENABLE_SUPPRESS_WARNINGS
+    (void) ih;
+    (void) sid_info;
+    (void) sid_info_num;
+#endif
+    return -1;
 }
 
 static int32_t get_service_id_info( void *ih, service_id_info_t *sid_info, int32_t sid_info_num )
@@ -660,6 +674,7 @@ mpeg_parser_t mpeges_parser = {
     parse,
     set_service_id,
     get_service_id_num,
+    set_service_id_info,
     get_service_id_info,
     set_program_target,
     set_program_id,

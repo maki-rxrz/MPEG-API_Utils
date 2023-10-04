@@ -88,6 +88,7 @@ typedef struct {
     output_demux_mode_type  demux_mode;
     output_dst_type         output_dst;
     uint16_t                service_id;
+    char                   *service_id_list;
     uint16_t                pmt_program_id;
     pmt_target_type         pmt_target;
     int64_t                 wrap_around_check_v;
@@ -344,6 +345,8 @@ static void cleanup_parameter( param_t *p )
         free( p->split_suffix );
     if( p->logfile && p->logfile != stderr )
         fclose( p->logfile );
+    if( p->service_id_list )
+        free( p->service_id_list );
     if( p->output )
         free( p->output );
     if( p->input )
@@ -376,8 +379,17 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
         else if( !strcasecmp( argv[i], "--sid" ) )
         {
             ++i;
-            int base = (strncmp( argv[i], "0x", 2 )) ? 10 : 16;
-            p->service_id = strtol( argv[i], NULL, base );
+            if( !strcasecmp( argv[i], "all" ) || strstr( argv[i], "," ) )
+            {
+                if( p->service_id_list )
+                    free( p->service_id_list );
+                p->service_id_list = strdup( argv[i] );
+            }
+            else
+            {
+                int base = (strncmp( argv[i], "0x", 2 )) ? 10 : 16;
+                p->service_id = strtol( argv[i], NULL, base );
+            }
         }
         else if( !strcasecmp( argv[i], "--pmt-pid" ) )
         {
@@ -1947,8 +1959,10 @@ typedef struct {
     uint32_t            count;
     int64_t             total_size;
     int64_t             file_size;
-    void               *fw_ctx;
+    void              **fw_ctx;
     const char         *stream_name;
+    service_id_info_t  *sid_info;
+    int32_t             sid_info_num;
 } split_all_cb_param_t;
 
 static void split_all_cb_func( void *cb_params, void *cb_ret )
@@ -1956,12 +1970,14 @@ static void split_all_cb_func( void *cb_params, void *cb_ret )
     split_all_cb_param_t     *param = (split_all_cb_param_t     *)cb_params;
     get_stream_data_cb_ret_t *ret   = (get_stream_data_cb_ret_t *)cb_ret;
     /* get return values. */
-    mpeg_sample_type  sample_type   = ret->sample_type;
-    uint8_t           stream_number = ret->stream_number;
-    uint8_t          *buffer        = ret->buffer;
-    uint32_t          read_size     = ret->read_size;
-    uint32_t          read_offset   = ret->read_offset;
-    int64_t           progress      = ret->progress;
+    mpeg_sample_type  sample_type    = ret->sample_type;
+    uint8_t           stream_number  = ret->stream_number;
+    uint8_t          *buffer         = ret->buffer;
+    uint32_t          read_size      = ret->read_size;
+    uint32_t          read_offset    = ret->read_offset;
+    int64_t           progress       = ret->progress;
+    uint16_t          service_id     = ret->service_id;
+    uint16_t          pmt_program_id = ret->pmt_program_id;
     /* check the target stream. */
     split_cb_param_t *cb_p = NULL;
     if( sample_type == SAMPLE_TYPE_VIDEO )
@@ -1974,6 +1990,34 @@ static void split_all_cb_func( void *cb_params, void *cb_ret )
         cb_p = &(param->d_cb_param[stream_number]);
     else /* sample_type == SAMPLE_TYPE_PSI */
         cb_p = param->p_cb_param;
+    /* select output file. */
+    int index_start = 0;
+    int index_max   = param->sid_info_num;
+    if( param->sid_info_num > 1 )
+    {
+        if( service_id )
+        {
+            /* check service_id for PAT. */
+            for( int32_t i = 0; i < param->sid_info_num; ++i )
+                if( param->sid_info[i].service_id == service_id )
+                {
+                    index_start = i;
+                    index_max   = i + 1;
+                    break;
+                }
+        }
+        else if( pmt_program_id )
+        {
+            /* check pmt_program_id. */
+            for( int32_t i = 0; i < param->sid_info_num; ++i )
+                if( param->sid_info[i].pmt_program_id == pmt_program_id )
+                {
+                    index_start = i;
+                    index_max   = i + 1;
+                    break;
+                }
+        }
+    }
     /* output. */
     int64_t total_size = cb_p->total_size;
     int32_t valid_size = read_size - read_offset;
@@ -1982,9 +2026,11 @@ static void split_all_cb_func( void *cb_params, void *cb_ret )
         if( param->fw_ctx )
         {
             if( total_size < 0 )
-                dumper_fwrite( param->fw_ctx, &(buffer[-total_size]), total_size + valid_size, NULL );
+                for( int i = index_start; i < index_max; ++i )
+                    dumper_fwrite( param->fw_ctx[i], &(buffer[-total_size]), total_size + valid_size, NULL );
             else
-                dumper_fwrite( param->fw_ctx, &(buffer[read_offset]), valid_size, NULL );
+                for( int i = index_start; i < index_max; ++i )
+                    dumper_fwrite( param->fw_ctx[i], &(buffer[read_offset]), valid_size, NULL );
             total_size += valid_size;
         }
         else
@@ -1997,6 +2043,8 @@ static void split_all_cb_func( void *cb_params, void *cb_ret )
                                      , param->stream_name, stream_number, cb_p->count, -valid_size );
         total_size = 0;
     }
+    if( param->sid_info_num > 1 && service_id && index_start )      /* PAT on multi service: [0] only. */
+        return;
     int percent = progress * 10000 / param->file_size;
     if( (percent - cb_p->percent) > 0 )
     {
@@ -2017,46 +2065,66 @@ static void split_stream_all
     uint8_t                     video_stream_num,
     uint8_t                     audio_stream_num,
     uint8_t                     caption_stream_num,
-    uint8_t                     dsmcc_stream_num
+    uint8_t                     dsmcc_stream_num,
+    service_id_info_t          *sid_info,
+    int32_t                     sid_info_num
 )
 {
   //int                  get_index = p->output_mode - OUTPUT_GET_SAMPLE_RAW;
     int                  get_index = OUTPUT_SPLIT_CONTAINER - OUTPUT_GET_SAMPLE_RAW;
     get_sample_data_mode get_mode  = get_sample_list[get_index].get_mode;
-    /* prepare file. */
-    void *split_file;
+    /* prepare files. */
+    size_t  dump_name_size = 0;
+    char   *dump_name_list = NULL;
+    void *split_file[sid_info_num + 8];
     if( !p->output )
         /* open for pipe output. */
-        dumper_open( &split_file, NULL, p->write_buffer_size, p->output_dst );
+        dumper_open( &(split_file[0]), NULL, p->write_buffer_size, p->output_dst );
     else
     {
-        size_t dump_name_size = strlen( p->output ) + 32
-                              + (p->split_suffix ? strlen( p->split_suffix ) : 0);
-        char dump_name[dump_name_size];
-        strcpy( dump_name, p->output );
-        /* id */
-      //if( output_stream_num )
+        dump_name_size = strlen( p->output ) + 32 + (p->split_suffix ? strlen( p->split_suffix ) : 0);
+        dump_name_list = (char *)malloc( dump_name_size * sid_info_num);
+        if( !dump_name_list )
         {
-            static const char *output_stream_name[16] =
-                {
-                    "(none)", "Video", "Audio", "V+A"  , "Caption", "V+C"  , "A+C"  , "V+A+C"  ,
-                    "DSM-CC", "V+D"  , "A+D"  , "V+A+D", "C+D"    , "V+C+D", "A+C+D", "V+A+C+D"
-                };
-            int stream_name_index = ((p->output_stream & OUTPUT_STREAM_VIDEO  ) ? 1 : 0)
-                                  + ((p->output_stream & OUTPUT_STREAM_AUDIO  ) ? 2 : 0)
-                                  + ((p->output_stream & OUTPUT_STREAM_CAPTION) ? 4 : 0)
-                                  + ((p->output_stream & OUTPUT_STREAM_DSMCC  ) ? 8 : 0);
-            char stream_name[12];
-            sprintf( stream_name, "_[%s]", output_stream_name[stream_name_index] );
-            strcat( dump_name, stream_name );
+            mapi_log( LOG_LV_PROGRESS, "[log] Split - failed to allocate name list.\n" );
+            return;
         }
-        /* suffix */
-        if( p->split_suffix && strlen( p->split_suffix ) > 0 )
-            strcat( dump_name, p->split_suffix );
-        /* extension */
-        strcat( dump_name, ".ts" );
-        /* open. */
-        dumper_open( &split_file, dump_name, p->write_buffer_size, p->output_dst );
+        int32_t all_sid_info_num = mpeg_api_get_service_id_num( info );
+        for( int32_t i = 0; i < sid_info_num; ++i )
+        {
+            char *dump_name = &(dump_name_list[i * dump_name_size]);
+            strcpy( dump_name, p->output );
+            /* id */
+          //if( output_stream_num )
+            {
+                static const char *output_stream_name[16] =
+                    {
+                        "(none)", "Video", "Audio", "V+A"  , "Caption", "V+C"  , "A+C"  , "V+A+C"  ,
+                        "DSM-CC", "V+D"  , "A+D"  , "V+A+D", "C+D"    , "V+C+D", "A+C+D", "V+A+C+D"
+                    };
+                int stream_name_index = ((p->output_stream & OUTPUT_STREAM_VIDEO  ) ? 1 : 0)
+                                      + ((p->output_stream & OUTPUT_STREAM_AUDIO  ) ? 2 : 0)
+                                      + ((p->output_stream & OUTPUT_STREAM_CAPTION) ? 4 : 0)
+                                      + ((p->output_stream & OUTPUT_STREAM_DSMCC  ) ? 8 : 0);
+                char stream_name[12];
+                sprintf( stream_name, "_[%s]", output_stream_name[stream_name_index] );
+                strcat( dump_name, stream_name );
+            }
+            /* multi service */
+            if( all_sid_info_num > 1 )
+            {
+                char sid_str[12];
+                sprintf( sid_str, "_(%d)", sid_info[i].service_id );
+                strcat( dump_name, sid_str );
+            }
+            /* suffix */
+            if( p->split_suffix && strlen( p->split_suffix ) > 0 )
+                strcat( dump_name, p->split_suffix );
+            /* extension */
+            strcat( dump_name, ".ts" );
+            /* open. */
+            dumper_open( &(split_file[i]), dump_name, p->write_buffer_size, p->output_dst );
+        }
     }
     /* output. */
     mapi_log( LOG_LV_PROGRESS, "[log] Split - START\n" );
@@ -2100,7 +2168,7 @@ static void split_stream_all
         memset( a_cb_params, 0, sizeof(split_cb_param_t) * (audio_stream_num   + 1) );
         memset( c_cb_params, 0, sizeof(split_cb_param_t) * (caption_stream_num + 1) );
         memset( d_cb_params, 0, sizeof(split_cb_param_t) * (dsmcc_stream_num   + 1) );
-        split_all_cb_param_t cb_params = { v_cb_params, a_cb_params, c_cb_params, d_cb_params, &p_cb_param, 0, 0, p->file_size, split_file, output_stream_name[stream_name_index] };
+        split_all_cb_param_t cb_params = { v_cb_params, a_cb_params, c_cb_params, d_cb_params, &p_cb_param, 0, 0, p->file_size, split_file, output_stream_name[stream_name_index], sid_info, sid_info_num };
         get_stream_data_cb_t cb        = { split_all_cb_func, (void *)&cb_params };
         mpeg_api_get_all_stream_data( info, get_mode, p->output_stream, p->update_psi, &cb );
         mapi_log( LOG_LV_PROGRESS, "                                                                              \r" );
@@ -2124,12 +2192,23 @@ static void split_stream_all
                 if( d_cb_params[i].total_size )
                     mapi_log( LOG_LV_PROGRESS, "   DSMCC Stream[%3u] - output: %" PRIu64 " Byte\n"
                                             , i, (uint64_t)d_cb_params[i].total_size );
-        dumper_close( &split_file );
+        for( int32_t i = 0; i < sid_info_num; ++i )
+            dumper_close( &(split_file[i]) );
         mapi_log( LOG_LV_PROGRESS, " %s Stream [split] done - output: %" PRIu64 " Byte\n"
                                 , output_stream_name[stream_name_index], (uint64_t)cb_params.total_size );
         mapi_log( LOG_LV_PROGRESS, " %s Stream [split] end\n", output_stream_name[stream_name_index] );
+        /* file list. */
+        mapi_log( LOG_LV_PROGRESS, "[log] Split - File\n" );
+        for( int32_t i = 0; i < sid_info_num; ++i )
+        {
+            char *dump_name = &(dump_name_list[i * dump_name_size]);
+            size_t file_size = get_file_size( dump_name );
+            mapi_log( LOG_LV_PROGRESS, "  -> %s  [%" PRIu64 " Byte]\n", dump_name, file_size );
+        }
     }
     mapi_log( LOG_LV_PROGRESS, "[log] Split - END\n" );
+    if( dump_name_list )
+        free( dump_name_list );
 }
 
 static void parse_mpeg( param_t *p )
@@ -2140,9 +2219,8 @@ static void parse_mpeg( param_t *p )
     void *info = mpeg_api_initialize_info( p->input, p->read_buffer_size );
     if( !info )
         return;
-    pcr_info_t    *pcr_info    = malloc( sizeof(*pcr_info) );
     stream_info_t *stream_info = malloc( sizeof(*stream_info) );
-    if( !pcr_info || !stream_info )
+    if( !stream_info )
         goto end_parse;
     if( p->service_id && 0 > mpeg_api_set_service_id( info, p->service_id ) )
         goto end_parse;
@@ -2155,21 +2233,99 @@ static void parse_mpeg( param_t *p )
     {
         /* check file size. */
         p->file_size = get_file_size( p->input );
-        /* check PCR. */
-        if( !mpeg_api_get_pcr( info, pcr_info ) )
+        /* check service num. */
+        int32_t sid_info_num = mpeg_api_get_service_id_num( info );
+        service_id_info_t sid_info[sid_info_num + 8];
+        if( sid_info_num > 1 && p->service_id_list )
         {
-            mapi_log( LOG_LV_OUTPUT, "[log] pcr information\n"
-                                     "  start pcr: %10" PRId64 "  [%8" PRId64 "ms]\n"
-                                     "   last pcr: %10" PRId64 "  [%8" PRId64 "ms]\n"
-                                   , pcr_info->start_pcr, pcr_info->start_pcr / 90
-                                   , pcr_info->last_pcr , pcr_info->last_pcr  / 90 );
-            if( pcr_info->start_pcr > pcr_info->last_pcr )
+            /* set target pmt for multi service. */
+            if( mpeg_api_set_pmt_program_id( info, MAPI_ALL_SERVICE_PMT_PID ) )
+                goto end_parse;
+            /* prepare Service IDs list. */
+            service_id_info_t tmp_sid_info[sid_info_num + 8];
+            if( !strcasecmp( p->service_id_list, "all" ) )
+                sid_info_num = mpeg_api_get_service_id_info( info, tmp_sid_info, sid_info_num );
+            else
             {
-                int64_t duration = MPEG_TIMESTAMP_WRAPAROUND_VALUE - pcr_info->start_pcr;
-                duration /= 90;
-                mapi_log( LOG_LV_OUTPUT, "  wrap-around: %02d:%02d:%02d.%03d\n"
-                                       , duration / 3600000, duration / 60000, duration / 1000 % 60
-                                       , duration % 1000 );
+                char *sid_list = strdup( p->service_id_list );
+                if( !sid_list )
+                    return;
+                sid_info_num = mpeg_api_get_service_id_info( info, sid_info, sid_info_num );
+                /* check user specified Service IDs. */
+                int32_t specified_sid_info_num = 0;
+                char *token = strtok( sid_list, "," );
+                if( !token )
+                {
+                    free( sid_list );
+                    return;
+                }
+                do
+                {
+                    int base = (strncmp( token, "0x", 2 )) ? 10 : 16;
+                    uint16_t service_id = strtol( token, NULL, base );
+                    /* check all list. */
+                    for( int32_t i = 0; i < sid_info_num; ++i )
+                        if( sid_info[i].service_id == service_id )
+                        {
+                            /* add to list. */
+                            tmp_sid_info[specified_sid_info_num++] = sid_info[i];
+                            break;
+                        }
+                }
+                while( ( token = strtok( NULL, "," ) ) );
+                sid_info_num = specified_sid_info_num;
+                free( sid_list );
+            }
+            /* check duplicate. */
+            int32_t  active_sid_info_num = 0;
+            uint16_t pid_list[sid_info_num];
+            for( int32_t i = 0; i < sid_info_num; ++i )
+            {
+                pid_list[i] = mpeg_api_get_program_id( info, SAMPLE_TYPE_VIDEO, 0, tmp_sid_info[i].service_id );
+                /* compare with the detected pid. */
+                int new_pid = 1;
+                int32_t j;
+                for( j = 0; j < i && new_pid; ++j )
+                    if( pid_list[i] == pid_list[j] /* || tmp_sid_info[i].pmt_program_id == tmp_sid_info[j].pmt_program_id */ )
+                        new_pid = 0;
+                if( new_pid )
+                    /* add to list. */
+                    sid_info[active_sid_info_num++] = tmp_sid_info[i];
+            }
+            sid_info_num = active_sid_info_num;
+            /* set active Service IDs. */
+            if( mpeg_api_set_service_id_info( info, sid_info, sid_info_num ) )
+                return;
+        }
+        else
+            /* get active Service ID info. */
+            sid_info_num = mpeg_api_get_service_id_info( info, sid_info, 0 );
+        /* check PCR. */
+        if( sid_info_num > 0 )
+        {
+            pcr_info_t pcr_info_list[sid_info_num + 8];
+            mapi_log( LOG_LV_OUTPUT, "[log] pcr information\n" );
+            for( int32_t i = 0; i < sid_info_num; ++i )
+            {
+                pcr_info_t *pcr_info = &(pcr_info_list[i]);
+                if( mpeg_api_get_pcr( info, pcr_info, sid_info[i].service_id ) )
+                    continue;
+                mapi_log( LOG_LV_OUTPUT, "  -> service_id: %d  <pmt_pid: 0x%04X, pcr_pid: 0x%04X>\n"
+                                         "    start pcr: %10" PRId64 "  [%8" PRId64 "ms]\n"
+                                         "     last pcr: %10" PRId64 "  [%8" PRId64 "ms]\n"
+                                       , sid_info[i].service_id
+                                       , sid_info[i].pmt_program_id
+                                       , sid_info[i].pcr_program_id
+                                       , pcr_info->start_pcr, pcr_info->start_pcr / 90
+                                       , pcr_info->last_pcr , pcr_info->last_pcr  / 90 );
+                if( pcr_info->start_pcr > pcr_info->last_pcr )
+                {
+                    int64_t duration = MPEG_TIMESTAMP_WRAPAROUND_VALUE - pcr_info->start_pcr;
+                    duration /= 90;
+                    mapi_log( LOG_LV_OUTPUT, "    wrap-around: %02d:%02d:%02d.%03d\n"
+                                           , duration / 3600000, duration / 60000, duration / 1000 % 60
+                                           , duration % 1000 );
+                }
             }
         }
         if( p->output_stream == OUTPUT_STREAM_NONE_PCR_ONLY )
@@ -2179,7 +2335,30 @@ static void parse_mpeg( param_t *p )
         uint8_t audio_stream_num   = mpeg_api_get_stream_num( info, SAMPLE_TYPE_AUDIO  , 0 );
         uint8_t caption_stream_num = mpeg_api_get_stream_num( info, SAMPLE_TYPE_CAPTION, 0 );
         uint8_t dsmcc_stream_num   = mpeg_api_get_stream_num( info, SAMPLE_TYPE_DSMCC  , 0 );
-        mapi_log( LOG_LV_OUTPUT, "[log] stream_num:  Video:%4u  Audio:%4u  Caption:%4u  DSM-CC:%4u\n", video_stream_num, audio_stream_num, caption_stream_num, dsmcc_stream_num );
+        if( sid_info_num > 0 )
+        {
+            mapi_log( LOG_LV_OUTPUT, "[log] stream_num\n" );
+            for( int32_t i = 0; i < sid_info_num; ++i )
+            {
+                uint8_t v_stream_num = mpeg_api_get_stream_num( info, SAMPLE_TYPE_VIDEO  , sid_info[i].service_id );
+                uint8_t a_stream_num = mpeg_api_get_stream_num( info, SAMPLE_TYPE_AUDIO  , sid_info[i].service_id );
+                uint8_t c_stream_num = mpeg_api_get_stream_num( info, SAMPLE_TYPE_CAPTION, sid_info[i].service_id );
+                uint8_t d_stream_num = mpeg_api_get_stream_num( info, SAMPLE_TYPE_DSMCC  , sid_info[i].service_id );
+                mapi_log( LOG_LV_OUTPUT, "  -> service_id: %d  -  Video:%2u  Audio:%2u  Caption:%2u  DSM-CC:%2u\n"
+                                       , sid_info[i].service_id, v_stream_num, a_stream_num, c_stream_num, d_stream_num );
+            }
+        }
+        else
+        {
+            mapi_log( LOG_LV_OUTPUT, "[log] stream_num:  Video:%2u", video_stream_num );
+            if( audio_stream_num )
+                mapi_log( LOG_LV_OUTPUT, "  Audio:%2u", audio_stream_num );
+            if( caption_stream_num )
+                mapi_log( LOG_LV_OUTPUT, "  Caption:%2u", caption_stream_num );
+            if( dsmcc_stream_num )
+                mapi_log( LOG_LV_OUTPUT, "  DSM-CC:%2u", dsmcc_stream_num );
+            mapi_log( LOG_LV_OUTPUT, "\n" );
+        }
         if( !video_stream_num && !audio_stream_num /* && !caption_stream_num && !dsmcc_stream_num */ )
             goto end_parse;
         /* check for pipe output. */
@@ -2216,7 +2395,7 @@ static void parse_mpeg( param_t *p )
         static const struct {
             void (*dump )( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num, uint8_t audio_stream_num );
             void (*demux)( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num, uint8_t audio_stream_num );
-            void (*split)( param_t *p, void *info, uint8_t video_stream_num, uint8_t audio_stream_num, uint8_t caption_stream_num, uint8_t dsmcc_stream_num );
+            void (*split)( param_t *p, void *info, uint8_t video_stream_num, uint8_t audio_stream_num, uint8_t caption_stream_num, uint8_t dsmcc_stream_num, service_id_info_t *sid_info, int32_t all_sid_info_num );
             void (*index)( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num );
         } output_func[USE_MAPI_TYPE_MAX] =
             {
@@ -2236,7 +2415,7 @@ static void parse_mpeg( param_t *p )
                 output_func[p->api_type].demux( p, info, stream_info, video_stream_num, audio_stream_num );
                 break;
             case OUTPUT_SPLIT_CONTAINER :
-                output_func[p->api_type].split( p, info, video_stream_num, audio_stream_num, caption_stream_num, dsmcc_stream_num );
+                output_func[p->api_type].split( p, info, video_stream_num, audio_stream_num, caption_stream_num, dsmcc_stream_num, sid_info, sid_info_num );
                 break;
             case OUTPUT_MAKE_GOP_LIST :
                 output_func[p->api_type].index( p, info, stream_info, video_stream_num );
@@ -2251,8 +2430,6 @@ static void parse_mpeg( param_t *p )
     else
         mapi_log( LOG_LV0, "[log] MPEG no read.\n" );
 end_parse:
-    if( pcr_info )
-        free( pcr_info );
     if( stream_info )
         free( stream_info );
     mpeg_api_release_info( info );

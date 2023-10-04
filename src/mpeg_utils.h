@@ -185,7 +185,11 @@ MAPI_EXPORT int mpeg_api_set_service_id( void *ih, uint16_t service_id );
 
 MAPI_EXPORT int mpeg_api_get_service_id_num( void *ih );
 
+MAPI_EXPORT int mpeg_api_set_service_id_info( void *ih, service_id_info_t *sid_info, int32_t sid_info_num );
+
 MAPI_EXPORT int mpeg_api_get_service_id_info( void *ih, service_id_info_t *sid_info, int32_t sid_info_num );
+
+MAPI_EXPORT uint16_t mpeg_api_get_program_id( void *ih, mpeg_sample_type sample_type, uint8_t stream_number, uint16_t service_id );
 
 MAPI_EXPORT void *mpeg_api_initialize_info( const char *mpeg, int64_t buffer_size );
 
