@@ -3287,6 +3287,7 @@ static int set_pmt_stream_info( mpegts_info_t *info )
     video_stream_num = audio_stream_num = caption_stream_num = dsmcc_stream_num = 0;
     for( int32_t pmt_ctx_index = 0; pmt_ctx_index < info->pat_ctx.pid_list_num; ++pmt_ctx_index )
     {
+        tss_ctx_t *v_stream = NULL, *a_stream = NULL, *c_stream = NULL, *d_stream = NULL;
         uint8_t video_count = 0, audio_count = 0, caption_count = 0, dsmcc_count = 0;
         psi_ctx = &(info->pmt_ctx[pmt_ctx_index]);
         for( int32_t pid_list_index = 0; pid_list_index < psi_ctx->pid_list_num; ++pid_list_index )
@@ -3297,17 +3298,19 @@ static int set_pmt_stream_info( mpegts_info_t *info )
             mpeg_stream_type       reg_stream_type = psi_ctx->pid_list[pid_list_index].reg_stream_type;
             /* check target. */
             static const char *stream_name[4] = { " video ", " audio ", "caption", " dsm-cc" };
-            tss_ctx_t *chk_stream   = NULL;
-            tss_ctx_t *stream       = NULL;
-            uint8_t   *stream_num   = NULL;
-            uint8_t   *stream_count = NULL;
-            int        index        = 0;
+            tss_ctx_t  *chk_stream   = NULL;
+            tss_ctx_t  *stream       = NULL;
+            uint8_t    *stream_num   = NULL;
+            uint8_t    *stream_count = NULL;
+            tss_ctx_t **stream_ref   = NULL;
+            int         index        = 0;
             if( stream_judge & STREAM_IS_VIDEO )
             {
                 chk_stream   = video_ctx;
                 stream       = &(video_ctx[video_stream_num]);
                 stream_num   = &video_stream_num;
                 stream_count = &video_count;
+                stream_ref   = &v_stream;
                 index        = 0;
             }
             else if( stream_judge & STREAM_IS_AUDIO )
@@ -3316,6 +3319,7 @@ static int set_pmt_stream_info( mpegts_info_t *info )
                 stream       = &(audio_ctx[audio_stream_num]);
                 stream_num   = &audio_stream_num;
                 stream_count = &audio_count;
+                stream_ref   = &a_stream;
                 index        = 1;
             }
             else if( stream_judge & STREAM_IS_CAPTION )
@@ -3324,6 +3328,7 @@ static int set_pmt_stream_info( mpegts_info_t *info )
                 stream       = &(caption_ctx[caption_stream_num]);
                 stream_num   = &caption_stream_num;
                 stream_count = &caption_count;
+                stream_ref   = &c_stream;
                 index        = 2;
             }
             else if( stream_judge & STREAM_IS_DSMCC )
@@ -3332,21 +3337,24 @@ static int set_pmt_stream_info( mpegts_info_t *info )
                 stream       = &(dsmcc_ctx[dsmcc_stream_num]);
                 stream_num   = &dsmcc_stream_num;
                 stream_count = &dsmcc_count;
+                stream_ref   = &d_stream;
                 index        = 3;
             }
             else
                 continue;
             /* compare with the detected pid. */
-            while( chk_stream != stream )
+            while( chk_stream != stream /* && !(*stream_ref) */ )
             {
                 if( chk_stream->program_id == program_id )
                 {
+                    if( !(*stream_ref) )
+                        *stream_ref = chk_stream;
                     stream = NULL;
                     break;
                 }
                 ++chk_stream;
             }
-            if( !stream )
+            if( !stream /* || *stream_ref */ )
             {
                 ++(*stream_count);
                 continue;
@@ -3394,10 +3402,10 @@ static int set_pmt_stream_info( mpegts_info_t *info )
             mpegts_file_seek( &(info->tsf_ctx), start_position, MPEGTS_SEEK_RESET );
         }
         /* setup. */
-        psi_ctx->video_stream       = &(video_ctx[video_stream_num - video_count]);
-        psi_ctx->audio_stream       = &(audio_ctx[audio_stream_num - audio_count]);;
-        psi_ctx->caption_stream     = &(caption_ctx[caption_stream_num - caption_count]);
-        psi_ctx->dsmcc_stream       = &(dsmcc_ctx[dsmcc_stream_num - dsmcc_count]);
+        psi_ctx->video_stream       = v_stream ? v_stream : &(video_ctx[video_stream_num - video_count]);
+        psi_ctx->audio_stream       = a_stream ? a_stream : &(audio_ctx[audio_stream_num - audio_count]);;
+        psi_ctx->caption_stream     = c_stream ? c_stream : &(caption_ctx[caption_stream_num - caption_count]);
+        psi_ctx->dsmcc_stream       = d_stream ? d_stream : &(dsmcc_ctx[dsmcc_stream_num - dsmcc_count]);
         psi_ctx->video_stream_num   = video_count;
         psi_ctx->audio_stream_num   = audio_count;
         psi_ctx->caption_stream_num = caption_count;
