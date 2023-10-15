@@ -385,13 +385,13 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
         {
             ++i;
             int base = (strncmp( argv[i], "0x", 2 )) ? 10 : 16;
-            p->service_id = strtol( argv[i], NULL, base );
+            p->service_id = (uint16_t)strtol( argv[i], NULL, base );
         }
         else if( !strcasecmp( argv[i], "--pmt-pid" ) )
         {
             ++i;
             int base = (strncmp( argv[i], "0x", 2 )) ? 10 : 16;
-            p->pmt_program_id = strtol( argv[i], NULL, base );
+            p->pmt_program_id = (uint16_t)strtol( argv[i], NULL, base );
         }
         else if( !strcasecmp( argv[i], "--pmt-target" ) )
             p->pmt_target = atoi( argv[++i] );

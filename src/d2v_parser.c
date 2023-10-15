@@ -260,7 +260,7 @@ static void *parse(const char *input)
             }
             flags_str[2] = token[0];
             flags_str[3] = token[1];
-            flags = strtol(flags_str, NULL, 16);
+            flags = (uint8_t)strtol(flags_str, NULL, 16);
             if (flags == 0xFF)
                 break;
             frame_count++;
@@ -307,7 +307,7 @@ static void *parse(const char *input)
             }
             flags_str[2] = token[0];
             flags_str[3] = token[1];
-            flags = strtol(flags_str, NULL, 16);
+            flags = (uint8_t)strtol(flags_str, NULL, 16);
             if (flags == 0xFF)
                 break;
             info->data.frames[frame_count].ref_prev_gop =  !(flags & 0x80);

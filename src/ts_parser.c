@@ -390,14 +390,14 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
             else
             {
                 int base = (strncmp( argv[i], "0x", 2 )) ? 10 : 16;
-                p->service_id = strtol( argv[i], NULL, base );
+                p->service_id = (uint16_t)strtol( argv[i], NULL, base );
             }
         }
         else if( !strcasecmp( argv[i], "--pmt-pid" ) )
         {
             ++i;
             int base = (strncmp( argv[i], "0x", 2 )) ? 10 : 16;
-            p->pmt_program_id = strtol( argv[i], NULL, base );
+            p->pmt_program_id = (uint16_t)strtol( argv[i], NULL, base );
         }
         else if( !strcasecmp( argv[i], "--pmt-target" ) )
             p->pmt_target = atoi( argv[++i] );
@@ -1234,7 +1234,7 @@ static thread_func_ret demux_sample( void *args )
         }
         int64_t progress = mpeg_api_get_sample_position( info, get_type, stream_number );
         mapi_log( LOG_LV_PROGRESS, " %s Stream[%3u] [%8u]  total: %14" PRIu64 " Byte ...[%5.2f%%]\r"
-                                 , stream_name, stream_number, i, total_size, (progress * 100.0 / file_size) );
+                                 , stream_name, stream_number, i, total_size, (double)(progress * 100.0 / file_size) );
     }
     mapi_log( LOG_LV_PROGRESS, "                                                                              \r" );
     mapi_log( LOG_LV_PROGRESS, " %s Stream[%3u] [demux] end - output: %" PRIu64 " Byte\n"
@@ -1361,7 +1361,7 @@ static void demux_sample_data
                     }
                     int64_t progress = mpeg_api_get_sample_position( info, SAMPLE_TYPE_VIDEO, i );
                     mapi_log( LOG_LV_PROGRESS, " [%8u]  size: %10u  total: %14" PRIu64 " Byte ...[%5.2f%%]\r"
-                                            , j, data_size, total_size, (progress * 100.0 / p->file_size) );
+                                            , j, data_size, total_size, (double)(progress * 100.0 / p->file_size) );
                 }
                 dumper_close( &(video[i]) );
                 mapi_log( LOG_LV_PROGRESS, "                                                                              \r" );
@@ -1389,7 +1389,7 @@ static void demux_sample_data
                     }
                     int64_t progress = mpeg_api_get_sample_position( info, SAMPLE_TYPE_AUDIO, i );
                     mapi_log( LOG_LV_PROGRESS, " [%8u]  size: %10u  total: %14" PRIu64 " Byte ...[%5.2f%%]\r"
-                                            , j, data_size, total_size, (progress * 100.0 / p->file_size) );
+                                            , j, data_size, total_size, (double)(progress * 100.0 / p->file_size) );
                 }
                 dumper_close( &(audio[i]) );
                 mapi_log( LOG_LV_PROGRESS, "                                                                              \r" );
@@ -1429,7 +1429,7 @@ static thread_func_ret demux_stream( void *args )
         }
         int64_t progress = mpeg_api_get_sample_position( info, get_type, stream_number );
         mapi_log( LOG_LV_PROGRESS, " %s Stream[%3u] [%8u]  total: %14" PRIu64 " Byte ...[%5.2f%%]\r"
-                                 , stream_name, stream_number, i, total_size, (progress * 100.0 / file_size) );
+                                 , stream_name, stream_number, i, total_size, (double)(progress * 100.0 / file_size) );
     }
     mapi_log( LOG_LV_PROGRESS, "                                                                              \r" );
     mapi_log( LOG_LV_PROGRESS, " %s Stream[%3u] [demux] end - output: %" PRIu64 " Byte\n"
@@ -1558,7 +1558,7 @@ static void demux_stream_data
                     }
                     int64_t progress = mpeg_api_get_sample_position( info, SAMPLE_TYPE_VIDEO, i );
                     mapi_log( LOG_LV_PROGRESS, " [%8u]  size: %10u  total: %14" PRIu64 " Byte ...[%5.2f%%]\r"
-                                             , j, data_size, total_size, (progress * 100.0 / p->file_size) );
+                                             , j, data_size, total_size, (double)(progress * 100.0 / p->file_size) );
                 }
                 dumper_close( &(video[i]) );
                 mapi_log( LOG_LV_PROGRESS, "                                                                              \r" );
@@ -1585,7 +1585,7 @@ static void demux_stream_data
                     }
                     int64_t progress = mpeg_api_get_sample_position( info, SAMPLE_TYPE_AUDIO, i );
                     mapi_log( LOG_LV_PROGRESS, " [%8u]  size: %10u  total: %14" PRIu64 " Byte ...[%5.2f%%]\r"
-                                            , j, data_size, total_size, (progress * 100.0 / p->file_size) );
+                                            , j, data_size, total_size, (double)(progress * 100.0 / p->file_size) );
                 }
                 dumper_close( &(audio[i]) );
                 mapi_log( LOG_LV_PROGRESS, "                                                                              \r" );
@@ -2264,7 +2264,7 @@ static void parse_mpeg( param_t *p )
                 do
                 {
                     int base = (strncmp( token, "0x", 2 )) ? 10 : 16;
-                    uint16_t service_id = strtol( token, NULL, base );
+                    uint16_t service_id = (uint16_t)strtol( token, NULL, base );
                     /* check all list. */
                     for( int32_t i = 0; i < sid_info_num; ++i )
                         if( sid_info[i].service_id == service_id )
