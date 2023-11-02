@@ -2344,7 +2344,11 @@ static int mpegts_update_psi
                 read_count += payload_size;
             }
             else
+            {
                 memset( &(write_buffer[read_pos]), 0xFF, payload_size );
+                /* set '0' to adaptation_field_control of unnecessary packet. */
+                write_buffer[read_pos - TS_PACKET_HEADER_SIZE + 3] &= ~0x30;
+            }
             read_pos += payload_size;
             /* seek next packet payload data. */
             read_pos += TS_PACKET_HEADER_SIZE;
