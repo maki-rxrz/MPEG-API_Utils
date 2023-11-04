@@ -98,6 +98,16 @@ static int fr_fread( void *ctx, uint8_t *read_buffer, int64_t read_size, int64_t
     if( dest_size )
         *dest_size = 0;
 
+    /* Check if cached. */
+    if( fr_ctx->cache.size == 0 )
+    {
+        /* Read data to cache. */
+        uint64_t cache_size = fread( fr_ctx->cache.buf, 1, fr_ctx->buffer_size, fr_ctx->fp );
+        if( cache_size == 0 )
+            goto fail;
+        fr_ctx->cache.size = cache_size;
+    }
+
     while( read_size )
     {
         uint64_t rest_size = fr_ctx->cache.size - fr_ctx->cache.pos;
@@ -189,11 +199,7 @@ static int fr_fseek( void *ctx, int64_t seek_offset, int origin )
         fseeko( fr_ctx->fp, cache_start_pos, SEEK_SET );
         fr_ctx->read_pos   = cache_start_pos;
         fr_ctx->cache.size = 0;
-        fr_ctx->cache.pos  = 0;
-
-        offset = position - cache_start_pos;
-        if( offset )
-            fr_fread( fr_ctx, NULL, offset, NULL );
+        fr_ctx->cache.pos  = position - cache_start_pos;
     }
     return MAPI_SUCCESS;
 }
