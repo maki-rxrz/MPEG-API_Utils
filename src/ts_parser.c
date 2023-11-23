@@ -2251,7 +2251,7 @@ static void parse_mpeg( param_t *p )
             {
                 char *sid_list = strdup( p->service_id_list );
                 if( !sid_list )
-                    return;
+                    goto end_parse;
                 sid_info_num = mpeg_api_get_service_id_info( info, sid_info, sid_info_num );
                 /* check user specified Service IDs. */
                 int32_t specified_sid_info_num = 0;
@@ -2259,7 +2259,7 @@ static void parse_mpeg( param_t *p )
                 if( !token )
                 {
                     free( sid_list );
-                    return;
+                    goto end_parse;
                 }
                 do
                 {
@@ -2297,7 +2297,7 @@ static void parse_mpeg( param_t *p )
             sid_info_num = active_sid_info_num;
             /* set active Service IDs. */
             if( mpeg_api_set_service_id_info( info, sid_info, sid_info_num ) )
-                return;
+                goto end_parse;
         }
         else
             /* get active Service ID info. */
