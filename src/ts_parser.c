@@ -729,7 +729,7 @@ static void make_gop_list
             int64_t  pts = stream_info->video_pts;
             uint16_t pid = stream_info->video_program_id;
             /* gop information */
-            output_line( gop_list, "%04x,,,%" PRId64 ",%" PRIu64 "\n", pid, pts, stream_info->file_position / stream_info->au_size );
+            output_line( gop_list, "%04X,,,%" PRId64 ",%" PRIu64 "\n", pid, pts, stream_info->file_position / stream_info->au_size );
         }
         /* end */
         output_line( gop_list, "LAST       ,%" PRIu64 "\n", p->file_size / stream_info->au_size );
