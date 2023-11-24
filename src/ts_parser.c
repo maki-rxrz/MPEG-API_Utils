@@ -544,7 +544,12 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
         else if( !strcasecmp( argv[i], "--pcr" ) )
             p->output_stream = OUTPUT_STREAM_NONE_PCR_ONLY;
         else if( !strcasecmp( argv[i], "--gop-list" ) )
+        {
             p->output_mode = OUTPUT_MAKE_GOP_LIST;
+            /* use '--sid all' option as default. */
+            if( !p->service_id_list && p->service_id == 0 )
+                p->service_id_list = strdup( "all" );
+        }
         else if( !strcasecmp( argv[i], "--split-suffix" ) )
         {
             if( p->split_suffix )
