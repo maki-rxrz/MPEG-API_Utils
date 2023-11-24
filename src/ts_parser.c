@@ -2397,7 +2397,7 @@ static void parse_mpeg( param_t *p )
         static const struct {
             void (*dump )( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num, uint8_t audio_stream_num );
             void (*demux)( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num, uint8_t audio_stream_num );
-            void (*split)( param_t *p, void *info, uint8_t video_stream_num, uint8_t audio_stream_num, uint8_t caption_stream_num, uint8_t dsmcc_stream_num, service_id_info_t *sid_info, int32_t all_sid_info_num );
+            void (*split)( param_t *p, void *info, uint8_t video_stream_num, uint8_t audio_stream_num, uint8_t caption_stream_num, uint8_t dsmcc_stream_num, service_id_info_t *sid_info, int32_t sid_info_num );
             void (*index)( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num );
         } output_func[USE_MAPI_TYPE_MAX] =
             {
