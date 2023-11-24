@@ -695,20 +695,18 @@ static void make_gop_list
     void                       *info,
     stream_info_t              *stream_info,
     uint8_t                     video_stream_num,
-    int                         api_type
+    int                         api_type,
+    service_id_info_t          *sid_info,
+    int32_t                     sid_info_num
 )
 {
     int64_t gop_limit = (p->gop_limit > 0) ? p->gop_limit - 1 : INT64_MAX_VALUE;
     int64_t frm_limit = (p->frm_limit > 0) ? p->frm_limit - 1 : INT64_MAX_VALUE;
-    for( uint8_t i = 0; i < video_stream_num; ++i )
+    /* check service num. */
+    if( sid_info_num > 1 && video_stream_num > 1 )
     {
-        int64_t gop_number = -1;
         /* prepare. */
-        char ext[10] = { 0 };
-        if( i > 0 )
-            sprintf( ext, ".v%d", i );
-        strcat( ext, ".txt" );
-        FILE *gop_list = file_ext_open( p->input, ext, "w" );
+        FILE *gop_list = file_ext_open( p->input, ".txt", "w" );
         if( !gop_list )
             return;
         mapi_log( LOG_LV_OUTPUT, "\n" );
@@ -717,24 +715,110 @@ static void make_gop_list
         output_line( gop_list, "TS_CUT%s\n", TS_CUT_NO );
         output_line( gop_list, "\n" );
         /* main */
-        for( uint32_t j = 0; j <= frm_limit; ++j )
+#define INIT_VIDEO_INFO( _info, _pos )                  \
+do {                                                    \
+    _info.file_position = _pos;                         \
+    _info.au_size       = 0;                            \
+    _info.pts           = MPEG_TIMESTAMP_INVALID_VALUE; \
+    _info.pid           = 0;    /* or TS_PID_ERR */     \
+    _info.gop_number    = -1;                           \
+    _info.frm_number    = 0;                            \
+} while( 0 )
+        struct {
+            int64_t     file_position;
+            uint32_t    au_size;
+            int64_t     pts;
+            uint16_t    pid;
+            int64_t     gop_number;
+            uint32_t    frm_number;
+        } v_info[video_stream_num + 1];
+        INIT_VIDEO_INFO( v_info[video_stream_num], INT64_MAX_VALUE );
+        /* prepare pid list. */
+        uint16_t pid_list[sid_info_num + 8];
+        for( int32_t i = 0; i < sid_info_num; ++i )
+            pid_list[i] = mpeg_api_get_program_id( info, SAMPLE_TYPE_VIDEO, 0, sid_info[i].service_id );
+        /* 1st check. */
+        for( uint8_t i = 0; i < video_stream_num; ++i )
         {
-            int result = (api_type == 1)
-                       ? mpeg_api_get_sample_info( info, SAMPLE_TYPE_VIDEO, i, j, stream_info )
-                       : mpeg_api_get_video_frame( info, i, stream_info );
-            if( result )
-                break;
-            if( stream_info->gop_number > gop_limit )
-                break;
-            if( stream_info->gop_number < 0 )
+            INIT_VIDEO_INFO( v_info[i], -1 );
+            /* check stream type. */
+            mpeg_stream_type stream_type = mpeg_api_get_sample_stream_type( info, SAMPLE_TYPE_VIDEO, i );
+            if( stream_type != STREAM_VIDEO_MPEG1 && stream_type != STREAM_VIDEO_MPEG2 )
                 continue;
-            if( stream_info->gop_number <= gop_number )
+            /* check pid list. */
+            uint16_t pid = mpeg_api_get_program_id( info, SAMPLE_TYPE_VIDEO, i, 0 );
+            int32_t idx = 0;
+            while( idx < sid_info_num )
+            {
+                if( pid == pid_list[idx] )
+                    break;
+                ++idx;
+            }
+            if( idx == sid_info_num )
                 continue;
-            gop_number   = stream_info->gop_number;
-            int64_t  pts = stream_info->video_pts;
-            uint16_t pid = stream_info->video_program_id;
-            /* gop information */
-            output_line( gop_list, "%04X,,,%" PRId64 ",%" PRIu64 "\n", pid, pts, stream_info->file_position / stream_info->au_size );
+            /* search 1st GOP. */
+            for( uint32_t j = 0; j <= frm_limit; ++j )
+            {
+                int result = (api_type == 1)
+                           ? mpeg_api_get_sample_info( info, SAMPLE_TYPE_VIDEO, i, j, stream_info )
+                           : mpeg_api_get_video_frame( info, i, stream_info );
+                if( result )
+                    break;
+                if( stream_info->gop_number < 0 )
+                    continue;
+                /* setup. */
+                v_info[i].file_position = stream_info->file_position;
+                v_info[i].au_size       = stream_info->au_size;
+                v_info[i].pts           = stream_info->video_pts;
+                v_info[i].pid           = stream_info->video_program_id;
+                v_info[i].gop_number    = stream_info->gop_number;
+                v_info[i].frm_number    = j;
+                break;
+            }
+        }
+        /* compare and output. */
+        while( 1 )
+        {
+            int16_t v_index = video_stream_num;
+            /* compare. */
+            for( uint8_t i = 0; i < video_stream_num; ++i )
+            {
+                if( v_info[i].file_position < 0 )
+                    continue;
+                if( v_info[i].file_position < v_info[v_index].file_position )
+                    v_index = i;
+            }
+            if( v_index == video_stream_num )
+                break;
+            /* GOP information */
+            output_line( gop_list, "%04X,,,%" PRId64 ",%" PRIu64 "\n"
+                                 , v_info[v_index].pid, v_info[v_index].pts, v_info[v_index].file_position / v_info[v_index].au_size );
+            /* seek next. */
+            while( 1 )
+            {
+                if( ++ v_info[v_index].frm_number > frm_limit )
+                {
+                    v_info[v_index].file_position = -1;
+                    break;
+                }
+                int result = (api_type == 1)
+                           ? mpeg_api_get_sample_info( info, SAMPLE_TYPE_VIDEO, v_index, v_info[v_index].frm_number, stream_info )
+                           : mpeg_api_get_video_frame( info, v_index, stream_info );
+                if( result || stream_info->gop_number > gop_limit )
+                {
+                    v_info[v_index].file_position = -1;
+                    break;
+                }
+                if( stream_info->gop_number > v_info[v_index].gop_number )
+                    break;
+            }
+            if( v_info[v_index].file_position < 0 )
+                continue;
+            /* save. */
+            v_info[v_index].gop_number    = stream_info->gop_number;
+            v_info[v_index].pts           = stream_info->video_pts;
+            v_info[v_index].pid           = stream_info->video_program_id;
+            v_info[v_index].file_position = stream_info->file_position;
         }
         /* end */
         output_line( gop_list, "LAST       ,%" PRIu64 "\n", p->file_size / stream_info->au_size );
@@ -742,6 +826,49 @@ static void make_gop_list
         output_line( gop_list, "TSPAC_TYPE,%d\n", stream_info->au_size );
         output_line( gop_list, "END\n" );
         fclose( gop_list );
+#undef INIT_VIDEO_INFO
+    }
+    else
+    {
+        for( uint8_t i = 0; i < video_stream_num; ++i )
+        {
+            int64_t gop_number = -1;
+            /* prepare. */
+            char ext[10] = { 0 };
+            if( i > 0 )
+                sprintf( ext, ".v%d", i );
+            strcat( ext, ".txt" );
+            FILE *gop_list = file_ext_open( p->input, ext, "w" );
+            if( !gop_list )
+                return;
+            mapi_log( LOG_LV_OUTPUT, "\n" );
+            /* head */
+            static const char *TS_CUT_NO = "2.1";
+            output_line( gop_list, "TS_CUT%s\n", TS_CUT_NO );
+            output_line( gop_list, "\n" );
+            /* main */
+            for( uint32_t j = 0; j <= frm_limit; ++j )
+            {
+                int result = (api_type == 1)
+                           ? mpeg_api_get_sample_info( info, SAMPLE_TYPE_VIDEO, i, j, stream_info )
+                           : mpeg_api_get_video_frame( info, i, stream_info );
+                if( result || stream_info->gop_number > gop_limit )
+                    break;
+                if( stream_info->gop_number < 0 || stream_info->gop_number <= gop_number )
+                    continue;
+                gop_number   = stream_info->gop_number;
+                int64_t  pts = stream_info->video_pts;
+                uint16_t pid = stream_info->video_program_id;
+                /* GOP information */
+                output_line( gop_list, "%04X,,,%" PRId64 ",%" PRIu64 "\n", pid, pts, stream_info->file_position / stream_info->au_size );
+            }
+            /* end */
+            output_line( gop_list, "LAST       ,%" PRIu64 "\n", p->file_size / stream_info->au_size );
+            output_line( gop_list, "PID_VIDEO,0000\n" );
+            output_line( gop_list, "TSPAC_TYPE,%d\n", stream_info->au_size );
+            output_line( gop_list, "END\n" );
+            fclose( gop_list );
+        }
     }
 }
 
@@ -750,10 +877,12 @@ static void make_stream_gop_list
     param_t                    *p,
     void                       *info,
     stream_info_t              *stream_info,
-    uint8_t                     video_stream_num
+    uint8_t                     video_stream_num,
+    service_id_info_t          *sid_info,
+    int32_t                     sid_info_num
 )
 {
-    make_gop_list( p, info, stream_info, video_stream_num, 0 );
+    make_gop_list( p, info, stream_info, video_stream_num, 0, sid_info, sid_info_num );
 }
 
 static void make_sample_gop_list
@@ -761,11 +890,13 @@ static void make_sample_gop_list
     param_t                    *p,
     void                       *info,
     stream_info_t              *stream_info,
-    uint8_t                     video_stream_num
+    uint8_t                     video_stream_num,
+    service_id_info_t          *sid_info,
+    int32_t                     sid_info_num
 )
 {
     if( !mpeg_api_create_sample_list( info ) )
-        make_gop_list( p, info, stream_info, video_stream_num, 1 );
+        make_gop_list( p, info, stream_info, video_stream_num, 1, sid_info, sid_info_num );
 }
 
 static void dump_va_info
@@ -2403,7 +2534,7 @@ static void parse_mpeg( param_t *p )
             void (*dump )( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num, uint8_t audio_stream_num );
             void (*demux)( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num, uint8_t audio_stream_num );
             void (*split)( param_t *p, void *info, uint8_t video_stream_num, uint8_t audio_stream_num, uint8_t caption_stream_num, uint8_t dsmcc_stream_num, service_id_info_t *sid_info, int32_t sid_info_num );
-            void (*index)( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num );
+            void (*index)( param_t *p, void *info, stream_info_t *stream_info, uint8_t video_stream_num, service_id_info_t *sid_info, int32_t sid_info_num );
         } output_func[USE_MAPI_TYPE_MAX] =
             {
                 { dump_stream_info, demux_stream_data     , split_stream_all, make_stream_gop_list },
@@ -2425,7 +2556,7 @@ static void parse_mpeg( param_t *p )
                 output_func[p->api_type].split( p, info, video_stream_num, audio_stream_num, caption_stream_num, dsmcc_stream_num, sid_info, sid_info_num );
                 break;
             case OUTPUT_MAKE_GOP_LIST :
-                output_func[p->api_type].index( p, info, stream_info, video_stream_num );
+                output_func[p->api_type].index( p, info, stream_info, video_stream_num, sid_info, sid_info_num );
                 break;
             default :
                 mapi_log( LOG_LV0, "[log] Specified output mode is invalid value...\n" );
