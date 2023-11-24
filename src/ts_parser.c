@@ -2285,7 +2285,7 @@ static void parse_mpeg( param_t *p )
             }
             /* check duplicate. */
             int32_t  active_sid_info_num = 0;
-            uint16_t pid_list[sid_info_num];
+            uint16_t pid_list[sid_info_num + 8];
             for( int32_t i = 0; i < sid_info_num; ++i )
             {
                 pid_list[i] = mpeg_api_get_program_id( info, SAMPLE_TYPE_VIDEO, 0, tmp_sid_info[i].service_id );
