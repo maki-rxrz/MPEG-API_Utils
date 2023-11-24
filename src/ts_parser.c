@@ -712,14 +712,14 @@ static void make_gop_list
         output_line( gop_list, "TS_CUT%s\n", TS_CUT_NO );
         output_line( gop_list, "\n" );
         /* main */
-        for( uint32_t j = 0; j < frm_limit; ++j )
+        for( uint32_t j = 0; j <= frm_limit; ++j )
         {
             int result = (api_type == 1)
                        ? mpeg_api_get_sample_info( info, SAMPLE_TYPE_VIDEO, i, j, stream_info )
                        : mpeg_api_get_video_frame( info, i, stream_info );
             if( result )
                 break;
-            if( stream_info->gop_number >= gop_limit )
+            if( stream_info->gop_number > gop_limit )
                 break;
             if( stream_info->gop_number < 0 )
                 continue;
