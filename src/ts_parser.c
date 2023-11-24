@@ -389,6 +389,11 @@ static int parse_commandline( int argc, char **argv, int index, param_t *p )
             }
             else
             {
+                if( p->service_id_list )
+                {
+                    free( p->service_id_list );
+                    p->service_id_list = NULL;
+                }
                 int base = (strncmp( argv[i], "0x", 2 )) ? 10 : 16;
                 p->service_id = (uint16_t)strtol( argv[i], NULL, base );
             }
